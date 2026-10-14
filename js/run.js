@@ -62,6 +62,10 @@ function nextRoom() {
   }
   room++;
   lroom++;
+  L.cleared = false;
+  // Each room after the first is its own area: fresh cover and ground, entered from the south
+  if (lroom > 1)
+    setupRoom();
   state = 'play';
   NET.phase = 'p';
   NET.menu = 0;
@@ -100,7 +104,38 @@ function nextRoom() {
     }
   if (lroom === L.rooms)
     spawn('hunter');
+  addGate(lroom <= L.rooms);
   banner(lroom > L.rooms ? 'BOSS: ' + (L.bn || ET[L.boss].bn) : L.n + ' - ROOM ' + lroom + '/' + L.rooms);
+  lock();
+}
+
+function setupRoom() {
+  clearHz();
+  drops.forEach(d => scene.remove(d.m));
+  drops = [];
+  L.lay = roomLayout(L, lroom);
+  L.seed = L.id + lroom;
+  buildLevel(L);
+  P.x = 0;
+  P.z = A * .64;
+  P.y = groundH(P.x, P.z);
+  P.vy = 0;
+  P.dash = 0;
+  yaw = 0;
+  pitch = 0;
+}
+
+// Room cleared and boon picked: the exit gate opens; walking through it starts the next room
+function openGate() {
+  NET.phase = 'g';
+  state = 'play';
+  ov.style.display = 'none';
+  ov.style.background = '';
+  ov.style.justifyContent = '';
+  setGateOpen();
+  music.set(1);
+  sfx.recharge();
+  banner('EXIT OPEN: HEAD NORTH');
   lock();
 }
 
@@ -143,7 +178,8 @@ function refillAmmo() {
 
 function startLevel(i) {
   clearHz();
-  L = LV[i];
+  // A copy, so the run's boss pick and per-room layout don't change the level table
+  L = Object.assign({}, LV[i], pickBoss(LV[i]), { lay0: LV[i].lay, seed: LV[i].id + 1 });
   lroom = 0;
   buildLevel(L);
   refillAmmo();

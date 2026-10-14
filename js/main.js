@@ -28,6 +28,15 @@ function update(dt) {
   P.x = clamp(P.x + (-sy * f + cy * s) / m * spd * dt, -A + 1, A - 1);
   P.z = clamp(P.z + (-cy * f - sy * s) / m * spd * dt, -A + 1, A - 1);
   // Thruster dash: sideways burst over 0.18s
+  // Grenadier (legendary): a grenade back every few seconds
+  if (P.nadeRegen) {
+    P.nrT = (P.nrT || 0) + dt;
+    if (P.nrT >= P.nadeRegen) {
+      P.nrT = 0;
+      if (P.nades < P.nadeMax)
+        P.nades++;
+    }
+  }
   P.tcd -= dt;
   if (P.dash > 0) {
     P.dash -= dt;
@@ -36,6 +45,20 @@ function update(dt) {
     P.z = clamp(P.z - sy * v, -A + 1, A - 1);
   }
   pushOut(P, .5);
+  // Exit gate: once it's open, walk into it to move on (in co-op the host takes everyone through)
+  if (gate && gate.open && state === 'play') {
+    gate.field.material.opacity = .3 + .2 * Math.sin(T * 5);
+    gate.chev.forEach((c, i) => c.material.opacity = .35 + .35 * Math.sin(T * 6 - i));
+    if (P.z < -IN + 3 && Math.abs(P.x) < 2.6 && !NET.down) {
+      if (NET.client)
+        NET.gt = room;
+      else {
+        gate.open = false;
+        nextRoom();
+        return;
+      }
+    }
+  }
   // Jump and gravity: P.y is the height of your feet; on hilly ground they follow the terrain
   P.vy -= 20 * dt;
   P.y += P.vy * dt;
@@ -68,7 +91,7 @@ function update(dt) {
       P.rch = 1;
       sfx.recharge();
     }
-    P.sh = Math.min(P.maxSh, P.sh + P.maxSh / 1.5 * dt);
+    P.sh = Math.min(P.maxSh, P.sh + P.maxSh / 1.5 * dt * (P.shRate || 1));
   }
   else
     P.rch = 0;
@@ -205,7 +228,8 @@ function update(dt) {
           kamiBoom(e);
       }
     }
-    else if (e.cd <= 0 && !panic) {
+    // Active Camo (legendary): they hold fire at you for 2s after a dash
+    else if (e.cd <= 0 && !panic && !(tg === P && P.camoT > T)) {
       for (let k = 0; k < e.burst; k++) {
         const a = Math.atan2(nx, nz) + (e.spread ? (k - (e.burst - 1) / 2) * .14 : R(-.06, .06));
         // Aim from the muzzle at the target's chest, allowing for hills between them
@@ -342,11 +366,12 @@ function update(dt) {
     bossDown();
     return;
   }
-  if (state === 'play' && !enemies.length)
+  if (state === 'play' && !enemies.length && !L.cleared)
     roomClear();
 }
 
 function roomClear() {
+  L.cleared = true;
   NET.phase = 'k';
   NET.menu = 0;
   state = 'pick';

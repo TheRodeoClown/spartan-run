@@ -580,7 +580,9 @@ function fire() {
   const w = wst();
   const o = cam.position;
   const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-  P.ammo--;
+  // Infinity Magazine (legendary): some shots are free
+  if (!(P.infMag && Math.random() < P.infMag))
+    P.ammo--;
   P.cd = w.rate;
   pitch += w.kick;
   gun.position.z = -.46;
@@ -694,6 +696,8 @@ function thrust() {
   P.dash = .18;
   P.dashDir = d;
   P.tcd = 2.5;
+  if (P.camo)
+    P.camoT = T + 2;
   sfx.dash();
   flashFx(cam.position.x, 1.2 + P.y, cam.position.z, .5, 0x8ce6ff);
 }
@@ -704,6 +708,7 @@ function melee() {
   const sw = P.wpn === 'sw' && P.ammo >= swingCost();
   P.mcd = sw ? .5 : .7;
   P.swing = sw ? .32 : .22;
+  P.lastMelee = T;
   if (sw)
     sfx.sword();
   else

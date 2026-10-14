@@ -58,7 +58,7 @@ function afterPick() {
     nextMission();
   }
   else
-    nextRoom();
+    openGate();
 }
 
 function dropW(s) {

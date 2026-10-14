@@ -5,28 +5,28 @@
 
 const LV = [
   {
-    id: 'ob', n: 'Outpost Delta', sub: 'UNSC firebase in a dusk canyon, the ring hanging in the sky.', rooms: 4, boss: 'zealot', mix: ['grunt', 'jackal', 'elite'],
+    id: 'ob', n: 'Outpost Delta', sub: 'UNSC firebase in a dusk canyon, the ring hanging in the sky.', rooms: 4, boss: 'zealot', bosses: ['zealot', 'shipmaster', 'deacon'], mix: ['grunt', 'jackal', 'elite'],
     fog: 0xb48c78, fogN: 40, fogF: 260, sky: [0x1b2f52, 0xe39a68, 0x4a3a32], hemi: [0xa8bcd8, 0x3a3028, .75], sun: [0xffc89a, .85, -6, 4, -10], trim: 0xd8b13a, sty: 'ob',
-    lay: [[-8, -6], [8, -6], [-8, 8], [8, 8], [0, 1], [0, -14]]
+    lay: [[-8, -6], [8, -6], [-8, 8], [8, 8], [0, 1], [-6, -15]]
   },
   {
-    id: 'cc', n: 'Covenant Cruiser', sub: 'Glossy violet halls, plasma light and a view of the ring.', rooms: 5, boss: 'warlord', mix: ['grunt', 'jackal', 'elite'],
+    id: 'cc', n: 'Covenant Cruiser', sub: 'Glossy violet halls, plasma light and a view of the ring.', rooms: 5, boss: 'warlord', bosses: ['warlord', 'shipmaster', 'skirmisher'], mix: ['grunt', 'jackal', 'elite'],
     fog: 0x140a22, fogN: 14, fogF: 85, hemi: [0x8a6ad0, 0x1a0f28, .6], sun: [0x9a7aff, .35, 5, 10, 3], trim: 0xb06bff, sty: 'cc',
     lay: [[-10, -2], [10, -2], [0, -9], [-5, 3], [5, 3], [-14, -12], [14, -12]]
   },
   {
-    id: 'fr', n: 'Forerunner Ring', sub: 'Silver monoliths on the grass of the ring itself.', rooms: 6, boss: 'warden', mix: ['jackal', 'elite', 'grunt'],
+    id: 'fr', n: 'Forerunner Ring', sub: 'Silver monoliths on the grass of the ring itself.', rooms: 6, boss: 'warden', bosses: ['warden', 'ironclad', 'skirmisher'], mix: ['jackal', 'elite', 'grunt'],
     fog: 0xc4dae6, fogN: 45, fogF: 280, sky: [0x2f6fc9, 0xd7e8f2, 0x9fb0a0], hemi: [0xd8ecff, 0x4f6a3a, .85], sun: [0xfff4dc, .9, 6, 10, 4], trim: 0x5ff0ff, sty: 'fr',
     lay: [[-6, -8], [6, -8], [-12, 0], [12, 0], [0, -2], [-6, 6], [6, 6]]
   },
   // bossN: how many copies of the boss spawn; bn: display name for the group
   {
-    id: 'ds', n: 'Tsavo Wastes', sub: 'Sun-bleached dunes, Forerunner ruins and a downed Pelican.', rooms: 4, boss: 'bonded', bossN: 2, bn: 'Bonded Hunters', mix: ['grunt', 'jackal', 'elite'],
+    id: 'ds', n: 'Tsavo Wastes', sub: 'Sun-bleached dunes, Forerunner ruins and a downed Pelican.', rooms: 4, boss: 'bonded', bossN: 2, bn: 'Bonded Hunters', bosses: [{ boss: 'bonded', bossN: 2, bn: 'Bonded Hunters' }, 'deacon', 'ironclad'], mix: ['grunt', 'jackal', 'elite'],
     fog: 0xd9b98a, fogN: 40, fogF: 260, sky: [0x4f8fd0, 0xf0d6a8, 0xb08860], hemi: [0xffe8cc, 0x6a5030, .55], sun: [0xfff0d0, .7, 4, 12, 6], trim: 0xff9a3a, sty: 'ds',
-    lay: [[-9, -4], [9, -4], [0, -11], [-4, 5], [4, 5], [-14, 8], [14, 8]]
+    lay: [[-9, -4], [9, -4], [6, -12], [-4, 5], [4, 5], [-14, 8], [14, 8]]
   },
   {
-    id: 'sn', n: 'Glacier Relay', sub: 'A Forerunner relay buried in ice, deep in a blizzard.', rooms: 5, boss: 'blademaster', mix: ['jackal', 'grunt', 'elite'],
+    id: 'sn', n: 'Glacier Relay', sub: 'A Forerunner relay buried in ice, deep in a blizzard.', rooms: 5, boss: 'blademaster', bosses: ['blademaster', 'skirmisher', 'shipmaster'], mix: ['jackal', 'grunt', 'elite'],
     fog: 0xc8d6e2, fogN: 18, fogF: 120, sky: [0x7d93ab, 0xd4dee8, 0xc0ccd8], hemi: [0xdde8f5, 0x8090a0, .9], sun: [0xe8f0ff, .6, -4, 8, 5], trim: 0x6fd0ff, sty: 'sn',
     lay: [[-7, -9], [7, -9], [-12, 2], [12, 2], [0, 0], [-5, 8], [5, 8]]
   }
@@ -418,6 +418,7 @@ function buildLevel(lv, empty) {
   setArena(lv.A || 30, lv.cut || Math.round(9 * K * 10) / 10);
   groundFn = null;
   floor.visible = true;
+  gate = null;
   while (envG.children.length)
     envG.remove(envG.children[0]);
   pillars.length = 0;
@@ -936,7 +937,7 @@ const smooth01 = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
 function missionGround(lv, lay) {
   const cfg = OUTDOOR[lv.sty];
   let sd = 7;
-  for (const c of lv.id)
+  for (const c of String(lv.seed || lv.id))
     sd = (sd * 31 + c.charCodeAt(0)) % 2147483647;
   const rnd = () => (sd = sd * 16807 % 2147483647) / 2147483647;
   // [x, z, height, radius] round hills, placed outside the flat centre
@@ -1059,4 +1060,78 @@ function scatterProps(lv, lay, add) {
   }
 }
 
-buildLevel(LV[0], true);
+/* ---------- Rooms and bosses ----------
+   A mission is a run of separate rooms: each has its own cover layout and ground (deterministic from the level and
+   room number, so co-op players match), you enter from the south and leave through the exit gate on the north wall.
+   The first room and the boss arena use the level's hand-made layout. */
+
+// The mission's boss for this run, from the level's pool (an entry is a boss key, or { boss, bossN, bn } for a group)
+function pickBoss(lv) {
+  const pool = lv.bosses || [lv.boss];
+  const b = pool[Math.random() * pool.length | 0];
+  return typeof b === 'string' ? { boss: b, bossN: 1, bn: undefined } : { boss: b.boss, bossN: b.bossN || 1, bn: b.bn };
+}
+
+// Cover positions for room lr, in the 22m layout units buildLevel scales by K
+function roomLayout(lv, lr) {
+  const base = lv.lay0 || lv.lay;
+  if (lr <= 1 || lr > lv.rooms)
+    return base;
+  let sd = 11 + lr * 977;
+  for (const c of lv.id)
+    sd = (sd * 31 + c.charCodeAt(0)) % 2147483647;
+  const rnd = () => (sd = sd * 16807 % 2147483647) / 2147483647;
+  const n = 6 + (rnd() * 4 | 0);
+  const out = [];
+  for (let t = 0; out.length < n && t < 300; t++) {
+    const x = Math.round((rnd() * 2 - 1) * 16);
+    const z = Math.round((rnd() * 2 - 1) * 16);
+    // inside the octagon, clear of your entry point, the exit lane and each other
+    if (Math.abs(x) + Math.abs(z) > 22 || Math.hypot(x, z - 14) < 4.5 || (Math.abs(x) < 3.5 && z < -11) || out.some(([a, b]) => Math.hypot(a - x, b - z) < 5))
+      continue;
+    out.push([x, z]);
+  }
+  return out;
+}
+
+// Exit gate on the north wall: a red energy field while the room is live, green once you can leave
+let gate = null;
+function addGate(on) {
+  gate = null;
+  if (!on)
+    return;
+  const g = new THREE.Group();
+  const dark = mat('gateFrame', () => new THREE.MeshPhongMaterial({ color: 0x30363d, shininess: 40, specular: 0x556070 }));
+  [-2.4, 2.4].forEach(x => {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(.6, 4.4, .8), dark);
+    p.position.set(x, 2.2, 0);
+    g.add(p);
+  });
+  const top = new THREE.Mesh(new THREE.BoxGeometry(5.4, .6, .8), dark);
+  top.position.y = 4.4;
+  g.add(top);
+  const field = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.1), new THREE.MeshBasicMaterial({ color: 0xff4030, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }));
+  field.position.y = 2.05;
+  g.add(field);
+  // chevrons on the ground pointing at the gate, lit once it opens
+  const chev = [];
+  for (let i = 0; i < 3; i++) {
+    const c = new THREE.Mesh(new THREE.RingGeometry(.5, .8, 3, 1, Math.PI / 2 - 1, 2), new THREE.MeshBasicMaterial({ color: 0x40ffa0, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+    c.rotation.x = -Math.PI / 2;
+    c.position.set(0, groundH(0, -IN + 3 + i * 1.6) + .06, 3 + i * 1.6);
+    g.add(c);
+    chev.push(c);
+  }
+  g.position.set(0, 0, -IN + .5);
+  envG.add(g);
+  gate = { g, field, chev, open: false };
+}
+
+function setGateOpen() {
+  if (!gate)
+    return;
+  gate.open = true;
+  gate.field.material.color.setHex(0x40ffa0);
+}
+
+

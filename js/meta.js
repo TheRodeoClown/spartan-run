@@ -82,6 +82,24 @@ const LEG = [
       p.meleeMul *= 3;
       setW(p, 'sw');
     }
+  },
+  { n: 'Infinity Magazine', d: 'LEGENDARY: 25% of your shots cost no ammo', f: p => p.infMag = .25 },
+  { n: 'Bubble Shield', d: 'LEGENDARY: when your shield breaks, take no damage for 2s (every 20s)', f: p => p.bubble = 1 },
+  { n: 'Vampire Rounds', d: 'LEGENDARY: every kill restores 8 health', f: p => p.vamp = 8 },
+  { n: 'Chain Reaction', d: 'LEGENDARY: enemies you kill have a 35% chance to explode', f: p => p.chain = .35 },
+  { n: 'Active Camo', d: 'LEGENDARY: after a thruster dash, enemies hold their fire for 2s', f: p => p.camo = 1 },
+  {
+    n: 'Overcharged Shields', d: 'LEGENDARY: shields recharge twice as fast and start 1s sooner', f: p => {
+      p.shRate = 2;
+      p.shDelay = Math.max(.6, p.shDelay - 1);
+    }
+  },
+  { n: 'Grenadier', d: 'LEGENDARY: regain a grenade every 8 seconds', f: p => p.nadeRegen = 8 },
+  {
+    n: 'Spartan Charge', d: 'LEGENDARY: melee x2, and melee kills fully restore your shield', f: p => {
+      p.meleeMul *= 2;
+      p.mkShield = 1;
+    }
   }
 ];
 

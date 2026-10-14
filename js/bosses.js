@@ -12,7 +12,11 @@ const BOSSKIT = {
   warden: { moves: ['beam', 'rain'], sum: ['elite', 'jackal', 'jackal'], col: 0x40ffe8 },
   // every: seconds between summons (default 14); the Bonded Hunters are a pair, so each summons less often
   bonded: { moves: ['slam', 'charge'], sum: ['kgrunt', 'jackal'], col: 0x7dff6a, every: 20 },
-  blademaster: { moves: ['cloak', 'spin', 'lunge'], sum: ['selite', 'jackal'], col: 0xbfe8ff }
+  blademaster: { moves: ['cloak', 'spin', 'lunge'], sum: ['selite', 'jackal'], col: 0xbfe8ff },
+  shipmaster: { moves: ['mortar', 'lunge', 'volley'], sum: ['elite', 'grunt', 'grunt'], col: 0xc890ff },
+  skirmisher: { moves: ['snipe', 'volley', 'lunge'], sum: ['jackal', 'jackal', 'kgrunt'], col: 0xff8a4a },
+  deacon: { moves: ['mortar', 'nades'], sum: ['kgrunt', 'kgrunt', 'grunt', 'grunt'], col: 0x9fe8ff, every: 12 },
+  ironclad: { moves: ['slam', 'mortar', 'charge'], sum: ['kgrunt', 'jackal'], col: 0x8ff6ff }
 };
 let hz = [];
 
@@ -353,6 +357,100 @@ const MOVES = {
         }
       });
     });
+  },
+  // Shipmaster / Deacon / Ironclad: four plasma mortars drop out of the sky on marked circles, one on you
+  mortar(e) {
+    const tg = netTarget(e);
+    const col = BOSSKIT[e.t].col;
+    sfx.throw();
+    for (let i = 0; i < 4; i++) {
+      const tx = clamp(tg.x + (i ? R(-6, 6) : 0), -A + 2, A - 2);
+      const tz = clamp(tg.z + (i ? R(-6, 6) : 0), -A + 2, A - 2);
+      const gy = groundH(tx, tz);
+      const orb = gm(new THREE.SphereGeometry(.4, 10, 8), col, 1);
+      const ring = ringAt(tx, tz, 3.5, 3.8, col, 0);
+      scene.add(orb);
+      let t = -i * .25;
+      hz.push({
+        ms: [orb, ring], upd(dt) {
+          t += dt;
+          if (t < 0)
+            return true;
+          ring.material.opacity = .25 + .35 * Math.abs(Math.sin(t * 8));
+          orb.position.set(tx, gy + Math.max(0, 30 * (1 - t / 1.4)), tz);
+          if (t < 1.4)
+            return true;
+          explode(tx, gy + .3, tz, 3.8, 0, 26, 'n', true);
+          return false;
+        }
+      });
+    }
+  },
+  // Skirmisher: a red laser sight tracks you, then locks for a moment and fires. Break line of sight or sidestep.
+  snipe(e) {
+    const tg = netTarget(e);
+    e.busy = 1;
+    let t = 0;
+    let ax = tg.x;
+    let az = tg.z;
+    let fired = false;
+    const line = gm(new THREE.BoxGeometry(.04, .04, 1), 0xff3030, .7);
+    line.geometry.translate(0, 0, .5);
+    scene.add(line);
+    sfx.recharge();
+    hz.push({
+      ms: [line], upd(dt) {
+        if (e.dead) {
+          e.busy = 0;
+          return false;
+        }
+        t += dt;
+        // Follows you quickly at first, then barely moves just before the shot
+        const k = Math.min(1, dt * (t < .8 ? 5 : 1.2));
+        ax += (tg.x - ax) * k;
+        az += (tg.z - az) * k;
+        const oy = (e.y || 0) + 1.6 * e.sc;
+        const ty = (tg.y || 0) + 1.3;
+        line.position.set(e.x, oy, e.z);
+        line.lookAt(ax, ty, az);
+        line.scale.set(1, 1, Math.hypot(ax - e.x, ty - oy, az - e.z) || 1);
+        e.flash = .05;
+        if (t < 1.1)
+          return true;
+        if (!fired) {
+          fired = true;
+          line.material.color.setHex(0xffffff);
+          line.scale.x = line.scale.y = 3;
+          sfx.shot('sn');
+          const o = new THREE.Vector3(e.x, oy, e.z);
+          const dir = new THREE.Vector3(ax - e.x, ty - oy, az - e.z).normalize();
+          if (Math.hypot(tg.x - ax, tg.z - az) < 1.1 && wallT(o, dir) > Math.hypot(tg.x - e.x, tg.z - e.z) - 1)
+            hitP(tg, 40);
+        }
+        line.material.opacity = Math.max(0, 1 - (t - 1.1) * 6);
+        if (t < 1.3)
+          return true;
+        e.busy = 0;
+        return false;
+      }
+    });
+  },
+  // Skirmisher / Shipmaster: a fan of nine homing needles
+  volley(e) {
+    const tg = netTarget(e);
+    const base = Math.atan2(tg.x - e.x, tg.z - e.z);
+    const oy = (e.y || 0) + 1.4 * e.sc;
+    const d = Math.hypot(tg.x - e.x, tg.z - e.z) || 1;
+    for (let k = 0; k < 9; k++) {
+      const a = base + (k - 4) * .12;
+      const dir = new THREE.Vector3(Math.sin(a), ((tg.y || 0) + 1.3 - oy) / d, Math.cos(a)).normalize();
+      const mm = new THREE.Mesh(new THREE.BoxGeometry(.07, .07, .45), new THREE.MeshBasicMaterial({ color: BOSSKIT[e.t].col }));
+      mm.position.set(e.x, oy, e.z);
+      mm.lookAt(mm.position.clone().add(dir));
+      scene.add(mm);
+      shots.push({ m: mm, v: dir.multiplyScalar(18), dmg: 7, life: 4, home: 1.6, tg });
+    }
+    sfx.needleE(d);
   }
 };
 

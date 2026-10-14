@@ -17,13 +17,21 @@ const ET = {
   warlord: { model: 'hunter', tint: 0x8a2a2a, bn: 'Hunter Warlord', hp: 650, sh: 0, sp: 3.2, sc: 2.3, col: 0xff5a3a, fr: 2, bs: 17, bd: 17, burst: 5, spread: 1, armor: .5, pref: 9 },
   bonded: { model: 'hunter', tint: 0x2f6f8f, bn: 'Bonded Hunter', hp: 420, sh: 0, sp: 3.4, sc: 2.1, col: 0x7dff6a, fr: 2.2, bs: 17, bd: 15, burst: 3, spread: 1, armor: .45, pref: 9 },
   blademaster: { model: 'selite', tint: 0xd8dde6, bn: 'Blademaster', hp: 300, sh: 260, sp: 6, sc: 1.7, col: 0x6fd0ff, fr: 1.2, bs: 0, bd: 30, burst: 0, pref: 0, melee: 1, armor: .25 },
-  warden: { model: 'elite', tint: 0x30c8c0, bn: 'Forerunner Warden', hp: 450, sh: 300, sp: 4.4, sc: 2.2, col: 0x40ffe8, fr: 1.1, bs: 22, bd: 14, burst: 5, spread: 1, pref: 12, sum: 1, armor: .25 }
+  warden: { model: 'elite', tint: 0x30c8c0, bn: 'Forerunner Warden', hp: 450, sh: 300, sp: 4.4, sc: 2.2, col: 0x40ffe8, fr: 1.1, bs: 22, bd: 14, burst: 5, spread: 1, pref: 12, sum: 1, armor: .25 },
+  // More bosses (each mission picks one from its pool each run; see LV bosses in levels.js)
+  shipmaster: { model: 'elite', tint: 0x7a3fb0, bn: 'Shipmaster', hp: 320, sh: 300, sp: 4.8, sc: 2, col: 0xc890ff, fr: 1.2, bs: 24, bd: 14, burst: 4, spread: 1, pref: 12, sum: 1, armor: .25 },
+  skirmisher: { model: 'jackal', tint: 0x8a4a2a, bn: 'Skirmisher Alpha', hp: 260, sh: 220, sp: 6.5, sc: 1.8, col: 0xff8a4a, fr: 1.1, bs: 24, bd: 9, burst: 3, pref: 16, needle: 1, armor: .2 },
+  deacon: { model: 'grunt', tint: 0xd8b040, bn: 'Grunt Deacon', hp: 380, sh: 140, sp: 3.6, sc: 2.2, col: 0x9fe8ff, fr: 1.4, bs: 20, bd: 12, burst: 5, spread: 1, pref: 12, armor: .3 },
+  ironclad: { model: 'hunter', tint: 0x6a7480, bn: 'Ironclad Hunter', hp: 720, sh: 0, sp: 3, sc: 2.4, col: 0x8ff6ff, fr: 2.1, bs: 18, bd: 18, burst: 3, spread: 1, armor: .5, pref: 10 }
 };
 // Boss weak points [x, y, z, radius] in model space (scaled with the boss). Elites: helmet gem + back power core.
 // Hunters: exposed orange core in the stomach and on the back. A hit deals CRIT_MUL and ignores armor.
 const CRITS = {
   elite: { col: 0xffe066, pts: [[0, 1.78, .38, .15], [0, 1.2, -.32, .2]] },
-  hunter: { col: 0xff7a2a, pts: [[0, 1.12, .4, .18], [0, 1.15, -.6, .2]] }
+  hunter: { col: 0xff7a2a, pts: [[0, 1.12, .4, .18], [0, 1.15, -.6, .2]] },
+  // Jackal: head and the back of the harness; Grunt: breather mask and methane tank
+  jackal: { col: 0xffa050, pts: [[0, 1.7, .28, .13], [0, 1.15, -.22, .16]] },
+  grunt: { col: 0x7fe0ff, pts: [[0, 1.36, .42, .14], [0, 1.15, -.45, .2]] }
 };
 const CRIT_MUL = 2.5;
 const BOONS = [

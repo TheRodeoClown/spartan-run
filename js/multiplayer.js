@@ -341,6 +341,7 @@ function netRead(r, q) {
   r.fx = Array.isArray(q.fx) ? q.fx.slice(0, 4) : [];
   r.ex = Array.isArray(q.ex) ? q.ex.slice(0, 4) : [];
   r.cl = Array.isArray(q.cl) ? q.cl.slice(0, 10).map(Number) : [];
+  r.gt = n(q.gt, 0);
   if (r.isNew) {
     // First sight: whatever it reported before now is history
     r.isNew = 0;
@@ -467,7 +468,7 @@ function netWorld() {
     Object.assign(w, { win: NET.win || '', tl: Math.max(0, Math.ceil(NET.mt)), pw: NET.pw.map(q => [q.id, q.k, q.x, q.z]) });
   else if (NET.started)
     Object.assign(w, {
-      lv: L ? L.id : '', rm: room, lr: lroom, bt: Math.round(bossTotal), out: NET.out,
+      lv: L ? L.id : '', rm: room, lr: lroom, bk: L ? L.boss : '', bN: L ? L.bossN || 1 : 1, bnm: L && L.bn || '', bt: Math.round(bossTotal), out: NET.out,
       // [id, type, x, z, facing, hp, shield, flags (1 flash, 2 primed, 4 invulnerable, 8 cloaked), sword angle]
       en: enemies.filter(e => !e.dead && !e.net).slice(0, 40).map(e => {
         const a = [e.id, ETK.indexOf(e.t), r1(e.x), r1(e.z), r2(e.g.rotation.y), Math.round(e.hp), Math.round(e.sh), (e.flash > 0 ? 1 : 0) | (e.kf > 0 ? 2 : 0) | (e.inv > T ? 4 : 0) | (e.g.visible ? 0 : 8)];
@@ -494,8 +495,11 @@ function netHostDamage() {
       return;
     const e = enemies.find(o => o.id === +m[1] && !o.dead);
     // Armor was already applied by the shooter, so it goes in as a "crit" (armor-free) hit
-    if (e)
+    if (e) {
+      NET.applying = 1;
       dmgE(e, v - pv, true, m[2]);
+      NET.applying = 0;
+    }
   }));
 }
 
@@ -503,6 +507,12 @@ function coopHost(dt) {
   if (!NET.started || state !== 'play')
     return;
   netHostDamage();
+  // A guest walked into the open exit gate: everyone moves on
+  if (gate && gate.open && Object.values(NET.rp).some(r => r.gt === room)) {
+    gate.open = false;
+    nextRoom();
+    return;
+  }
   if (NET.down && !netRemotes().length) {
     NET.phase = 'o';
     netOver();
@@ -519,7 +529,7 @@ function netHostIdle(dt) {
     if (NET.next === 'm')
       nextMission();
     else
-      nextRoom();
+      openGate();
   }
 }
 
@@ -683,18 +693,27 @@ function clientEnter(w) {
     return;
   netClearGhosts();
   clearHz();
-  if (!L || L.id !== lv.id) {
-    L = lv;
+  // Every room is rebuilt the same way the host built it (same layout and ground from the level and room number)
+  const newMission = !L || L.id !== lv.id;
+  if (newMission || +w.lr !== lroom) {
+    L = Object.assign({}, lv, { boss: ET[w.bk] && ET[w.bk].bn ? w.bk : lv.boss, bossN: +w.bN || 1, bn: w.bnm ? String(w.bnm).slice(0, 40) : undefined, lay0: lv.lay });
+    lroom = +w.lr;
+    L.lay = roomLayout(L, lroom);
+    L.seed = L.id + lroom;
     buildLevel(L);
-    refillAmmo();
+    if (newMission)
+      refillAmmo();
     P.x = R(-3, 3);
     P.z = A * .64;
-    P.y = 0;
+    P.y = groundH(P.x, P.z);
     P.vy = 0;
     P.dash = 0;
     yaw = 0;
     pitch = 0;
   }
+  addGate(lroom <= L.rooms);
+  L.cleared = false;
+  NET.gt = 0;
   room = +w.rm;
   lroom = +w.lr;
   state = 'play';
@@ -744,11 +763,25 @@ function coopClient(w, dt) {
   // Ghosts first, so kills in the room's final update still count
   if (state === 'play')
     netGhosts(w, dt);
-  if (w.s === 'p' && (+w.rm !== room || !L || L.id !== w.lv))
+  if ((w.s === 'p' || w.s === 'g') && (+w.rm !== room || !L || L.id !== w.lv)) {
     clientEnter(w);
+    // Joined while the exit was already open
+    if (w.s === 'g') {
+      L.cleared = true;
+      setGateOpen();
+    }
+  }
   else if (w.s === 'k' && state === 'play' && +w.rm === room) {
     netClearGhosts();
     roomClear();
+  }
+  else if (w.s === 'g' && state === 'wait' && +w.rm === room) {
+    // The host opened the exit: back into the cleared room, the gate is open
+    state = 'play';
+    ov.style.display = 'none';
+    setGateOpen();
+    banner('EXIT OPEN: HEAD NORTH');
+    lock();
   }
   else if (w.s === 'L' && state === 'play' && +w.rm === room) {
     netClearGhosts();
@@ -1723,7 +1756,7 @@ function netSend(dt) {
       }
     });
   if (live)
-    Object.assign(p, { cl: NET.mycl, x: r1(P.x), y: r1(P.y), z: r1(P.z), yw: r2(yaw), hp: Math.round(P.hp), sh: Math.round(P.sh), w: P.wpn, dn: NET.down ? 1 : 0, fx: NET.fxl, ex: NET.exl, cm: NET.cm, kl: NET.kl });
+    Object.assign(p, { gt: NET.gt || 0, cl: NET.mycl, x: r1(P.x), y: r1(P.y), z: r1(P.z), yw: r2(yaw), hp: Math.round(P.hp), sh: Math.round(P.sh), w: P.wpn, dn: NET.down ? 1 : 0, fx: NET.fxl, ex: NET.exl, cm: NET.cm, kl: NET.kl });
   const o = { p };
   if (NET.host)
     o.w = NET.w;

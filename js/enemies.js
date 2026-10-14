@@ -294,7 +294,7 @@ function spawn(t, px, pz) {
   // Bosses get glowing weak points (a solid core plus a pulsing halo) attached to the model
   let crits = null;
   if (d.bn) {
-    const C = CRITS[(d.model || t) === 'hunter' ? 'hunter' : 'elite'];
+    const C = CRITS[d.model || t] || CRITS.elite;
     crits = C.pts.map(([cx, cy, cz, r]) => {
       const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), new THREE.MeshBasicMaterial({ color: C.col }));
       const h = new THREE.Mesh(new THREE.SphereGeometry(r * 1.7, 12, 10), new THREE.MeshBasicMaterial({ color: C.col, transparent: true, opacity: .35, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -308,7 +308,7 @@ function spawn(t, px, pz) {
 }
 
 function hurt(d) {
-  if (state !== 'play' || NET.down)
+  if (state !== 'play' || NET.down || P.bubT > T)
     return;
   P.last = T;
   vig = .7;
@@ -319,7 +319,15 @@ function hurt(d) {
   if (P.sh > 0) {
     P.sh -= d;
     if (P.sh <= 0) {
-      P.hp += P.sh;
+      // Bubble Shield (legendary): the hit that breaks your shield doesn't carry into health, and you're safe for 2s
+      if (P.bubble && T > (P.bubCd || 0)) {
+        P.bubCd = T + 20;
+        P.bubT = T + 2;
+        banner('BUBBLE SHIELD');
+        flashFx(P.x, P.y + 1.2, P.z, 2, 0x7fd8ff);
+      }
+      else
+        P.hp += P.sh;
       P.sh = 0;
       // EMP Discharge boon: shield break strips nearby enemy shields
       if (P.emp && T > (P.empT || 0)) {
@@ -450,6 +458,15 @@ function dmgE(e, d, crit, ty) {
     scene.remove(e.g);
     if (P.adr)
       P.adrT = 3;
+    // Legendary kill effects (not for kills the co-op host applies on a guest's behalf)
+    if (!NET.applying) {
+      if (P.vamp)
+        P.hp = Math.min(P.maxHp, P.hp + P.vamp);
+      if (P.mkShield && P.lastMelee > T - .1)
+        P.sh = P.maxSh;
+      if (P.chain && !e.kami && Math.random() < P.chain)
+        explode(e.x, (e.y || 0) + 1, e.z, 3.5, 40 * dmgMul(), 0, 'k');
+    }
     if (e.kami)
       kamiBoom(e);
     // Bonded bosses: losing one enrages the survivor
