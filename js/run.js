@@ -40,15 +40,18 @@ function newRun(leg, noStart) {
   yaw = 0;
   pitch = 0;
   P = { x: 0, z: A * .64, hp: 40, maxHp: 40, sh: 60, maxSh: 60, shDelay: 3, last: -99, speed: 6, dmg: 8, rate: .09, cd: 0, magMax: 32, ammo: 32, reload: 0, wpn: 'ar', slots: ['ar', null], sa: [32, 0], sr: [W.ar.rs, 0], cur: 0, mb: 0,reloadT: 1.3, nades: 2, nadeMax: 3, nadeMul: 1, mcd: 0, meleeMul: 1, boons: [], done: [], cr: 0, revive: 0, y: 0, vy: 0, thrust: true, tcd: 0, dash: 0, dashDir: 0 };
-  UPS.forEach(x => {
-    const l = S.ups[x.id] || 0;
-    if (l)
-      x.f(P, l);
-  });
-  if (S.sel && S.own[S.sel]) {
-    P.slots[1] = S.sel;
-    P.sa[1] = W[S.sel].mag;
-    P.sr[1] = W[S.sel].rs;
+  // Armory upgrades and your starting sidearm are for solo runs only: multiplayer starts everyone equal
+  if (!NET.mode) {
+    UPS.forEach(x => {
+      const l = S.ups[x.id] || 0;
+      if (l)
+        x.f(P, l);
+    });
+    if (S.sel && S.own[S.sel]) {
+      P.slots[1] = S.sel;
+      P.sa[1] = W[S.sel].mag;
+      P.sr[1] = W[S.sel].rs;
+    }
   }
   setGun('ar');
   if (!noStart)

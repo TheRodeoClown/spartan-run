@@ -141,53 +141,118 @@ const SWING_COST = 10;
 // Sword energy per swing (halved by the Prophet's Bane variant)
 const swingCost = () => P && P.vr && P.vr.sw ? SWING_COST / 2 : SWING_COST;
 
-// Energy Sword model (player and Sword Elites): ribbed hilt, guard with glowing vents, and two curved
-// plasma blades made of a white-hot core plus two additive glow layers. Blades point along -z.
+// Energy Sword model (player and Sword Elites), after the Covenant blade: an armoured hilt with a wide emitter housing,
+// and from each end a long crescent of plasma that flares outward, then sweeps back in to a forward point, plus a short
+// rear prong. Each blade is a white-hot core inside two additive glow layers. Blades point along -z.
 function makeSword() {
   const h = new THREE.Group();
   const blades = new THREE.Group();
-  const dark = new THREE.MeshPhongMaterial({ color: 0x2a2e38, shininess: 80, specular: 0x6688aa });
-  const trim = new THREE.MeshPhongMaterial({ color: 0x8a93a8, shininess: 100, specular: 0xffffff });
-  const vent = new THREE.MeshBasicMaterial({ color: 0x7fe0ff });
-  const core = new THREE.MeshBasicMaterial({ color: 0xf2fdff, side: THREE.DoubleSide });
+  const dark = new THREE.MeshPhongMaterial({ color: 0x2b2f3d, shininess: 90, specular: 0x7a88aa });
+  const plate = new THREE.MeshPhongMaterial({ color: 0x5d6578, shininess: 110, specular: 0xffffff });
+  const vent = new THREE.MeshBasicMaterial({ color: 0x8fe8ff });
+  const core = new THREE.MeshBasicMaterial({ color: 0xf4feff, side: THREE.DoubleSide });
   const gl = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-  const g1 = gl(0x6fd0ff, .55);
+  const g1 = gl(0x6fd8ff, .55);
   const g2 = gl(0x2a7dff, .25);
-  const add = (geo, m, x, y, z) => {
+  const add = (geo, m, x, y, z, rx, ry, rz) => {
     const o = new THREE.Mesh(geo, m);
     o.position.set(x, y, z);
+    o.rotation.set(rx || 0, ry || 0, rz || 0);
     h.add(o);
     return o;
   };
-  add(new THREE.CylinderGeometry(.022, .026, .2, 10), dark, 0, 0, .06).rotation.x = Math.PI / 2;
-  [0, .04, .08, .12].forEach(z => add(new THREE.TorusGeometry(.026, .006, 6, 12), trim, 0, 0, z));
-  add(new THREE.SphereGeometry(.03, 10, 8), trim, 0, 0, .17);
-  add(new THREE.BoxGeometry(.2, .035, .06), dark, 0, 0, -.06);
+  // grip (held in the fist), wrapped in raised bands, with a pommel
+  add(new THREE.CylinderGeometry(.021, .024, .17, 10), dark, 0, -.012, .07, Math.PI / 2);
+  [.02, .055, .09, .125].forEach(z => add(new THREE.TorusGeometry(.025, .005, 6, 14), plate, 0, -.012, z));
+  add(new THREE.SphereGeometry(.028, 10, 8), plate, 0, -.012, .16);
+  // emitter housing: a wide, shallow armoured shell across the front of the grip
+  const shell = add(new THREE.SphereGeometry(.07, 14, 10), dark, 0, 0, -.03);
+  shell.scale.set(2.4, .42, .9);
+  add(new THREE.BoxGeometry(.24, .016, .05), plate, 0, .022, -.03);
   [-1, 1].forEach(s => {
-    add(new THREE.BoxGeometry(.05, .04, .08), trim, s * .09, 0, -.07).rotation.y = s * .4;
-    add(new THREE.BoxGeometry(.04, .01, .03), vent, s * .07, .02, -.06);
+    // housing arms reaching out to the emitters, the emitters themselves, and their glowing vents
+    add(new THREE.BoxGeometry(.07, .03, .05), dark, s * .13, 0, -.05, 0, s * .5);
+    add(new THREE.SphereGeometry(.024, 10, 8), plate, s * .158, 0, -.07);
+    add(new THREE.BoxGeometry(.05, .008, .016), vent, s * .1, .028, -.03, 0, s * .25);
+    add(new THREE.BoxGeometry(.012, .012, .012), vent, s * .158, .012, -.088);
   });
+  // blade outline for the right-hand blade (x outward, y forward): flares out, then curves in to the point
   const sh = new THREE.Shape();
   sh.moveTo(0, 0);
-  sh.lineTo(.035, 0);
-  sh.quadraticCurveTo(.1, .36, .012, .78);
-  sh.quadraticCurveTo(.045, .36, 0, 0);
-  const geo = new THREE.ShapeGeometry(sh, 12);
+  sh.lineTo(.05, 0);
+  sh.bezierCurveTo(.14, .2, .14, .62, .03, 1);
+  sh.bezierCurveTo(.075, .6, .055, .22, 0, 0);
+  const geo = new THREE.ShapeGeometry(sh, 16);
+  // short rear prong
+  const rp = new THREE.Shape();
+  rp.moveTo(0, 0);
+  rp.lineTo(.04, 0);
+  rp.quadraticCurveTo(.07, -.12, .05, -.2);
+  rp.quadraticCurveTo(.03, -.1, 0, 0);
+  const rgeo = new THREE.ShapeGeometry(rp, 8);
   [-1, 1].forEach(s => {
     const b = new THREE.Group();
-    b.position.set(s * .075, 0, -.08);
+    b.position.set(s * .15, 0, -.085);
     b.rotation.x = -Math.PI / 2;
     b.scale.x = s;
     blades.add(b);
-    [[core, 1, 1], [g1, 1.6, 1.06], [g2, 2.6, 1.12]].forEach(([m, wx, ly]) => {
+    [[core, 1, 1], [g1, 1.7, 1.05], [g2, 2.8, 1.1]].forEach(([m, wx, ly]) => {
       const o = new THREE.Mesh(geo, m);
       o.scale.set(wx, ly, 1);
-      o.position.x = -.0175 * (wx - 1);
+      o.position.x = -.025 * (wx - 1);
       b.add(o);
+      const r = new THREE.Mesh(rgeo, m);
+      r.scale.set(wx, ly, 1);
+      r.position.set(-.02 * (wx - 1), .05, 0);
+      b.add(r);
     });
   });
   h.add(blades);
   return { h, blades, g1, g2 };
+}
+
+// Sword slash trail: a glowing arc that sweeps right to left across your view during the swing (attached to the
+// camera), a bright core inside a wide cyan glow, trailing behind the blade and fading out.
+let swTrail = null;
+function swordTrail() {
+  if (swTrail)
+    cam.remove(swTrail.grp);
+  const grp = new THREE.Group();
+  grp.position.set(0, -.42, -.35);
+  grp.rotation.z = -.55;
+  const mk = (c, o) => {
+    const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.rotation.x = -Math.PI / 2 + 1.05;
+    grp.add(m);
+    return m;
+  };
+  swTrail = { grp, glow: mk(0x5fd0ff, .5), core: mk(0xeafcff, .9), t: 0 };
+  cam.add(grp);
+}
+
+// Called every frame from animGun: grow the arc behind the sweeping blade, then fade it
+function updTrail(dt) {
+  const s = swTrail;
+  if (!s)
+    return;
+  s.t += dt;
+  const sweep = Math.max(0, Math.min(1, (s.t - .05) / .2));
+  const ease = 1 - Math.pow(1 - sweep, 3);
+  const a0 = .35;
+  const lead = a0 + ease * 2.45;
+  const tail = Math.max(a0, lead - 1.3);
+  const fade = Math.max(0, 1 - Math.max(0, s.t - .25) / .15);
+  [[s.glow, .62, 1.05, .32], [s.core, .82, .87, .85]].forEach(([m, r0, r1, o]) => {
+    m.geometry.dispose();
+    m.geometry = new THREE.RingGeometry(r0, r1, 32, 1, tail, Math.max(.01, lead - tail));
+    m.material.opacity = o * fade * (sweep > 0 ? 1 : 0);
+  });
+  if (s.t > .42) {
+    cam.remove(s.grp);
+    s.glow.geometry.dispose();
+    s.core.geometry.dispose();
+    swTrail = null;
+  }
 }
 
 function setGun(k) {
@@ -196,7 +261,10 @@ function setGun(k) {
   gun.userData.sw = null;
   if (k === 'sw') {
     const s = makeSword();
-    s.h.rotation.set(.5, 0, .15);
+    // held low on the right, blades angled forward and up across the view
+    s.h.rotation.set(.32, .1, .42);
+    s.h.position.set(0, -.04, -.12);
+    s.h.scale.setScalar(.8);
     gun.add(s.h);
     gun.userData.sw = s;
     return;
@@ -247,13 +315,16 @@ function animGun(dt) {
   // Sword: pulsing glow, blades off when the battery is too low to swing
   const S = gun.userData.sw;
   swLight.intensity = 0;
+  updTrail(dt);
   if (S && P) {
     const on = P.ammo >= swingCost();
     S.blades.visible = on;
-    S.g1.opacity = .5 + .12 * Math.sin(T * 31);
-    S.g2.opacity = .22 + .08 * Math.sin(T * 17);
+    // brighter while swinging
+    const hot = P.swing > 0 && P.wpn === 'sw';
+    S.g1.opacity = (hot ? .85 : .5) + .12 * Math.sin(T * 31);
+    S.g2.opacity = (hot ? .45 : .22) + .08 * Math.sin(T * 17);
     if (on && gun.visible)
-      swLight.intensity = 1.1;
+      swLight.intensity = hot ? 2.6 : 1.1;
   }
   let x = .26;
   let y = -.24;
@@ -311,10 +382,23 @@ function animGun(dt) {
       const u = 1 - Math.max(0, P.swing) / (sw ? .32 : .22);
       const s = Math.sin(Math.PI * u);
       if (sw) {
-        ry = -.9 + 1.8 * u;
-        rz = -.7;
-        x = .3 - .4 * u;
-        y = -.2 + .06 * s;
+        // a quick wind-up up and to the right, then a fast eased diagonal slash down to the left
+        if (u < .2) {
+          const w = u / .2;
+          ry = -.6 - .5 * w;
+          rx = -.3 * w;
+          rz = -.7 - .2 * w;
+          x = .32 + .06 * w;
+          y = -.12 + .06 * w;
+        }
+        else {
+          const e = 1 - Math.pow(1 - (u - .2) / .8, 3);
+          ry = -1.1 + 2.4 * e;
+          rx = -.3 + .75 * e;
+          rz = -.9 + .5 * e;
+          x = .38 - .62 * e;
+          y = -.06 - .22 * e;
+        }
       }
       else {
         rx -= .6 * s;
@@ -715,13 +799,8 @@ function melee() {
     sfx.melee();
   if (sw) {
     P.ammo -= swingCost();
-    // Slash trail: a horizontal arc of light sweeping in front of you
-    const arc = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.6, 32, 1, Math.PI / 2 - .9, 1.8), new THREE.MeshBasicMaterial({ color: 0x7fe0ff, transparent: true, opacity: .6, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    arc.position.set(P.x, 1.45 + P.y, P.z);
-    arc.rotation.order = 'YXZ';
-    arc.rotation.set(-Math.PI / 2, yaw, 0);
-    scene.add(arc);
-    slashes.push({ m: arc, life: .25 });
+    // Slash trail sweeping across your view (see swordTrail)
+    swordTrail();
   }
   const f = fwd();
   if (sw) {
@@ -756,5 +835,6 @@ function melee() {
       e.z += dz / d * 1.8;
     }
   });
-  flashFx(cam.position.x + f.x * 1.2, 1.2, cam.position.z + f.z * 1.2, .7, 0x8ce6ff);
+  if (!sw)
+    flashFx(cam.position.x + f.x * 1.2, 1.2, cam.position.z + f.z * 1.2, .7, 0x8ce6ff);
 }

@@ -287,6 +287,7 @@ function spawn(t, px, pz) {
   if (d.tint)
     mat.color.setHex(d.tint);
   g.scale.setScalar(d.sc);
+  g.rotation.order = 'YXZ'; // so a forward/back lean (rotation.x) is relative to where it faces
   // Tankier per mission cleared and per room within a mission
   const dm = (1 + .4 * P.done.length) * (1 + .06 * Math.max(0, lroom - 1)) * DIFF.hp * (1 + (d.bn ? .9 : .25) * NET.others()); // bosses scale much harder with extra co-op players
   g.position.set(x, 0, z);

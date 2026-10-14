@@ -914,9 +914,9 @@ Object.assign(DR, {
       g.stroke();
     }
     for (let i = 0; i < 10; i++) {
-      g.fillStyle = 'rgba(235,245,255,' + R(.15, .35) + ')';
+      g.fillStyle = 'rgba(225,238,250,' + R(.05, .12) + ')';
       g.beginPath();
-      g.ellipse(Math.random() * w, Math.random() * h, R(8, 30), R(5, 18), R(0, 3), 0, 7);
+      g.ellipse(Math.random() * w, Math.random() * h, R(6, 16), R(4, 10), R(0, 3), 0, 7);
       g.fill();
     }
     speck(g, w, h, 2500, .1);
@@ -930,7 +930,7 @@ Object.assign(DR, {
 const OUTDOOR = {
   ob: { amp: .9, n: 8, flat: 3 },
   ds: { amp: 1.2, n: 9, flat: 3 },
-  sn: { amp: 1.1, n: 8, flat: 13 },
+  sn: { amp: .6, n: 8, flat: 13 },
   fr: { amp: 1.7, n: 9, flat: 11 * K + 2, axes: true }
 };
 const smooth01 = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
@@ -1024,16 +1024,7 @@ function scatterProps(lv, lay, add) {
       return grp;
     }, () => stone(0x8a9088, R(.15, .4))],
     ds: [() => stone(0xb0855a, R(.15, .5)), () => stone(0x9c7048, R(.3, .7)), () => tuft(0x8a6a3a, 6, .5, .7), () => tuft(0x7a8a4a, 4, .7, 1.2)],
-    sn: [() => {
-      const o = new THREE.Mesh(gcache('pshard', () => new THREE.ConeGeometry(.12, 1, 5)), ph(0xbfe8ff, .85));
-      const s = R(.5, 1.3);
-      o.scale.set(s, s, s);
-      o.position.y = s * .35;
-      o.rotation.set(R(-.4, .4), R(0, 6), R(-.4, .4));
-      const grp = new THREE.Group();
-      grp.add(o);
-      return grp;
-    }, () => stone(0x7f8fa0, R(.15, .5)), () => stone(0xdfe9f2, R(.2, .45))],
+    sn: [() => stone(0x7f8fa0, R(.12, .3)), () => stone(0x95a3b2, R(.1, .25))],
     ob: [() => stone(0x6a5f55, R(.15, .5)), () => stone(0x7a6e62, R(.3, .6)), () => {
       const o = new THREE.Mesh(gcache('pscrap', () => new THREE.BoxGeometry(1, 1, 1)), ph(0x4a5058));
       o.scale.set(R(.2, .6), R(.05, .15), R(.2, .5));

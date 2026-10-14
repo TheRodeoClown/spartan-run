@@ -36,6 +36,7 @@ const NET = {
   fxl: [], exl: [], fxSeq: 0, seenFx: {}, rd: 0, ep: 0, vep: -1, sendT: 0, uiT: 0, uiK: '', started: false, w: null,
   phase: 'lobby', lg: false, resp: 0, la: null, laT: -9, tab: 0, next: 'r', waitT: 0, win: '', paid: 0, ui: null,
   joinT: 0, joined: 0, hostGone: 0, modeKnown: 0,
+  kb: {}, kbSeq: 0, kbSeen: null,
   lo: { p: 'ar', s: 'mg' }, mt: MATCH_TIME, tl: MATCH_TIME, pw: [], pwId: 0, pwT: 20, pwm: {}, mycl: []
 };
 try {
@@ -227,6 +228,17 @@ function netTarget(e) {
 }
 
 // Enemy damage to a player: you directly, or a guest (reported to them)
+// Shove a player (you directly, or a co-op guest through the world update)
+function knockP(q, vx, vz) {
+  if (q === P) {
+    P.kbx = vx;
+    P.kbz = vz;
+    P.vy = Math.max(P.vy || 0, 4.5);
+  }
+  else if (q && q.peer && NET.host)
+    NET.kb[q.peer] = [++NET.kbSeq, r1(vx), r1(vz)];
+}
+
 function hitP(q, d) {
   if (q === P)
     hurt(d);
@@ -468,10 +480,10 @@ function netWorld() {
     Object.assign(w, { win: NET.win || '', tl: Math.max(0, Math.ceil(NET.mt)), pw: NET.pw.map(q => [q.id, q.k, q.x, q.z]) });
   else if (NET.started)
     Object.assign(w, {
-      lv: L ? L.id : '', rm: room, lr: lroom, bk: L ? L.boss : '', bN: L ? L.bossN || 1 : 1, bnm: L && L.bn || '', bt: Math.round(bossTotal), out: NET.out,
+      kb: NET.kb, lv: L ? L.id : '', rm: room, lr: lroom, bk: L ? L.boss : '', bN: L ? L.bossN || 1 : 1, bnm: L && L.bn || '', bt: Math.round(bossTotal), out: NET.out,
       // [id, type, x, z, facing, hp, shield, flags (1 flash, 2 primed, 4 invulnerable, 8 cloaked), sword angle]
       en: enemies.filter(e => !e.dead && !e.net).slice(0, 40).map(e => {
-        const a = [e.id, ETK.indexOf(e.t), r1(e.x), r1(e.z), r2(e.g.rotation.y), Math.round(e.hp), Math.round(e.sh), (e.flash > 0 ? 1 : 0) | (e.kf > 0 ? 2 : 0) | (e.inv > T ? 4 : 0) | (e.g.visible ? 0 : 8)];
+        const a = [e.id, ETK.indexOf(e.t), r1(e.x), r1(e.z), r2(e.g.rotation.y), Math.round(e.hp), Math.round(e.sh), (e.flash > 0 ? 1 : 0) | (e.kf > 0 ? 2 : 0) | (e.inv > T ? 4 : 0) | (e.g.visible ? 0 : 8) | ((e.lean || 0) > 0 ? 16 : (e.lean || 0) < 0 ? 32 : 0)];
         if (e.sw)
           a.push(r2(e.sw.rotation.x));
         return a;
@@ -601,6 +613,7 @@ function netGhosts(w, dt) {
     e.aura.material.color.setHex(e.fl & 4 ? 0xffd040 : 0x78dcff);
     e.aura.material.opacity = e.fl & 4 ? .45 : .1 + .3 * e.sh / (e.maxsh || 1);
     e.g.visible = !(e.fl & 8);
+    e.g.rotation.x += ((e.fl & 16 ? .38 : e.fl & 32 ? -.25 : 0) - e.g.rotation.x) * Math.min(1, dt * 14);
     if (e.kg)
       e.kg.visible = !(e.fl & 2) || Math.floor(T * 16) % 2 === 0;
     if (e.sw && isFinite(e.swr))
@@ -805,6 +818,16 @@ function coopClient(w, dt) {
   }
   if (state === 'wait')
     netWaitMsg();
+  // A Hunter's shield bash shoved me (numbered, so each one applies once)
+  const kb = w.kb && typeof w.kb === 'object' ? w.kb[NET.me] : null;
+  if (Array.isArray(kb) && isFinite(+kb[0])) {
+    if (NET.kbSeen != null && +kb[0] > NET.kbSeen && state === 'play' && !NET.down) {
+      P.kbx = clamp(+kb[1] || 0, -20, 20);
+      P.kbz = clamp(+kb[2] || 0, -20, 20);
+      P.vy = Math.max(P.vy || 0, 4.5);
+    }
+    NET.kbSeen = +kb[0];
+  }
   // Damage the host's enemies dealt to me (a running total)
   const v = +((w.out && typeof w.out === 'object' ? w.out : {})[NET.me]) || 0;
   if (NET.outSeen == null || v < NET.outSeen)
@@ -1571,7 +1594,7 @@ function mpMenu(prefill) {
 
 function netReset() {
   netCleanup();
-  Object.assign(NET, { mode: null, host: false, client: false, down: 0, menu: 0, started: false, ui: null, me: null, phase: 'lobby', ep: 0, vep: -1, win: '', paid: 0, rd: 0, joinT: 0, joined: 0, hostGone: 0, outSeen: null, uiK: '', w: null, next: 'r', modeKnown: 0 });
+  Object.assign(NET, { mode: null, host: false, client: false, down: 0, menu: 0, started: false, ui: null, me: null, phase: 'lobby', ep: 0, vep: -1, win: '', paid: 0, rd: 0, joinT: 0, joined: 0, hostGone: 0, outSeen: null, kb: {}, kbSeen: null, uiK: '', w: null, next: 'r', modeKnown: 0 });
 }
 
 const peerErr = e => {

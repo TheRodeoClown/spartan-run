@@ -44,6 +44,16 @@ function update(dt) {
     P.x = clamp(P.x + cy * v, -A + 1, A - 1);
     P.z = clamp(P.z - sy * v, -A + 1, A - 1);
   }
+  // Knockback (a Hunter's shield bash): a shove that dies away quickly
+  if (P.kbx || P.kbz) {
+    P.x = clamp(P.x + P.kbx * dt, -A + 1, A - 1);
+    P.z = clamp(P.z + P.kbz * dt, -A + 1, A - 1);
+    const k = Math.exp(-5 * dt);
+    P.kbx *= k;
+    P.kbz *= k;
+    if (Math.hypot(P.kbx, P.kbz) < .3)
+      P.kbx = P.kbz = 0;
+  }
   pushOut(P, .5);
   // Exit gate: once it's open, walk into it to move on (in co-op the host takes everyone through)
   if (gate && gate.open && state === 'play') {
@@ -173,6 +183,39 @@ function update(dt) {
         }
       }
     });
+    // Hunter shield bash: up close they raise the shield (0.4s tell), then slam it forward: damage and a hard shove
+    if (e.t === 'hunter' || ET[e.t].model === 'hunter') {
+      e.bcd = (e.bcd || 0) - dt;
+      if (e.bash > 0) {
+        e.bash -= dt;
+        if (e.bash > .15)
+          e.lean = -.25;
+        else {
+          e.lean = .38;
+          if (!e.bashHit) {
+            e.bashHit = 1;
+            e.x += nx * 1.2;
+            e.z += nz * 1.2;
+            sfx.melee();
+            flashFx(e.x + nx * 1.5 * e.sc, e.y + 1.1 * e.sc, e.z + nz * 1.5 * e.sc, .9 * e.sc, 0x4fa8ff);
+            if (d < 3.5 + e.sc * .4) {
+              hitP(tg, e.bd * 1.4);
+              knockP(tg, nx * 15, nz * 15);
+            }
+          }
+        }
+        if (e.bash <= 0)
+          e.lean = 0;
+      }
+      else if (e.bcd <= 0 && !e.busy && d < 3 + e.sc * .5) {
+        e.bash = .55;
+        e.bashHit = 0;
+        e.bcd = R(2.2, 3.2);
+        e.cd = Math.max(e.cd, .9);
+        sfx.recharge();
+      }
+      e.g.rotation.x += ((e.lean || 0) - e.g.rotation.x) * Math.min(1, dt * 14);
+    }
     e.y = groundH(e.x, e.z);
     e.g.rotation.y = Math.atan2(dx, dz);
     walkAnim(e, dt);
@@ -228,7 +271,7 @@ function update(dt) {
       }
     }
     // Active Camo (legendary): they hold fire at you for 2s after a dash
-    else if (e.cd <= 0 && !panic && !(tg === P && P.camoT > T)) {
+    else if (e.cd <= 0 && !panic && !(e.bash > 0) && !(tg === P && P.camoT > T)) {
       for (let k = 0; k < e.burst; k++) {
         const a = Math.atan2(nx, nz) + (e.spread ? (k - (e.burst - 1) / 2) * .14 : R(-.06, .06));
         // Aim from the muzzle at the target's chest, allowing for hills between them
