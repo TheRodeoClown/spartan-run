@@ -1,0 +1,10 @@
+{
+  "name": "spartan-run",
+  "version": "0.1.0",
+  "description": "Halo-inspired first-person rogue-lite for the browser (fan project)",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "npx serve ."
+  }
+}
