@@ -1722,11 +1722,15 @@ function netMenu() {
   down = false;
   zoomOn = false;
   document.exitPointerLock && document.exitPointerLock();
+  netMenuScreen();
+}
+
+function netMenuScreen() {
   ov.style.display = 'flex';
   ov.style.background = 'rgba(8,10,6,.55)';
   ov.style.justifyContent = '';
   ov.innerHTML = '<h2>MENU</h2><div style="color:#99a28f;font-size:13px">The match keeps running while this is open</div>' + (NET.mode === 'vs' ? loadoutHTML() : '') + settingsHTML()
-    + '<div class="cards"><button class="card" style="text-align:center" onclick="netResume()"><b>RESUME</b></button><button class="card" style="text-align:center" onclick="netLeave()"><b>LEAVE GAME</b><small>Credits earned so far are kept</small></button></div>';
+    + '<div class="cards"><button class="card" style="text-align:center" onclick="netResume()"><b>RESUME</b></button><button class="card" style="text-align:center" onclick="showControls(\'netMenuScreen\')"><b>CONTROLS</b><small>Keys and mouse</small></button><button class="card" style="text-align:center" onclick="netLeave()"><b>LEAVE GAME</b><small>Credits earned so far are kept</small></button></div>';
 }
 
 function netResume() {

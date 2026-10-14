@@ -38,3 +38,17 @@ canvas{width:100%;height:100%;display:block}
 #ov .press{margin-top:8%;background:none;border:none;color:#eef2ff;font:inherit;font-size:14px;letter-spacing:.32em;cursor:pointer;text-shadow:0 0 10px rgba(150,200,255,.8);animation:pulse 2.2s ease-in-out infinite}
 #ov .press:hover{color:#fff}
 @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+/* Controls page (pause menu, settings) */
+.ctl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 18px;max-width:560px;width:100%;text-align:left;background:#1b2017;border:1px solid #3a4533;border-radius:6px;padding:12px 16px}
+.ctl div{display:flex;justify-content:space-between;gap:12px;font-size:13px}.ctl b{color:#c8f08a;white-space:nowrap}.ctl span{color:#c9cfbf;text-align:right}
+@media (max-width:560px){.ctl{grid-template-columns:1fr}}
+#ov .linkbtn{background:none;border:1px solid rgba(190,200,255,.4);border-radius:14px;color:#dde3ff;font:inherit;font-size:12px;letter-spacing:.2em;padding:4px 14px;cursor:pointer}
+#ov .linkbtn:hover{border-color:#fff;color:#fff}
+
+/* Installed app: the game fills the window */
+@media (display-mode: standalone), (display-mode: fullscreen){
+  body{background:#000}
+  main{max-width:none;padding:0}
+  main>h1,main>p{display:none}
+  #wrap{margin:0;border:0;border-radius:0;width:100vw;height:100vh;aspect-ratio:auto}
+}

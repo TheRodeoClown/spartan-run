@@ -15,6 +15,15 @@ python3 -m http.server 8000     # then visit http://localhost:8000
 
 After pushing to GitHub, enable **Settings → Pages → Source: GitHub Actions** and the included workflow publishes the game on every push to `main`.
 
+## Install as an app
+
+The game is an installable web app (PWA): it gets its own window and desktop/Start-menu icon, and runs offline (multiplayer needs internet).
+
+- **Chrome / Edge (Windows, Mac, Linux, Android, ChromeOS):** open the game and click **INSTALL AS APP** on the title screen, or the install icon at the right of the address bar.
+- **Safari (Mac):** File → Add to Dock. **Safari (iPhone/iPad):** Share → Add to Home Screen.
+
+Installed, the game fills the whole window. Updates arrive automatically the next time you open it online.
+
 ## Multiplayer
 
 Click **MULTIPLAYER** on the title screen. Set a name and colour, then either:
@@ -35,23 +44,7 @@ How it connects: peer to peer over WebRTC with [PeerJS](https://peerjs.com/). Ev
 
 ## Controls
 
-| Input | Action |
-| --- | --- |
-| WASD | Move |
-| Mouse | Look (click to lock the pointer) |
-| Esc / P | Pause menu: resume, quit, volume and mouse sensitivity sliders |
-| Left click (hold) | Fire |
-| Right click (hold) | Zoom |
-| Q | Grenade |
-| Space | Jump |
-| F | Melee |
-| Shift + A/D | Thruster dash |
-| Shift + W | Sprint (versus) |
-| R | Reload |
-| Mouse wheel / 1 / 2 | Swap weapons |
-| 1-3 | Pick a boon on the boon screen |
-| M / N | Mute everything / mute music |
-| Tab (hold) | Multiplayer scoreboard |
+The full list is under **Controls** in the pause menu (Esc) and in Settings. The basics: WASD to move, mouse to look and fire, Space to jump, Shift + A/D to dash, Shift + W to sprint in versus, R to reload, Q for a grenade, F to melee.
 
 ## Features
 

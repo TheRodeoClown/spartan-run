@@ -206,9 +206,49 @@ function setVal(k, v) {
 }
 
 function titleSettings() {
-  ov.innerHTML = '<h2>SETTINGS</h2>' + settingsHTML() + '<button class="card" style="text-align:center;width:auto" onclick="startTitle()">BACK</button>';
+  ov.innerHTML = '<h2>SETTINGS</h2>' + settingsHTML() + '<div class="cards"><button class="card" style="text-align:center" onclick="showControls(\'titleSettings\')"><b>CONTROLS</b><small>Keys and mouse</small></button><button class="card" style="text-align:center" onclick="startTitle()"><b>BACK</b></button></div>';
 }
 
+
+
+// Controls page, reached from the pause menu, the multiplayer menu and Settings. back: the function that redraws
+// the screen you came from.
+const CONTROLS = [['WASD', 'Move'], ['Mouse', 'Look'], ['Left click (hold)', 'Fire'], ['Right click (hold)', 'Zoom / sniper scope'], ['Space', 'Jump'],
+  ['Shift + A / D', 'Thruster dash'], ['Shift + W', 'Sprint (versus)'], ['R', 'Reload'], ['Q', 'Throw grenade'], ['F', 'Melee'],
+  ['Wheel or 1 / 2', 'Swap weapon'], ['1 - 3', 'Pick a boon'], ['Tab (hold)', 'Scoreboard (multiplayer)'], ['Esc or P', 'Pause menu'], ['M / N', 'Mute all / mute music']];
+
+function controlsHTML() {
+  return '<div class="ctl">' + CONTROLS.map(([k, a]) => '<div><b>' + k + '</b><span>' + a + '</span></div>').join('') + '</div>';
+}
+
+function showControls(back) {
+  ov.innerHTML = '<h2>CONTROLS</h2>' + controlsHTML() + '<button class="card" style="text-align:center;width:auto" onclick="' + back + '()">BACK</button>';
+}
+
+// Install as an app: Chrome and Edge offer it once the page qualifies (see manifest.webmanifest and sw.js)
+let installEvt = null;
+addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  installEvt = e;
+  const b = $('instl');
+  if (b)
+    b.style.display = 'inline-block';
+});
+addEventListener('appinstalled', () => {
+  installEvt = null;
+  banner('INSTALLED: SPARTAN RUN IS IN YOUR APPS');
+  const b = $('instl');
+  if (b)
+    b.style.display = 'none';
+});
+
+function installApp() {
+  if (!installEvt)
+    return;
+  const e = installEvt;
+  installEvt = null;
+  e.prompt();
+}
 let pauseAt = 0;
 
 function pause() {
@@ -224,10 +264,14 @@ function pause() {
   down = false;
   zoomOn = false;
   document.exitPointerLock && document.exitPointerLock();
+  pauseScreen();
+}
+
+function pauseScreen() {
   ov.style.display = 'flex';
   ov.style.background = '';
   ov.style.justifyContent = '';
-  ov.innerHTML = '<h2>PAUSED</h2>' + settingsHTML() + '<div class="cards"><button class="card" style="text-align:center" onclick="resume()"><b>RESUME</b></button><button class="card" style="text-align:center" onclick="quitRun()"><b>QUIT TO TITLE</b><small>Ends this run; credits are kept</small></button></div><div style="font-size:12px;color:#99a28f">Esc or P to resume</div>';
+  ov.innerHTML = '<h2>PAUSED</h2>' + settingsHTML() + '<div class="cards"><button class="card" style="text-align:center" onclick="resume()"><b>RESUME</b></button><button class="card" style="text-align:center" onclick="showControls(\'pauseScreen\')"><b>CONTROLS</b><small>Keys and mouse</small></button><button class="card" style="text-align:center" onclick="quitRun()"><b>QUIT TO TITLE</b><small>Ends this run; credits are kept</small></button></div><div style="font-size:12px;color:#99a28f">Esc or P to resume</div>';
 }
 
 function resume() {
@@ -263,6 +307,6 @@ function startTitle() {
   ov.style.display = 'flex';
   ov.style.background = TITLE_BG;
   ov.style.justifyContent = 'flex-end';
-  ov.innerHTML = '<div style="flex:1"></div>' + TITLE_LOGO + '<div class="tag">Credits: ' + S.cr + (best ? ' | Best room: ' + best : '') + '</div><div style="flex:1"></div><div class="cards sm"><button class="card" style="text-align:center" onclick="newRun(false)"><b>DEPLOY</b><small>Start a new run (normal)</small></button><button class="card" style="text-align:center;border-color:#c9a227" onclick="newRun(true)"><b style="color:#ffd060">LEGENDARY</b><small>Tougher enemies, 1.5x credits</small></button><button class="card" style="text-align:center" onclick="armory()"><b>ARMORY</b><small>Permanent upgrades</small></button><button class="card" style="text-align:center;border-color:#5ec8f2" onclick="mpMenu()"><b style="color:#8fd8ff">MULTIPLAYER</b><small>Online co-op or versus</small></button><button class="card" style="text-align:center" onclick="titleSettings()"><b>SETTINGS</b><small>Volume and mouse sensitivity</small></button></div><div style="font-size:12px;color:#b8b0d8;margin-bottom:2%">M mutes all sound, N mutes music</div>';
+  ov.innerHTML = '<div style="flex:1"></div>' + TITLE_LOGO + '<div class="tag">Credits: ' + S.cr + (best ? ' | Best room: ' + best : '') + '</div><div style="flex:1"></div><div class="cards sm"><button class="card" style="text-align:center" onclick="newRun(false)"><b>DEPLOY</b><small>Start a new run (normal)</small></button><button class="card" style="text-align:center;border-color:#c9a227" onclick="newRun(true)"><b style="color:#ffd060">LEGENDARY</b><small>Tougher enemies, 1.5x credits</small></button><button class="card" style="text-align:center" onclick="armory()"><b>ARMORY</b><small>Permanent upgrades</small></button><button class="card" style="text-align:center;border-color:#5ec8f2" onclick="mpMenu()"><b style="color:#8fd8ff">MULTIPLAYER</b><small>Online co-op or versus</small></button><button class="card" style="text-align:center" onclick="titleSettings()"><b>SETTINGS</b><small>Volume and mouse sensitivity</small></button></div><button id="instl" class="linkbtn" style="display:' + (installEvt ? 'inline-block' : 'none') + '" onclick="installApp()">INSTALL AS APP</button><div style="font-size:12px;color:#b8b0d8;margin-bottom:2%">Esc in game opens the pause menu (controls and settings)</div>';
 }
 showTitle();
