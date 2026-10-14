@@ -18,11 +18,11 @@ const floodMats = () => ({
   pus: mcache('fpus', () => new THREE.MeshPhongMaterial({ color: 0xd8e070, emissive: 0x404800, shininess: 60 }))
 });
 
-// Skimmer wings: a fast flap
+// Skimmer thruster jets: a fast flicker
 function flapWings(e) {
-  const w = e.g.userData.wings;
-  if (w)
-    w.forEach((p, i) => p.rotation.z = p.userData.s * (.2 + .55 * Math.sin(T * 34 + i * .7)));
+  const j = e.g.userData.jets;
+  if (j)
+    j.forEach((c, i) => c.scale.set(1, .85 + .3 * Math.abs(Math.sin(T * 37 + i * 1.7)), 1));
 }
 
 function buildEnemy(t) {
@@ -258,40 +258,60 @@ function buildEnemy(t) {
     }
   }
   else if (t === 'skimmer') {
-    // Skimmer: a flying insectoid with four veined wings, a segmented abdomen, dangling legs and a plasma launcher.
-    // The wings hang from shoulder pivots in g.userData.wings and are flapped by flapWings().
-    mat = armor(0x2f6a64);
-    const shell = Ph(0x1c3d3a, 70);
-    const wingM = mcache('skw', () => new THREE.MeshBasicMaterial({ color: 0x9fffd8, transparent: true, opacity: .35, side: THREE.DoubleSide, depthWrite: false }));
-    ball(mat, 0, 1.25, 0, .42, .38, .62);
-    ball(shell, 0, 1.12, -.48, .32, .3, .7, [-.25, 0, 0]);
-    ball(shell, 0, 1.0, -.86, .2, .18, .38, [-.5, 0, 0]);
-    ball(mat, 0, 1.38, .4, .3, .28, .34);
+    // Skimmer: a hunched, thin-limbed flyer in red armour (chest, shoulders, crested helmet with a beaked visor and
+    // glowing eyes), carried by two big thruster pods on its back that fire purple jets downward, holding a long
+    // heavy rifle in both hands, legs and claws dangling. The jets (g.userData.jets) flicker in flapWings().
+    mat = armor(0x8a2a2a);
+    const skin = Ph(0x2e3440, 40);
+    const dark = Ph(0x23272e, 70);
+    const metal = Ph(0x4a5058, 90);
+    const red = Ph(0xa83232, 60);
+    const jetM = mcache('skJet', () => new THREE.MeshBasicMaterial({ color: 0xb478ff, transparent: true, opacity: .55, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const ventM = glow(0xd2a8ff);
+    // body: pelvis, torso leaning forward, armour plates
+    ball(skin, 0, .95, -.05, .3, .26, .26);
+    ball(skin, 0, 1.3, .05, .42, .55, .36, [.35, 0, 0]);
+    P3(B(.46, .42, .16), mat, 0, 1.32, .22, null, [.35, 0, 0]);
+    P3(B(.34, .16, .12), mat, 0, 1.05, .17, null, [.2, 0, 0]);
+    P3(B(.06, .3, .02), glow(0xffc040), 0, 1.3, .31, null, [.35, 0, 0]);
+    [-1, 1].forEach(s => dome(mat, s * .27, 1.5, .08, .24, .18, .28, [0, 0, -s * .5]));
+    // neck and helmeted head
+    limb([[0, 1.55, .12], [0, 1.66, .32]], .06, skin);
+    ball(skin, 0, 1.7, .4, .24, .24, .3);
+    dome(mat, 0, 1.74, .38, .3, .24, .44, [-.2, 0, 0]);
+    P3(B(.03, .2, .3), mat, 0, 1.9, .3, null, [-.4, 0, 0]);
+    P3(Co(.09, .3, 4), dark, 0, 1.66, .62, null, [Math.PI / 2, 0, 0]);
+    [-1, 1].forEach(s => ball(glow(0xffc040), s * .08, 1.74, .55, .06));
+    // thruster pods on struts, angled out like wings, purple jets underneath
+    g.userData.jets = [];
     [-1, 1].forEach(s => {
-      ball(glow(0x9fff6a), s * .09, 1.42, .55, .08);
-      P3(Co(.025, .22, 5), shell, s * .08, 1.28, .62, null, [1.8, 0, s * .3]);
-      [.1, -.1].forEach(z => limb([[s * .15, 1.1, z], [s * .32, .82, z + .1], [s * .28, .5, z + .18]], .035, shell));
+      limb([[s * .12, 1.45, -.15], [s * .52, 1.82, -.32]], .055, dark);
+      const pv = rig(s * .78, 1.88, -.32, () => {
+        const x = s * .78;
+        P3(B(.34, .26, .9), mat, x, 1.88, -.32);
+        dome(mat, x, 1.88, .13, .34, .26, .36, [Math.PI / 2, 0, 0]);
+        P3(B(.36, .06, .92), dark, x, 1.98, -.32);
+        P3(B(.05, .26, .4), mat, x, 2.09, -.55, null, [-.5, 0, 0]);
+        P3(B(.1, .06, .1), glow(0xffc040), x + s * .175, 1.91, -.18);
+        P3(B(.28, .14, .42), metal, x, 1.7, -.42);
+        P3(B(.24, .03, .36), ventM, x, 1.62, -.42);
+        const jet = P3(Co(.11, .55, 8), jetM, x, 1.33, -.42, null, [Math.PI, 0, 0]);
+        g.userData.jets.push(jet);
+      });
+      pv.rotation.set(-.15, s * .5, -s * .3);
+      pv.scale.setScalar(1.4);
     });
-    P3(Cy(.06, .08, .4, 8), Ph(0x3a4a7a, 90), 0, 1.02, .3, null, [Math.PI / 2, 0, 0]);
-    ball(glow(0x7dff9a), 0, 1.02, .52, .09);
-    const wg = gcache('skwg', () => {
-      const s = new THREE.Shape();
-      s.moveTo(0, 0);
-      s.quadraticCurveTo(.5, .25, 1.05, .08);
-      s.quadraticCurveTo(.6, -.12, 0, 0);
-      return new THREE.ShapeGeometry(s, 8);
-    });
-    g.userData.wings = [];
-    [[-1, .12], [1, .12], [-1, -.14], [1, -.14]].forEach(([s, z]) => {
-      const pv = new THREE.Group();
-      pv.position.set(s * .15, 1.42, z);
-      pv.userData.s = s;
-      const w = new THREE.Mesh(wg, wingM);
-      w.scale.set(s, 1, 1);
-      w.rotation.x = -Math.PI / 2;
-      pv.add(w);
-      g.add(pv);
-      g.userData.wings.push(pv);
+    // long arms holding a heavy rifle across the front
+    limb([[-.28, 1.45, .1], [-.36, 1.1, .3], [-.18, .95, .52]], .05, skin);
+    limb([[.28, 1.45, .1], [.34, 1.05, .25], [.1, .92, .32]], .05, skin);
+    const rifle = [[.12, .15, 1.15, .02, .9, .55, metal], [.13, .05, .9, .02, .82, .55, red], [.05, .2, .06, .02, .78, .2, dark], [.09, .09, .22, .02, 1.0, .35, dark]];
+    rifle.forEach(([w, h, d, x, y, z, m]) => P3(B(w, h, d), m, x, y, z, null, [0, -.2, 0]));
+    [.5, .62, .74, .86].forEach(z => P3(gcache('skc', () => new THREE.TorusGeometry(.07, .015, 6, 12)), dark, .02 + (z - .55) * -.2, .9, z));
+    ball(glow(0xb478ff), -.1, .9, 1.12, .09);
+    // dangling legs with claws
+    [-1, 1].forEach(s => {
+      limb([[s * .12, .95, -.05], [s * .2, .65, .12], [s * .15, .35, -.05], [s * .12, .15, .1]], .045, skin);
+      [-.05, .05].forEach(o => P3(Co(.02, .14, 4), dark, s * .12 + o, .06, .14, null, [1.2, 0, 0]));
     });
   }
   else if (t === 'fcomb') {
