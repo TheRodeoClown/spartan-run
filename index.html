@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Spartan Run: a Halo-inspired first-person rogue-lite built with Three.js and Web Audio (fan project).">
 <title>Spartan Run FPS — Rogue-lite Prototype</title>
-<link rel="stylesheet" href="css/style.css?v=4"></head><body><main>
+<link rel="stylesheet" href="css/style.css?v=5"></head><body><main>
 <h1>SPARTAN RUN — First-Person</h1>
 <p>Halo-inspired FPS rogue-lite prototype. Click to lock the mouse (Esc pauses and opens settings). If your browser blocks pointer lock, hold the mouse button and drag to look.</p>
 <div id="wrap"><canvas id="c"></canvas>
@@ -12,20 +12,36 @@
 <div id="ov"></div></div>
 <div class="keys"><div><b>WASD</b> move</div><div><b>Mouse</b> look / hold to fire</div><div><b>Q</b> grenade</div><div><b>Space</b> jump</div><div><b>F</b> melee</div><div><b>Shift + A/D</b> thruster dash</div><div><b>Shift + W</b> sprint (versus)</div><div><b>R</b> reload</div><div><b>1-3</b> pick boon</div><div><b>M / N</b> mute all / music</div><div><b>Right-click</b> zoom</div><div><b>Wheel / 1-2</b> swap weapon</div><div><b>Esc / P</b> pause &amp; settings</div><div><b>Tab</b> multiplayer scores</div></div>
 </main>
+<script>
+// Self-update: GitHub Pages lets browsers keep this page for up to 10 minutes, so ask for the latest version number
+// (never cached) and reload once if this copy is older. Bump BUILD here and in version.txt together on each release.
+(function () {
+  var BUILD = '5';
+  fetch('version.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : BUILD; }).then(function (v) {
+    v = String(v).trim();
+    if (v && v !== BUILD && sessionStorage.getItem('spartan_reloaded') !== v) {
+      sessionStorage.setItem('spartan_reloaded', v);
+      var u = new URL(location.href);
+      u.searchParams.set('v', v);
+      location.replace(u.toString());
+    }
+  }).catch(function () { });
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>window.THREE||document.write('<script src="vendor/three.min.js"><\/script>')</script>
-<script src="js/core.js?v=4"></script>
-<script src="js/data.js?v=4"></script>
-<script src="js/audio.js?v=4"></script>
-<script src="js/enemies.js?v=4"></script>
-<script src="js/levels.js?v=4"></script>
-<script src="js/weapons.js?v=4"></script>
-<script src="js/meta.js?v=4"></script>
-<script src="js/run.js?v=4"></script>
-<script src="js/bosses.js?v=4"></script>
-<script src="js/menus.js?v=4"></script>
-<script src="js/input.js?v=4"></script>
+<script src="js/core.js?v=5"></script>
+<script src="js/data.js?v=5"></script>
+<script src="js/audio.js?v=5"></script>
+<script src="js/enemies.js?v=5"></script>
+<script src="js/levels.js?v=5"></script>
+<script src="js/weapons.js?v=5"></script>
+<script src="js/meta.js?v=5"></script>
+<script src="js/run.js?v=5"></script>
+<script src="js/bosses.js?v=5"></script>
+<script src="js/menus.js?v=5"></script>
+<script src="js/input.js?v=5"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/multiplayer.js?v=4"></script>
-<script src="js/main.js?v=4"></script>
+<script src="js/multiplayer.js?v=5"></script>
+<script src="js/main.js?v=5"></script>
 </body></html>
