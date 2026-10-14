@@ -12,7 +12,8 @@ let LEGEND = false;
 let DIFF = DIFFS.normal;
 
 // leg: true/false picks the difficulty; omitted keeps the current one (New run after a death)
-function newRun(leg) {
+// noStart: build the player only (a co-op guest waits for the host to pick the mission)
+function newRun(leg, noStart) {
   if (leg != null)
     LEGEND = leg;
   DIFF = LEGEND ? DIFFS.legendary : DIFFS.normal;
@@ -50,7 +51,8 @@ function newRun(leg) {
     P.sr[1] = W[S.sel].rs;
   }
   setGun('ar');
-  nextRoom();
+  if (!noStart)
+    nextRoom();
 }
 
 function nextRoom() {
@@ -61,6 +63,10 @@ function nextRoom() {
   room++;
   lroom++;
   state = 'play';
+  NET.phase = 'p';
+  NET.menu = 0;
+  if (NET.down)
+    netRevive();
   ov.style.display = 'none';
   ov.style.background = '';
   ov.style.justifyContent = '';
@@ -68,7 +74,8 @@ function nextRoom() {
   music.set(1);
   P.nades = Math.min(P.nadeMax, P.nades + 1);
   P.hp = Math.min(P.maxHp, P.hp + 6);
-  const n = Math.min(3 + lroom * 2 + P.done.length * 2 + DIFF.extra, 14 + DIFF.extra);
+  // Every extra co-op player adds two enemies per room
+  const n = Math.min(3 + lroom * 2 + P.done.length * 2 + DIFF.extra + 2 * NET.others(), 14 + DIFF.extra + 2 * NET.others());
   if (lroom > L.rooms) {
     for (let i = 0; i < (L.bossN || 1); i++)
       spawn(L.boss);
@@ -98,6 +105,8 @@ function nextRoom() {
 }
 
 function bossDown() {
+  NET.phase = 'L';
+  NET.menu = 0;
   clearHz();
   earn(100 + 50 * P.done.length);
   S.done[L.id] = 1;

@@ -48,6 +48,11 @@ function pickTick() {
 }
 
 function afterPick() {
+  // Multiplayer: wait for the squad instead of starting the next room straight away
+  if (NET.mode) {
+    netAfterPick();
+    return;
+  }
   if (P.pending) {
     P.pending = 0;
     nextMission();
@@ -69,7 +74,12 @@ function dropW(s) {
 function nextMission() {
   const left = LV.map((l, i) => i).filter(i => !P.done.includes(LV[i].id));
   if (!left.length) {
-    endRun(true);
+    if (NET.mode) {
+      NET.phase = 'v';
+      netFinish();
+    }
+    else
+      endRun(true);
     return;
   }
   startLevel(left[Math.random() * left.length | 0]);
@@ -197,6 +207,11 @@ let pauseAt = 0;
 function pause() {
   if (state !== 'play')
     return;
+  // Multiplayer never pauses the match: Esc opens a menu over it
+  if (NET.mode) {
+    netMenu();
+    return;
+  }
   state = 'paused';
   pauseAt = performance.now();
   down = false;
@@ -241,6 +256,6 @@ function startTitle() {
   ov.style.display = 'flex';
   ov.style.background = 'linear-gradient(rgba(8,10,6,.1),rgba(8,10,6,.9))';
   ov.style.justifyContent = 'flex-end';
-  ov.innerHTML = '<h2 style="font-size:clamp(28px,7vw,64px);letter-spacing:.25em;text-shadow:0 0 24px #5ec8f2">SPARTAN RUN</h2><div style="letter-spacing:.2em;font-size:12px;color:#99a28f">A HALO-INSPIRED ROGUE-LITE</div><div>Credits: ' + S.cr + '</div><div class="cards"><button class="card" style="text-align:center" onclick="newRun(false)"><b>DEPLOY</b><small>Start a new run (normal)</small></button><button class="card" style="text-align:center;border-color:#c9a227" onclick="newRun(true)"><b style="color:#ffd060">LEGENDARY</b><small>Tougher enemies that hit much harder. 1.5x credits</small></button><button class="card" style="text-align:center" onclick="armory()"><b>ARMORY</b><small>Spend credits on permanent upgrades</small></button><button class="card" style="text-align:center" onclick="titleSettings()"><b>SETTINGS</b><small>Volume and mouse sensitivity</small></button></div><div style="font-size:12px;color:#99a28f;margin-bottom:4%">' + (best ? 'Best room: ' + best + ' | ' : '') + 'M mutes all sound, N mutes music</div>';
+  ov.innerHTML = '<h2 style="font-size:clamp(28px,7vw,64px);letter-spacing:.25em;text-shadow:0 0 24px #5ec8f2">SPARTAN RUN</h2><div style="letter-spacing:.2em;font-size:12px;color:#99a28f">A HALO-INSPIRED ROGUE-LITE</div><div>Credits: ' + S.cr + '</div><div class="cards"><button class="card" style="text-align:center" onclick="newRun(false)"><b>DEPLOY</b><small>Start a new run (normal)</small></button><button class="card" style="text-align:center;border-color:#c9a227" onclick="newRun(true)"><b style="color:#ffd060">LEGENDARY</b><small>Tougher enemies that hit much harder. 1.5x credits</small></button><button class="card" style="text-align:center" onclick="armory()"><b>ARMORY</b><small>Spend credits on permanent upgrades</small></button><button class="card" style="text-align:center;border-color:#5ec8f2" onclick="mpMenu()"><b style="color:#8fd8ff">MULTIPLAYER</b><small>Online co-op missions, or versus on Blood Gulch</small></button><button class="card" style="text-align:center" onclick="titleSettings()"><b>SETTINGS</b><small>Volume and mouse sensitivity</small></button></div><div style="font-size:12px;color:#99a28f;margin-bottom:4%">' + (best ? 'Best room: ' + best + ' | ' : '') + 'M mutes all sound, N mutes music</div>';
 }
 showTitle();

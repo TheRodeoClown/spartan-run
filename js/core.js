@@ -28,9 +28,10 @@ scene.add(hemi);
 const dl = new THREE.DirectionalLight(0xffffff, .6);
 dl.position.set(5, 10, 3);
 scene.add(dl);
-const A = 30;
+// Arena half-width: 30 for missions, larger for the versus map (see setArena)
+let A = 30;
 // K: scale from the original 22m arena (cover layouts and decals are authored at that size)
-const K = A / 22;
+const K = 30 / 22;
 const R = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(A * 2, A * 2), new THREE.MeshLambertMaterial({ color: 0x1b2230 }));
@@ -45,16 +46,33 @@ scene.add(envG);
 
 // Octagonal arena: straight walls at |x|, |z| = A, corners cut by angled walls whose inner face is |x| + |z| = OCT.
 // IN: inner face of the straight walls; CUT: where the angled corner walls meet them
-const IN = A - .5;
-const CUT = Math.round(9 * K * 10) / 10;
-const OCT = IN + CUT;
+let IN = A - .5;
+let CUT = Math.round(9 * K * 10) / 10;
+let OCT = IN + CUT;
 const outArena = p => Math.abs(p.x) > A || Math.abs(p.z) > A || Math.abs(p.x) + Math.abs(p.z) > OCT;
+
+// Resize the arena (each level sets it when it's built).
+function setArena(a, cut) {
+  if (a === A && cut === CUT)
+    return;
+  A = a;
+  IN = a - .5;
+  CUT = cut;
+  OCT = IN + cut;
+  floor.geometry.dispose();
+  floor.geometry = new THREE.PlaneGeometry(a * 2, a * 2);
+}
+
+// Colliders are boxes: half-sizes hw/hd (default 1.5, the 3x3 cover blocks) and height h (default 3.5).
+const inPillar = (p, m) => pillars.some(q => Math.abs(p.x - q.x) < (q.hw || 1.5) + m && Math.abs(p.z - q.z) < (q.hd || 1.5) + m && p.y < (q.h || 3.5));
 
 // Keep a body of radius r out of cover pillars and the angled corner walls.
 function pushOut(o, r) {
   pillars.forEach(b => {
-    const cx = clamp(o.x, b.x - 1.5, b.x + 1.5);
-    const cz = clamp(o.z, b.z - 1.5, b.z + 1.5);
+    const hw = b.hw || 1.5;
+    const hd = b.hd || 1.5;
+    const cx = clamp(o.x, b.x - hw, b.x + hw);
+    const cz = clamp(o.z, b.z - hd, b.z + hd);
     const dx = o.x - cx;
     const dz = o.z - cz;
     const d = Math.hypot(dx, dz);
@@ -63,8 +81,15 @@ function pushOut(o, r) {
         o.x += dx / d * (r - d);
         o.z += dz / d * (r - d);
       }
-      else
-        o.x += r + 1.5;
+      else {
+        // Centre inside the box: leave along the shorter way out
+        const ex = hw - Math.abs(o.x - b.x);
+        const ez = hd - Math.abs(o.z - b.z);
+        if (ex < ez)
+          o.x += (o.x < b.x ? -1 : 1) * (ex + r);
+        else
+          o.z += (o.z < b.z ? -1 : 1) * (ez + r);
+      }
     }
   });
   const s = Math.abs(o.x) + Math.abs(o.z);
@@ -79,14 +104,14 @@ function pushOut(o, r) {
 function rayBox(ox, oz, dx, dz, b) {
   let t0 = 0;
   let t1 = 1e9;
-  for (const [o, d, c] of [[ox, dx, b.x], [oz, dz, b.z]]) {
+  for (const [o, d, c, hh] of [[ox, dx, b.x, b.hw || 1.5], [oz, dz, b.z, b.hd || 1.5]]) {
     if (Math.abs(d) < 1e-6) {
-      if (Math.abs(o - c) > 1.5)
+      if (Math.abs(o - c) > hh)
         return 1e9;
     }
     else {
-      let a = (c - 1.5 - o) / d;
-      let e = (c + 1.5 - o) / d;
+      let a = (c - hh - o) / d;
+      let e = (c + hh - o) / d;
       if (a > e)
         [a, e] = [e, a];
       t0 = Math.max(t0, a);

@@ -404,7 +404,9 @@ function floorMat(s) {
         ? new THREE.MeshLambertMaterial({ map: ctex('sand', 256, 256, 8, 8, DR.sand) })
         : s === 'sn'
           ? new THREE.MeshLambertMaterial({ map: ctex('snow', 256, 256, 8, 8, DR.snow) })
-          : new THREE.MeshLambertMaterial({ map: ctex('grass', 256, 256, 12, 12, DR.grass) }));
+          : s === 'bg'
+            ? new THREE.MeshLambertMaterial({ map: ctex('grassBG', 256, 256, 44, 44, DR.grass) })
+            : new THREE.MeshLambertMaterial({ map: ctex('grass', 256, 256, 12, 12, DR.grass) }));
 }
 
 // Per-level ambient animation (snowfall, blowing sand), run every frame from tick() in main.js.
@@ -412,6 +414,8 @@ let envTick = null;
 
 // Visuals only: cover keeps its 3x3 footprint at each lay position (see pillars/pushOut/rayBox in core.js).
 function buildLevel(lv, empty) {
+  // Missions use the standard 30m octagon; the versus map sets its own size
+  setArena(lv.A || 30, lv.cut || Math.round(9 * K * 10) / 10);
   while (envG.children.length)
     envG.remove(envG.children[0]);
   pillars.length = 0;
@@ -801,6 +805,8 @@ function buildLevel(lv, empty) {
         add(B(3.1, .35, 3.1), snowM, x, 3.67, z);
       });
   }
+  else if (lv.sty === 'bg')
+    bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pines }); // Blood Gulch (versus), in multiplayer.js
   else if (lv.sty === 'fr') {
     // Forerunner Ring: on the ring's surface, the band rising into the sky
     const cy = G(0x5ff0ff);

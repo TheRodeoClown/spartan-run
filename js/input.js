@@ -62,6 +62,15 @@ wrap.addEventListener('wheel', e => {
   }
 }, { passive: false });
 addEventListener('keydown', e => {
+  // Typing in a text box (multiplayer name or join code) isn't a game key
+  if (e.target && e.target.tagName === 'INPUT')
+    return;
+  // Tab shows the multiplayer scoreboard while held
+  if (e.code === 'Tab' && NET.mode) {
+    NET.tab = 1;
+    e.preventDefault();
+    return;
+  }
   if (e.repeat)
     return;
   // Esc / P toggle the pause menu (a short guard stops one Esc from both pausing and resuming)
@@ -79,7 +88,7 @@ addEventListener('keydown', e => {
     audio.toggle();
   if (e.code === 'KeyN')
     audio.toggleMusic();
-  if (state === 'play') {
+  if (state === 'play' && !NET.menu && !NET.down) {
     if (e.code === 'Digit1')
       swapTo(0);
     if (e.code === 'Digit2')
@@ -107,4 +116,8 @@ addEventListener('keydown', e => {
       pick(q);
   }
 });
-addEventListener('keyup', e => keys[e.code] = false);
+addEventListener('keyup', e => {
+  keys[e.code] = false;
+  if (e.code === 'Tab')
+    NET.tab = 0;
+});

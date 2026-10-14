@@ -288,7 +288,7 @@ function spawn(t, px, pz) {
     mat.color.setHex(d.tint);
   g.scale.setScalar(d.sc);
   // Tankier per mission cleared and per room within a mission
-  const dm = (1 + .4 * P.done.length) * (1 + .06 * Math.max(0, lroom - 1)) * DIFF.hp;
+  const dm = (1 + .4 * P.done.length) * (1 + .06 * Math.max(0, lroom - 1)) * DIFF.hp * (1 + .25 * NET.others());
   g.position.set(x, 0, z);
   scene.add(g);
   // Bosses get glowing weak points (a solid core plus a pulsing halo) attached to the model
@@ -304,11 +304,11 @@ function spawn(t, px, pz) {
       return { m, h, r };
     });
   }
-  enemies.push({ ...d, t, x, z, fr: d.fr * DIFF.fr, bs: d.bs * DIFF.bs, g, mat, aura, sw, kg, crits, legs, arm, px: x, pz: z, ph: R(0, 6.28), gs: 0, kf: 0, lcd: R(.3, 1), lunge: 0, wind: 0, swing: 0, hp: d.hp * dm, sh: d.sh * dm, maxhp: d.hp * dm, maxsh: d.sh * dm, boss: !!d.bn, sumT: 8, cd: R(1.2, 2.4), dir: Math.random() < .5 ? 1 : -1, dirT: R(1, 3), flash: 0 });
+  enemies.push({ ...d, t, x, z, id: ++NET.eid, fr: d.fr * DIFF.fr, bs: d.bs * DIFF.bs, g, mat, aura, sw, kg, crits, legs, arm, px: x, pz: z, ph: R(0, 6.28), gs: 0, kf: 0, lcd: R(.3, 1), lunge: 0, wind: 0, swing: 0, hp: d.hp * dm, sh: d.sh * dm, maxhp: d.hp * dm, maxsh: d.sh * dm, boss: !!d.bn, sumT: 8, cd: R(1.2, 2.4), dir: Math.random() < .5 ? 1 : -1, dirT: R(1, 3), flash: 0 });
 }
 
 function hurt(d) {
-  if (state !== 'play')
+  if (state !== 'play' || NET.down)
     return;
   P.last = T;
   vig = .7;
@@ -344,6 +344,8 @@ function hurt(d) {
     P.sh = P.maxSh;
     banner('SECOND WIND');
   }
+  else if (P.hp <= 0 && NET.mode)
+    netDown();
   else if (P.hp <= 0) {
     state = 'dead';
     sfx.dead();
@@ -412,6 +414,11 @@ const DMGT = { e: { sh: 1.8, hp: .7 }, k: { sh: .75, hp: 1.25 }, n: { sh: 1, hp:
 function dmgE(e, d, crit, ty) {
   d *= 1 - (crit ? 0 : e.armor || 0);
   e.flash = .08;
+  // Something another player owns (a co-op ghost or a versus opponent): report the damage instead of applying it
+  if (e.net) {
+    netHit(e, d, ty);
+    return;
+  }
   const M = DMGT[ty] || DMGT.n;
   if (e.sh > 0) {
     const s = d * M.sh;
@@ -459,7 +466,7 @@ function kamiBoom(e) {
     e.dead = true;
     scene.remove(e.g);
   }
-  explode(e.x, 1, e.z, 4.5, 60, 35);
+  explode(e.x, 1, e.z, 4.5, 60, 35, 'n', true);
 }
 
 function flashFx(x, y, z, r, col) {

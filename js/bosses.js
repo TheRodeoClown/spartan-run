@@ -40,8 +40,10 @@ function ringAt(x, z, r0, r1, c, o) {
   return m;
 }
 
+// Moves aim at (and hit) tg: the nearest player (always you, outside co-op).
 // Charge: glow and aim for `wind` seconds, then rush in a straight line; one hit per charge.
 function charge(e, wind, dur, spd, dmg, reach) {
+  const tg = netTarget(e);
   e.busy = 1;
   let t = 0;
   let dx = 0;
@@ -59,18 +61,18 @@ function charge(e, wind, dur, spd, dmg, reach) {
       glow.position.set(e.x, .05, e.z);
       if (t < wind) {
         e.flash = .05;
-        const d = Math.hypot(P.x - e.x, P.z - e.z) || 1;
-        dx = (P.x - e.x) / d;
-        dz = (P.z - e.z) / d;
+        const d = Math.hypot(tg.x - e.x, tg.z - e.z) || 1;
+        dx = (tg.x - e.x) / d;
+        dz = (tg.z - e.z) / d;
         return true;
       }
       if (t < wind + dur) {
         e.x = clamp(e.x + dx * spd * dt, -A + 1, A - 1);
         e.z = clamp(e.z + dz * spd * dt, -A + 1, A - 1);
         pushOut(e, .6 * e.sc);
-        if (!hit && Math.hypot(P.x - e.x, P.z - e.z) < reach) {
+        if (!hit && Math.hypot(tg.x - e.x, tg.z - e.z) < reach) {
           hit = true;
-          hurt(dmg);
+          hitP(tg, dmg);
           sfx.melee();
         }
         return true;
@@ -84,10 +86,11 @@ function charge(e, wind, dur, spd, dmg, reach) {
 const MOVES = {
   // Zealot: lob three plasma grenades around you; blinking rings mark where they'll burst
   nades(e) {
+    const tg = netTarget(e);
     sfx.throw();
     for (let i = 0; i < 3; i++) {
-      const tx = clamp(P.x + R(-3, 3), -A + 1, A - 1);
-      const tz = clamp(P.z + R(-3, 3), -A + 1, A - 1);
+      const tx = clamp(tg.x + R(-3, 3), -A + 1, A - 1);
+      const tz = clamp(tg.z + R(-3, 3), -A + 1, A - 1);
       const sx = e.x;
       const sz = e.z;
       const sy = 1.6 * e.sc;
@@ -109,7 +112,7 @@ const MOVES = {
           ring.material.opacity = Math.floor(t * 10) % 2 ? .7 : .25;
           if (t < 1.7)
             return true;
-          explode(tx, .3, tz, 3.2, 0, 22);
+          explode(tx, .3, tz, 3.2, 0, 22, 'n', true);
           return false;
         }
       });
@@ -125,7 +128,8 @@ const MOVES = {
   },
   // Warlord: ground slam; an expanding shockwave you can jump over
   slam(e) {
-    if (Math.hypot(P.x - e.x, P.z - e.z) > 12) {
+    const tg = netTarget(e);
+    if (Math.hypot(tg.x - e.x, tg.z - e.z) > 12) {
       MOVES.charge(e);
       return;
     }
@@ -159,9 +163,9 @@ const MOVES = {
         wave.geometry.dispose();
         wave.geometry = new THREE.RingGeometry(Math.max(.1, r - .5), r + .5, 64);
         wave.material.opacity = Math.max(0, .85 - (t - .8) * .8);
-        if (!hit && P.y < .35 && Math.abs(Math.hypot(P.x - cx, P.z - cz) - r) < 1.1) {
+        if (!hit && tg.y < .35 && Math.abs(Math.hypot(tg.x - cx, tg.z - cz) - r) < 1.1) {
           hit = true;
-          hurt(30);
+          hitP(tg, 30);
         }
         if (r < 14)
           return true;
@@ -172,10 +176,11 @@ const MOVES = {
   },
   // Warden: aims a thin red sight line, then fires a hardlight beam that slowly tracks you; dash out of it
   beam(e) {
+    const tg = netTarget(e);
     e.busy = 1;
     let t = 0;
     let acc = 0;
-    let ang = Math.atan2(P.x - e.x, P.z - e.z);
+    let ang = Math.atan2(tg.x - e.x, tg.z - e.z);
     const BL = 44;
     const line = gm(new THREE.BoxGeometry(.06, .06, BL), 0xff4040, .55);
     const bm = gm(new THREE.BoxGeometry(.5, .5, BL), 0x9ff8ff, .85);
@@ -194,7 +199,7 @@ const MOVES = {
         }
         t += dt;
         // Turn toward you: fast while aiming, slow once firing
-        const da = ((Math.atan2(P.x - e.x, P.z - e.z) - ang + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+        const da = ((Math.atan2(tg.x - e.x, tg.z - e.z) - ang + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
         ang += clamp(da, -1, 1) * (t < .9 ? 6 : .55) * dt;
         [line, bm, core].forEach(m => {
           m.position.set(e.x, 1.5 * e.sc, e.z);
@@ -210,12 +215,12 @@ const MOVES = {
         bm.material.opacity = .6 + .25 * Math.sin(t * 40);
         const vx = Math.sin(ang);
         const vz = Math.cos(ang);
-        const px = P.x - e.x;
-        const pz = P.z - e.z;
+        const px = tg.x - e.x;
+        const pz = tg.z - e.z;
         if (px * vx + pz * vz > 0 && Math.abs(px * vz - pz * vx) < .9) {
           acc += 45 * dt;
           if (acc >= 6) {
-            hurt(acc);
+            hitP(tg, acc);
             acc = 0;
           }
         }
@@ -228,6 +233,7 @@ const MOVES = {
   },
   // Blademaster: active camo, a flicker, then reappears behind you and slashes (0.35s to react)
   cloak(e) {
+    const tg = netTarget(e);
     e.busy = 1;
     let t = 0;
     let hit = false;
@@ -248,8 +254,8 @@ const MOVES = {
         if (!moved) {
           // Behind you: opposite to where the camera faces
           moved = true;
-          e.x = clamp(P.x + Math.sin(yaw) * 3, -A + 1, A - 1);
-          e.z = clamp(P.z + Math.cos(yaw) * 3, -A + 1, A - 1);
+          e.x = clamp(tg.x + Math.sin(tg === P ? yaw : tg.yw) * 3, -A + 1, A - 1);
+          e.z = clamp(tg.z + Math.cos(tg === P ? yaw : tg.yw) * 3, -A + 1, A - 1);
           pushOut(e, .6 * e.sc);
           e.g.visible = true;
           e.flash = .1;
@@ -265,8 +271,8 @@ const MOVES = {
           hit = true;
           if (e.sw)
             e.sw.rotation.x = .6;
-          if (Math.hypot(P.x - e.x, P.z - e.z) < 3.2)
-            hurt(30);
+          if (Math.hypot(tg.x - e.x, tg.z - e.z) < 3.2)
+            hitP(tg, 30);
         }
         e.busy = 0;
         return false;
@@ -275,6 +281,7 @@ const MOVES = {
   },
   // Blademaster: winds up, then spins with the sword out; everything within 4.5m gets cut
   spin(e) {
+    const tg = netTarget(e);
     e.busy = 1;
     let t = 0;
     let hit = false;
@@ -295,11 +302,11 @@ const MOVES = {
         if (t - dt < .6)
           sfx.sword();
         // Runs after the enemy loop, so this overrides its face-the-player rotation
-        e.g.rotation.y = Math.atan2(P.x - e.x, P.z - e.z) + (t - .6) * 28;
+        e.g.rotation.y = Math.atan2(tg.x - e.x, tg.z - e.z) + (t - .6) * 28;
         tell.material.opacity = Math.max(0, .35 - (t - .6));
-        if (!hit && Math.hypot(P.x - e.x, P.z - e.z) < 4.5) {
+        if (!hit && Math.hypot(tg.x - e.x, tg.z - e.z) < 4.5) {
           hit = true;
-          hurt(30);
+          hitP(tg, 30);
         }
         if (t < 1.2)
           return true;
@@ -310,9 +317,10 @@ const MOVES = {
   },
   // Warden: five hardlight pillars strike marked circles, one on you
   rain(e) {
-    const pts = [[P.x, P.z]];
+    const tg = netTarget(e);
+    const pts = [[tg.x, tg.z]];
     for (let i = 0; i < 4; i++)
-      pts.push([clamp(P.x + R(-7, 7), -A + 2, A - 2), clamp(P.z + R(-7, 7), -A + 2, A - 2)]);
+      pts.push([clamp(tg.x + R(-7, 7), -A + 2, A - 2), clamp(tg.z + R(-7, 7), -A + 2, A - 2)]);
     sfx.recharge();
     pts.forEach(([x, z], i) => {
       let t = -i * .12;
@@ -336,8 +344,8 @@ const MOVES = {
             ring.material.opacity = 0;
             if (i === 0)
               sfx.boom();
-            if (Math.hypot(P.x - x, P.z - z) < 2)
-              hurt(28);
+            if (Math.hypot(tg.x - x, tg.z - z) < 2)
+              hitP(tg, 28);
           }
           col.material.opacity -= dt * 2;
           return col.material.opacity > 0;

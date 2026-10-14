@@ -358,7 +358,7 @@ function updNeedles(dt) {
         break;
       }
     }
-    if (!n.hooked && (n.life <= 0 || p.y < .05 || outArena(p) || pillars.some(q => Math.abs(p.x - q.x) < 1.5 && Math.abs(p.z - q.z) < 1.5 && p.y < 3.5))) {
+    if (!n.hooked && (n.life <= 0 || p.y < .05 || outArena(p) || inPillar(p, 0))) {
       n.life = -1;
       scene.remove(n.m);
     }
@@ -470,8 +470,8 @@ function updDrops(dt) {
   drops = drops.filter(d => d.life > 0);
 }
 
-// ty: damage type dealt to enemies (see DMGT)
-function explode(x, y, z, rad, dm, selfD, ty) {
+// ty: damage type dealt to enemies (see DMGT); foe: set off by an enemy, so on the co-op host it also hits the other players
+function explode(x, y, z, rad, dm, selfD, ty, foe) {
   enemies.forEach(e => {
     const d = Math.hypot(e.x - x, e.z - z, e.sc - y);
     if (d < rad)
@@ -479,6 +479,12 @@ function explode(x, y, z, rad, dm, selfD, ty) {
   });
   if (Math.hypot(P.x - x, 1.6 + P.y - y, P.z - z) < rad)
     hurt(selfD);
+  if (foe && NET.host)
+    netRemotes().forEach(r => {
+      if (Math.hypot(r.x - x, 1.6 + r.y - y, r.z - z) < rad)
+        netOut(r, selfD);
+    });
+  netFx('ex', [x, y, z, rad]);
   flashFx(x, y, z, rad, 0xffb040);
   sfx.boom();
 }
@@ -488,7 +494,7 @@ function updRockets(dt) {
     const p = r.m.position;
     p.addScaledVector(r.v, dt);
     r.life -= dt;
-    if (r.life <= 0 || p.y < .1 || outArena(p) || pillars.some(q => Math.abs(p.x - q.x) < 1.5 && Math.abs(p.z - q.z) < 1.5 && p.y < 3.5) || enemies.some(e => !e.dead && Math.hypot(e.x - p.x, e.sc * 1.1 - p.y, e.z - p.z) < .9 * e.sc)) {
+    if (r.life <= 0 || p.y < .1 || outArena(p) || inPillar(p, 0) || enemies.some(e => !e.dead && Math.hypot(e.x - p.x, e.sc * 1.1 - p.y, e.z - p.z) < .9 * e.sc)) {
       r.life = -1;
       explode(p.x, p.y, p.z, 6 * Math.sqrt(nadeM()), W.rk.dmg * dmgMul(), 20, 'k');
       scene.remove(r.m);
@@ -559,6 +565,9 @@ function fire() {
       const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([s, o.clone().addScaledVector(d, end)]), new THREE.LineBasicMaterial({ color: w.col || 0xffe9a0 }));
       scene.add(l);
       tracers.push({ m: l, life: .05 });
+      // Other players see the first tracer of each shot
+      if (i === 0)
+        netFx('fx', [s.x, s.y, s.z, o.x + d.x * end, o.y + d.y * end, o.z + d.z * end, w.col || 0xffe9a0]);
     }
   if (P.ammo <= 0)
     startReload();

@@ -15,6 +15,19 @@ python3 -m http.server 8000     # then visit http://localhost:8000
 
 After pushing to GitHub, enable **Settings → Pages → Source: GitHub Actions** and the included workflow publishes the game on every push to `main`.
 
+## Multiplayer
+
+Click **MULTIPLAYER** on the title screen. Set a name and colour, then either:
+
+- **Host** a game (Co-op, Co-op Legendary or Versus). You get a 6-character code and a **Copy invite link** button. Send the link to friends, and press **Start** when everyone is in.
+- **Join** by typing a friend's code, or open their invite link and press **Join**.
+
+**Co-op** (2-4 players): the host's game runs the missions and enemies. Everyone picks their own boons; the next room starts when the whole squad has picked. Downed players come back in the next room. If everyone goes down, the run ends.
+
+**Versus** (2-4 players): free-for-all slayer on **Blood Gulch**, a large canyon with two bases, a creek and weapon pickups. Everyone starts with the AR and Magnum. First to 15 kills wins. Hold **Tab** for scores.
+
+How it connects: peer to peer over WebRTC with [PeerJS](https://peerjs.com/). Every guest connects straight to the host's browser. The free public PeerJS server is only used to find each other by code, so there is no game server to run. Some strict corporate or school networks block direct connections; home networks usually work. If the host closes the game, the match ends.
+
 ## Controls
 
 | Input | Action |
@@ -32,6 +45,7 @@ After pushing to GitHub, enable **Settings → Pages → Source: GitHub Actions*
 | Mouse wheel / 1 / 2 | Swap weapons |
 | 1-3 | Pick a boon on the boon screen |
 | M / N | Mute everything / mute music |
+| Tab (hold) | Multiplayer scoreboard |
 
 ## Features
 
@@ -60,6 +74,7 @@ js/               game code (classic scripts, loaded in this order)
   bosses.js       boss kits: signature moves, summons, boss AI
   menus.js        overlay screens
   input.js        mouse and keyboard
+  multiplayer.js  online co-op and versus (PeerJS), Blood Gulch map
   main.js         update loop, HUD, boot
 vendor/           optional local copy of three.min.js
 ```

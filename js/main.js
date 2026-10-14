@@ -13,8 +13,10 @@ function update(dt) {
     else if (mx > .94)
       yaw -= 1.8 * dt;
   }
-  const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
-  const s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  // Down (multiplayer) or with the in-match menu open: no moving or shooting; the world keeps running
+  const frz = NET.down || NET.menu;
+  const f = frz ? 0 : (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+  const s = frz ? 0 : (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   const m = Math.hypot(f, s) || 1;
   const sy = Math.sin(yaw);
   const cy = Math.cos(yaw);
@@ -64,7 +66,8 @@ function update(dt) {
   else
     P.rch = 0;
   // Burst weapons (BR) keep firing the rest of the burst 0.07s apart once the trigger starts it.
-  if (P.bl > 0) {
+  if (frz) { }
+  else if (P.bl > 0) {
     P.bt -= dt;
     if (P.bt <= 0) {
       if (P.ammo > 0 && P.reload <= 0) {
@@ -103,6 +106,9 @@ function update(dt) {
     }
   }
   enemies.forEach(e => {
+    // Networked bodies (co-op ghosts, versus players) are moved by the network, not by this AI
+    if (e.net)
+      return;
     e.flash -= dt;
     e.dirT -= dt;
     if (e.boss)
@@ -111,8 +117,10 @@ function update(dt) {
       e.dir *= -1;
       e.dirT = R(1, 3);
     }
-    const dx = P.x - e.x;
-    const dz = P.z - e.z;
+    // Chase the nearest player (always you, outside co-op)
+    const tg = netTarget(e);
+    const dx = tg.x - e.x;
+    const dz = tg.z - e.z;
     const d = Math.hypot(dx, dz) || 1;
     const nx = dx / d;
     const nz = dz / d;
@@ -159,7 +167,7 @@ function update(dt) {
           e.swing = .25;
           sfx.sword();
           if (d < 2.7)
-            hurt(e.bd);
+            hitP(tg, e.bd);
         }
       }
       else if (e.cd <= 0 && d < 2.6) {
@@ -198,7 +206,7 @@ function update(dt) {
         if (e.needle)
           mm.lookAt(mm.position.clone().add(dir));
         scene.add(mm);
-        shots.push({ m: mm, v: dir.multiplyScalar(e.bs * (e.needle ? R(.9, 1.1) : 1)), dmg: e.bd, life: 4, home: e.needle ? 2.2 : 0 });
+        shots.push({ m: mm, v: dir.multiplyScalar(e.bs * (e.needle ? R(.9, 1.1) : 1)), dmg: e.bd, life: 4, home: e.needle ? 2.2 : 0, tg });
       }
       if (e.needle)
         sfx.needleE(d);
@@ -214,16 +222,19 @@ function update(dt) {
     // Needles home in on you for their first 1.2s
     if (b.home && b.life > 2.8) {
       const s = b.v.length();
-      b.v.lerp(new THREE.Vector3(P.x - p.x, 1.3 + P.y - p.y, P.z - p.z).normalize().multiplyScalar(s), Math.min(1, dt * b.home)).setLength(s);
+      const q = b.tg || P;
+      b.v.lerp(new THREE.Vector3(q.x - p.x, 1.3 + q.y - p.y, q.z - p.z).normalize().multiplyScalar(s), Math.min(1, dt * b.home)).setLength(s);
       b.m.lookAt(p.clone().add(b.v));
     }
     p.addScaledVector(b.v, dt);
     b.life -= dt;
-    if (Math.hypot(p.x - P.x, p.y - 1.3 - P.y, p.z - P.z) < .7) {
-      b.life = 0;
-      hurt(b.dmg);
-    }
-    if (outArena(p) || p.y < 0 || pillars.some(q => Math.abs(p.x - q.x) < 1.5 && Math.abs(p.z - q.z) < 1.5 && p.y < 3.5))
+    netTargets().forEach(q => {
+      if (b.life > 0 && Math.hypot(p.x - q.x, p.y - 1.3 - q.y, p.z - q.z) < .7) {
+        b.life = 0;
+        hitP(q, b.dmg);
+      }
+    });
+    if (outArena(p) || p.y < 0 || inPillar(p, 0))
       b.life = 0;
     if (b.life <= 0)
       scene.remove(b.m);
@@ -264,7 +275,7 @@ function update(dt) {
       }
     }
     pillars.forEach(q => {
-      if (Math.abs(p.x - q.x) < 1.6 && Math.abs(p.z - q.z) < 1.6 && p.y < 3.5) {
+      if (Math.abs(p.x - q.x) < (q.hw || 1.5) + .1 && Math.abs(p.z - q.z) < (q.hd || 1.5) + .1 && p.y < (q.h || 3.5)) {
         n.v.x *= -.4;
         n.v.z *= -.4;
         p.x += n.v.x * dt * 2;
@@ -306,6 +317,9 @@ function update(dt) {
   updRockets(dt);
   updNeedles(dt);
   enemies = enemies.filter(e => !e.dead);
+  // Rooms and bosses are decided only by the page that runs the world (solo, or the co-op host)
+  if (NET.mode === 'vs' || NET.client)
+    return;
   if (state === 'play' && lroom > L.rooms && !enemies.some(e => e.boss)) {
     enemies.forEach(e => {
       e.dead = true;
@@ -315,19 +329,29 @@ function update(dt) {
     bossDown();
     return;
   }
-  if (state === 'play' && !enemies.length) {
-    state = 'pick';
-    earn(8 + lroom * 2);
-    music.set(0);
-    sfx.clear();
-    document.exitPointerLock && document.exitPointerLock();
-    const pool = BOONS.filter(b => !(b.w && P.slots.includes(b.w)) && !(b.th && P.thrust) && !(b.once && P.boons.includes(b.n)) && !(b.mx && b.mx(P))).sort(() => Math.random() - .5);
-    const wp = pool.filter(b => b.w);
-    const ot = pool.filter(b => !b.w);
-    choices = (room % 2 ? [wp[0], ot[0], ot[1]] : pool.slice(0, 3)).filter(Boolean);
-    ov.style.display = 'flex';
-    showPick('ROOM CLEARED');
-  }
+  if (state === 'play' && !enemies.length)
+    roomClear();
+}
+
+function roomClear() {
+  NET.phase = 'k';
+  NET.menu = 0;
+  state = 'pick';
+  earn(8 + lroom * 2);
+  music.set(0);
+  sfx.clear();
+  document.exitPointerLock && document.exitPointerLock();
+  makeChoices();
+  ov.style.display = 'flex';
+  showPick('ROOM CLEARED');
+}
+
+// The boon offer after a room: one weapon boon on odd rooms; never a weapon you hold, a one-off you have, or a maxed boon
+function makeChoices() {
+  const pool = BOONS.filter(b => !(b.w && P.slots.includes(b.w)) && !(b.th && P.thrust) && !(b.once && P.boons.includes(b.n)) && !(b.mx && b.mx(P))).sort(() => Math.random() - .5);
+  const wp = pool.filter(b => b.w);
+  const ot = pool.filter(b => !b.w);
+  choices = (room % 2 ? [wp[0], ot[0], ot[1]] : pool.slice(0, 3)).filter(Boolean);
 }
 
 function tick(dt) {
@@ -384,7 +408,7 @@ function hud() {
     $('boss').firstChild.textContent = L && L.bossN > 1 ? L.bn : bss[0].bn;
     $('boss').lastChild.firstChild.style.width = 100 * Math.max(0, bss.reduce((s, b) => s + Math.max(0, b.hp) + b.sh, 0) / (bossTotal || 1)) + '%';
   }
-  $('room').textContent = (L ? (LEGEND ? 'LEGENDARY | ' : '') + L.n + ' | ' + (lroom > L.rooms ? 'BOSS' : 'Room ' + lroom + '/' + L.rooms) : '') + '  Kills ' + kills;
+  $('room').textContent = NET.mode ? netRoomText() : (L ? (LEGEND ? 'LEGENDARY | ' : '') + L.n + ' | ' + (lroom > L.rooms ? 'BOSS' : 'Room ' + lroom + '/' + L.rooms) : '') + '  Kills ' + kills;
   $('vig').style.opacity = vig;
   $('cross').style.borderColor = hitT > 0 ? hitCol : 'rgba(155,196,90,.8)';
 }
@@ -397,6 +421,9 @@ function loop(now) {
     update(dt);
   else if (state === 'title' || state === 'menu')
     orbit(dt);
+  else if (NET.host && (state === 'pick' || state === 'wait'))
+    netHostIdle(dt);
+  netTick(dt);
   tick(dt);
   hud();
   renderer.render(scene, cam);
