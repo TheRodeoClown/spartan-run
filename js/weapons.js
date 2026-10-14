@@ -179,9 +179,10 @@ function makeSword() {
   // blade outline for the right-hand blade (x outward, y forward): flares out, then curves in to the point
   const sh = new THREE.Shape();
   sh.moveTo(0, 0);
+  // the two blades curve back in so their points meet in front of the hilt (the blade sits .092 off centre)
   sh.lineTo(.034, 0);
-  sh.bezierCurveTo(.095, .28, .09, .86, .018, 1.38);
-  sh.bezierCurveTo(.048, .84, .036, .3, 0, 0);
+  sh.bezierCurveTo(.1, .3, .07, .98, -.09, 1.4);
+  sh.bezierCurveTo(.012, .9, .03, .3, 0, 0);
   const geo = new THREE.ShapeGeometry(sh, 16);
   // short rear prong
   const rp = new THREE.Shape();
@@ -196,7 +197,7 @@ function makeSword() {
     b.rotation.x = -Math.PI / 2;
     b.scale.x = s;
     blades.add(b);
-    [[core, 1, 1], [g1, 1.5, 1.04], [g2, 2.3, 1.07]].forEach(([m, wx, ly]) => {
+    [[core, 1, 1], [g1, 1.35, 1.03], [g2, 1.8, 1.05]].forEach(([m, wx, ly]) => {
       const o = new THREE.Mesh(geo, m);
       o.scale.set(wx, ly, 1);
       o.position.x = -.017 * (wx - 1);
