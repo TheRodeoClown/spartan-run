@@ -117,7 +117,10 @@ function bossDown() {
   music.set(0);
   sfx.clear();
   document.exitPointerLock && document.exitPointerLock();
-  choices = LEG.slice().sort(() => Math.random() - .5).slice(0, 3);
+  // Each legendary boon can only be taken once per run; if you have them all, a normal boon offer instead
+  choices = LEG.filter(b => !P.boons.includes(b.n)).sort(() => Math.random() - .5).slice(0, 3);
+  if (!choices.length)
+    makeChoices();
   showPick('MISSION COMPLETE: ' + (L.bn || ET[L.boss].bn) + ' DEFEATED');
 }
 

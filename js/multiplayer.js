@@ -431,7 +431,6 @@ function netAvatars(dt) {
     const da = ((r.yw + Math.PI - e.g.rotation.y) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
     e.g.rotation.y += da * k;
     walkAnim(e, dt);
-    e.g.position.y += e.y;
     e.flash -= dt;
     e.mat.emissive.setHex(e.flash > 0 ? 0x777777 : 0);
   });
@@ -469,9 +468,9 @@ function netWorld() {
   else if (NET.started)
     Object.assign(w, {
       lv: L ? L.id : '', rm: room, lr: lroom, bt: Math.round(bossTotal), out: NET.out,
-      // [id, type, x, z, facing, hp, shield, flags (1 flash, 2 primed, 4 unused, 8 cloaked), sword angle]
+      // [id, type, x, z, facing, hp, shield, flags (1 flash, 2 primed, 4 invulnerable, 8 cloaked), sword angle]
       en: enemies.filter(e => !e.dead && !e.net).slice(0, 40).map(e => {
-        const a = [e.id, ETK.indexOf(e.t), r1(e.x), r1(e.z), r2(e.g.rotation.y), Math.round(e.hp), Math.round(e.sh), (e.flash > 0 ? 1 : 0) | (e.kf > 0 ? 2 : 0) | (e.g.visible ? 0 : 8)];
+        const a = [e.id, ETK.indexOf(e.t), r1(e.x), r1(e.z), r2(e.g.rotation.y), Math.round(e.hp), Math.round(e.sh), (e.flash > 0 ? 1 : 0) | (e.kf > 0 ? 2 : 0) | (e.inv > T ? 4 : 0) | (e.g.visible ? 0 : 8)];
         if (e.sw)
           a.push(r2(e.sw.rotation.x));
         return a;
@@ -585,11 +584,13 @@ function netGhosts(w, dt) {
     }
     const da = ((e.ry - e.g.rotation.y) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
     e.g.rotation.y += da * Math.min(1, dt * 15);
+    e.y = groundH(e.x, e.z);
     walkAnim(e, dt);
     e.flash -= dt;
     e.mat.emissive.setHex(e.flash > 0 || e.fl & 1 ? 0xffffff : 0);
-    e.aura.visible = e.sh > 0;
-    e.aura.material.opacity = .1 + .3 * e.sh / (e.maxsh || 1);
+    e.aura.visible = e.sh > 0 || !!(e.fl & 4);
+    e.aura.material.color.setHex(e.fl & 4 ? 0xffd040 : 0x78dcff);
+    e.aura.material.opacity = e.fl & 4 ? .45 : .1 + .3 * e.sh / (e.maxsh || 1);
     e.g.visible = !(e.fl & 8);
     if (e.kg)
       e.kg.visible = !(e.fl & 2) || Math.floor(T * 16) % 2 === 0;

@@ -288,7 +288,7 @@ function spawn(t, px, pz) {
     mat.color.setHex(d.tint);
   g.scale.setScalar(d.sc);
   // Tankier per mission cleared and per room within a mission
-  const dm = (1 + .4 * P.done.length) * (1 + .06 * Math.max(0, lroom - 1)) * DIFF.hp * (1 + .25 * NET.others());
+  const dm = (1 + .4 * P.done.length) * (1 + .06 * Math.max(0, lroom - 1)) * DIFF.hp * (1 + (d.bn ? .9 : .25) * NET.others()); // bosses scale much harder with extra co-op players
   g.position.set(x, 0, z);
   scene.add(g);
   // Bosses get glowing weak points (a solid core plus a pulsing halo) attached to the model
@@ -384,7 +384,8 @@ function walkAnim(e, dt) {
   }
   if (e.arm)
     e.arm.rotation.x = -sw * .7;
-  e.g.position.set(e.x, Math.abs(Math.cos(e.ph)) * .06 * e.sc * e.gs + Math.sin(T * 2 + e.ph) * .008 * (1 - e.gs), e.z);
+  // e.y: the ground (or a versus player's) height under them
+  e.g.position.set(e.x, (e.y || 0) + Math.abs(Math.cos(e.ph)) * .06 * e.sc * e.gs + Math.sin(T * 2 + e.ph) * .008 * (1 - e.gs), e.z);
 }
 
 function critHit(e, o, d) {
@@ -419,6 +420,9 @@ function dmgE(e, d, crit, ty) {
     netHit(e, d, ty);
     return;
   }
+  // Enraging bosses shrug off everything for a moment
+  if (e.inv > T)
+    return;
   const M = DMGT[ty] || DMGT.n;
   if (e.sh > 0) {
     const s = d * M.sh;
@@ -432,6 +436,11 @@ function dmgE(e, d, crit, ty) {
   }
   else
     e.hp -= d * M.hp;
+  // A boss can't be burst past its enrage threshold: the hit stops at half health and the boss enrages
+  if (e.boss && !e.rage && e.hp + e.sh < (e.maxhp + e.maxsh) * .5) {
+    e.hp = Math.max(e.hp, (e.maxhp + e.maxsh) * .5 - e.sh);
+    enrage(e, (e.bn || 'BOSS').toUpperCase() + ' IS ENRAGED!');
+  }
   if (e.hp <= 0 && !e.dead) {
     e.dead = true;
     kills++;
@@ -446,13 +455,8 @@ function dmgE(e, d, crit, ty) {
     // Bonded bosses: losing one enrages the survivor
     if (e.boss)
       enemies.forEach(o => {
-        if (o.boss && !o.dead && !o.rage) {
-          o.rage = 1;
-          o.sp *= 1.35;
-          o.fr *= .65;
-          banner(o.bn.toUpperCase() + ' IS ENRAGED!');
-          sfx.room();
-        }
+        if (o.boss && !o.dead && !o.rage)
+          enrage(o, o.bn.toUpperCase() + ' IS ENRAGED!');
       });
   }
 }
@@ -466,7 +470,7 @@ function kamiBoom(e) {
     e.dead = true;
     scene.remove(e.g);
   }
-  explode(e.x, 1, e.z, 4.5, 60, 35, 'n', true);
+  explode(e.x, (e.y || 0) + 1, e.z, 4.5, 60, 35, 'n', true);
 }
 
 function flashFx(x, y, z, r, col) {

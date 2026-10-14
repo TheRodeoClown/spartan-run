@@ -35,7 +35,7 @@ const gm = (geo, c, o) => new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ colo
 function ringAt(x, z, r0, r1, c, o) {
   const m = gm(new THREE.RingGeometry(r0, r1, 48), c, o);
   m.rotation.x = -Math.PI / 2;
-  m.position.set(x, .05, z);
+  m.position.set(x, groundH(x, z) + .05, z);
   scene.add(m);
   return m;
 }
@@ -58,7 +58,7 @@ function charge(e, wind, dur, spd, dmg, reach) {
         return false;
       }
       t += dt;
-      glow.position.set(e.x, .05, e.z);
+      glow.position.set(e.x, groundH(e.x, e.z) + .05, e.z);
       if (t < wind) {
         e.flash = .05;
         const d = Math.hypot(tg.x - e.x, tg.z - e.z) || 1;
@@ -93,7 +93,8 @@ const MOVES = {
       const tz = clamp(tg.z + R(-3, 3), -A + 1, A - 1);
       const sx = e.x;
       const sz = e.z;
-      const sy = 1.6 * e.sc;
+      const sy = (e.y || 0) + 1.6 * e.sc;
+      const gy = groundH(tx, tz) + .3;
       const orb = gm(new THREE.SphereGeometry(.22, 10, 8), 0x7fe0ff, 1);
       const ring = ringAt(tx, tz, 2.9, 3.2, 0x7fe0ff, 0);
       scene.add(orb);
@@ -105,14 +106,14 @@ const MOVES = {
             return true;
           if (t < .9) {
             const u = t / .9;
-            orb.position.set(sx + (tx - sx) * u, sy + (.3 - sy) * u + 6 * u * (1 - u), sz + (tz - sz) * u);
+            orb.position.set(sx + (tx - sx) * u, sy + (gy - sy) * u + 6 * u * (1 - u), sz + (tz - sz) * u);
             return true;
           }
-          orb.position.set(tx, .3, tz);
+          orb.position.set(tx, gy, tz);
           ring.material.opacity = Math.floor(t * 10) % 2 ? .7 : .25;
           if (t < 1.7)
             return true;
-          explode(tx, .3, tz, 3.2, 0, 22, 'n', true);
+          explode(tx, gy, tz, 3.2, 0, 22, 'n', true);
           return false;
         }
       });
@@ -163,7 +164,7 @@ const MOVES = {
         wave.geometry.dispose();
         wave.geometry = new THREE.RingGeometry(Math.max(.1, r - .5), r + .5, 64);
         wave.material.opacity = Math.max(0, .85 - (t - .8) * .8);
-        if (!hit && tg.y < .35 && Math.abs(Math.hypot(tg.x - cx, tg.z - cz) - r) < 1.1) {
+        if (!hit && tg.y - groundH(tg.x, tg.z) < .35 && Math.abs(Math.hypot(tg.x - cx, tg.z - cz) - r) < 1.1) {
           hit = true;
           hitP(tg, 30);
         }
@@ -202,7 +203,7 @@ const MOVES = {
         const da = ((Math.atan2(tg.x - e.x, tg.z - e.z) - ang + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
         ang += clamp(da, -1, 1) * (t < .9 ? 6 : .55) * dt;
         [line, bm, core].forEach(m => {
-          m.position.set(e.x, 1.5 * e.sc, e.z);
+          m.position.set(e.x, (e.y || 0) + 1.5 * e.sc, e.z);
           m.rotation.set(0, ang, 0);
         });
         if (t < .9)
@@ -293,7 +294,7 @@ const MOVES = {
           return false;
         }
         t += dt;
-        tell.position.set(e.x, .05, e.z);
+        tell.position.set(e.x, groundH(e.x, e.z) + .05, e.z);
         if (t < .6) {
           tell.material.opacity = .1 + .15 * Math.abs(Math.sin(t * 20));
           e.flash = .05;
@@ -355,15 +356,24 @@ const MOVES = {
   }
 };
 
+// Enrage (at half health): faster and more aggressive, and invulnerable for 1.5s inside a gold shell,
+// so a big burst can't skip the phase.
+function enrage(e, msg) {
+  if (e.rage)
+    return;
+  e.rage = 1;
+  e.sp *= 1.35;
+  e.fr *= .65;
+  e.inv = T + 1.5;
+  banner(msg);
+  sfx.room();
+  flashFx(e.x, (e.y || 0) + 1.2 * e.sc, e.z, 2 * e.sc, 0xffd040);
+}
+
 function bossAI(e, dt) {
   const K = BOSSKIT[e.t];
-  if (!e.rage && e.hp + e.sh < (e.maxhp + e.maxsh) * .5) {
-    e.rage = 1;
-    e.sp *= 1.35;
-    e.fr *= .65;
-    banner('ENRAGED!');
-    sfx.room();
-  }
+  if (!e.rage && e.hp + e.sh < (e.maxhp + e.maxsh) * .5)
+    enrage(e, 'ENRAGED!');
   // Reinforcements through portals around the boss (faster once enraged)
   e.sumT -= dt;
   if (e.sumT <= 0) {

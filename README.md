@@ -60,6 +60,9 @@ How it connects: peer to peer over WebRTC with [PeerJS](https://peerjs.com/). Ev
 - Per-weapon reload animations, dropped magazines and sound effects.
 - Three themed levels (UNSC outpost, Covenant cruiser, Forerunner ring), each with rooms of waves and a boss.
 - Roguelite loop: boon after every room, a legendary boon after each boss, then mission select. Enemies scale with each level cleared.
+- Weapon variants: from the second mission on, boon screens can offer a special version of a gun you carry (MA40 Shredder, BR55 Recon, M6D Executioner, M90 Breacher, S2 Railgun, Type-25 Storm, M41 Hunter-Killer, Type-33 Hive, Prophet's Bane).
+- Bosses enrage at half health (a single burst can't skip past it) and are invulnerable for 1.5s while they do; in co-op their health scales hard with squad size. Legendary boons can only be taken once per run.
+- Outdoor levels have rolling hills (cover, walls and markings stay on level ground) and scattered ground detail.
 - Meta-progression: credits are banked even if you die and spent in the Armory on permanent upgrades and starting sidearms.
 - Original adaptive score and title theme, synthesised live (chant, pad, war drums).
 

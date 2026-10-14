@@ -397,13 +397,13 @@ function ringBand(r, w, tint, op) {
 
 function floorMat(s) {
   return mat('fl' + s, () => s === 'ob'
-    ? new THREE.MeshLambertMaterial({ map: ctex('plate', 256, 256, 11, 11, DR.plate) })
+    ? new THREE.MeshLambertMaterial({ map: ctex('dirt', 256, 256, 8, 8, DR.dirt) })
     : s === 'cc'
       ? new THREE.MeshPhongMaterial({ map: ctex('hex', 222, 192, 9, 9, DR.hex), shininess: 70, specular: 0x553388 })
       : s === 'ds'
         ? new THREE.MeshLambertMaterial({ map: ctex('sand', 256, 256, 8, 8, DR.sand) })
         : s === 'sn'
-          ? new THREE.MeshLambertMaterial({ map: ctex('snow', 256, 256, 8, 8, DR.snow) })
+          ? new THREE.MeshLambertMaterial({ map: ctex('frost', 256, 256, 7, 7, DR.frost) })
           : s === 'bg'
             ? new THREE.MeshLambertMaterial({ map: ctex('grassBG', 256, 256, 44, 44, DR.grass) })
             : new THREE.MeshLambertMaterial({ map: ctex('grass', 256, 256, 12, 12, DR.grass) }));
@@ -550,6 +550,10 @@ function buildLevel(lv, empty) {
     }
   };
 
+  // Outdoor levels: hilly ground with scattered decorations instead of the flat floor
+  if (OUTDOOR[lv.sty])
+    missionTerrain(lv, lay, add);
+
   if (lv.sky)
     envG.add(skyDome(...lv.sky));
 
@@ -601,7 +605,6 @@ function buildLevel(lv, empty) {
       add(B(3.6, .4, 3.6), dark, x, 9.2, z);
       add(B(3.05, .5, 3.05), G(0xffc070), x, 8, z);
     });
-    decals(lv.trim);
     const pl = new THREE.PointLight(0xffb070, .6, 40);
     pl.position.set(0, 6, 0);
     envG.add(pl);
@@ -765,7 +768,7 @@ function buildLevel(lv, empty) {
     ground(mat('snowBig', () => new THREE.MeshLambertMaterial({ map: ctex('snowBig', 256, 256, 160, 160, DR.snow) })));
     hills(28, 90, 240, 40, 120, 0xdfe7ef);
     pines(50, A + 4, A + 64, true);
-    // Snow-capped walls with icicles, snow drifts banked against the base
+    // Snow-capped walls with icicles; snow drifts banked against the outside of the walls (the arena floor is frozen stone)
     walls(4.5, fnM(4), 6.5);
     WL.forEach(wl => {
       const h = wallH(wl, 4.5, 6.5);
@@ -774,7 +777,7 @@ function buildLevel(lv, empty) {
         const ih = R(.3, 1.1);
         onW(wl, t + R(-.3, .3), h - ih / 2, new THREE.ConeGeometry(.08, ih, 5), ice, .05).rotation.x = Math.PI;
       });
-      spots(wl, 5).forEach(t => onW(wl, t + R(-1, 1), 0, new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), snowM, -.2).scale.set(R(1.8, 3.2), R(.5, 1.1), 1.1));
+      spots(wl, 5).forEach(t => onW(wl, t + R(-1, 1), 0, new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), snowM, -1.9).scale.set(R(1.8, 3.2), R(.5, 1.1), 1.1));
     });
     // Spires behind the angled corner walls
     cornerPts.forEach(([x, z]) => {
@@ -788,23 +791,23 @@ function buildLevel(lv, empty) {
     [9 * K, 4.5 * K].forEach(r => {
       add(new THREE.RingGeometry(r, r + .18, 64), cy, 0, .03, 0).rotation.x = -Math.PI / 2;
     });
-    particles(2500, 0xffffff, .12, 0, 25, (p, i, dt) => {
+    // Snowfall only outside the walls: any flake that lands or drifts into the arena starts again somewhere outside
+    particles(2500, 0xffffff, .14, 0, 25, (p, i, dt) => {
       p[i + 1] -= 2.2 * dt;
       p[i] += (1.4 + Math.sin(T * .7 + i) * .4) * dt;
-      if (p[i + 1] < 0) {
-        p[i + 1] = 25;
-        p[i] = R(-40, 40);
-        p[i + 2] = R(-40, 40);
+      if (p[i + 1] < 0 || (Math.abs(p[i]) < A + 1 && Math.abs(p[i + 2]) < A + 1) || Math.hypot(p[i], p[i + 2]) > 75) {
+        const a = R(0, 6.28);
+        const r = R(A * 1.45, 72);
+        p[i] = Math.cos(a) * r;
+        p[i + 2] = Math.sin(a) * r;
+        p[i + 1] = p[i + 1] < 0 ? 25 : R(0, 25);
       }
-      if (p[i] > 40)
-        p[i] = -40;
     });
     if (!empty)
       lay.forEach(([x, z]) => {
         pillars.push({ x, z });
         add(B(1.8, 2.2, 1.8), M(0x4f5c3e), x, 1.1, z);
         add(B(3, 3.5, 3), ice, x, 1.75, z);
-        add(B(3.1, .35, 3.1), snowM, x, 3.67, z);
       });
   }
   else if (lv.sty === 'bg')
@@ -857,4 +860,203 @@ function buildLevel(lv, empty) {
       });
   }
 }
+// Extra ground textures for the outdoor levels
+Object.assign(DR, {
+  // Packed dusty earth with gravel, tyre ruts and stones (Outpost Delta)
+  dirt: (g, w, h) => {
+    g.fillStyle = '#6b5a48';
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 18; i++) {
+      g.fillStyle = Math.random() < .5 ? 'rgba(40,30,20,.18)' : 'rgba(150,130,100,.14)';
+      g.beginPath();
+      g.ellipse(Math.random() * w, Math.random() * h, R(15, 60), R(10, 40), R(0, 3), 0, 7);
+      g.fill();
+    }
+    for (let i = 0; i < 900; i++) {
+      const v = R(60, 150) | 0;
+      g.fillStyle = 'rgba(' + v + ',' + (v * .9 | 0) + ',' + (v * .75 | 0) + ',.6)';
+      g.fillRect(Math.random() * w, Math.random() * h, R(1, 3), R(1, 3));
+    }
+    g.strokeStyle = 'rgba(30,22,15,.25)';
+    g.lineWidth = 6;
+    [w * .3, w * .38].forEach(x => {
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.bezierCurveTo(x + 20, h * .3, x - 20, h * .6, x, h);
+      g.stroke();
+    });
+    speck(g, w, h, 3000, .12);
+  },
+  // Frozen stone: blue-grey slabs with cracks and patches of frost (Glacier Relay's arena floor)
+  frost: (g, w, h) => {
+    g.fillStyle = '#7d8c99';
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 16; i++) {
+      g.fillStyle = 'hsla(205,' + R(8, 20) + '%,' + R(45, 65) + '%,.35)';
+      g.beginPath();
+      g.ellipse(Math.random() * w, Math.random() * h, R(20, 70), R(15, 50), R(0, 3), 0, 7);
+      g.fill();
+    }
+    g.strokeStyle = 'rgba(40,50,60,.45)';
+    g.lineWidth = 1.5;
+    for (let i = 0; i < 14; i++) {
+      let x = Math.random() * w;
+      let y = Math.random() * h;
+      g.beginPath();
+      g.moveTo(x, y);
+      for (let j = 0; j < 5; j++) {
+        x += R(-25, 25);
+        y += R(-25, 25);
+        g.lineTo(x, y);
+      }
+      g.stroke();
+    }
+    for (let i = 0; i < 10; i++) {
+      g.fillStyle = 'rgba(235,245,255,' + R(.15, .35) + ')';
+      g.beginPath();
+      g.ellipse(Math.random() * w, Math.random() * h, R(8, 30), R(5, 18), R(0, 3), 0, 7);
+      g.fill();
+    }
+    speck(g, w, h, 2500, .1);
+  }
+});
+
+/* ---------- Outdoor terrain for missions ----------
+   The open-air levels get gentle hills inside the arena. The ground stays flat around cover, along the walls, at the
+   centre (or under a level's central platform and markings) and where you start, so cover and walls stand on level
+   ground. It's deterministic per level, so co-op players see the same hills. groundH (core.js) reads it. */
+const OUTDOOR = {
+  ob: { amp: .9, n: 8, flat: 3 },
+  ds: { amp: 1.2, n: 9, flat: 3 },
+  sn: { amp: 1.1, n: 8, flat: 13 },
+  fr: { amp: 1.7, n: 9, flat: 11 * K + 2, axes: true }
+};
+const smooth01 = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+
+function missionGround(lv, lay) {
+  const cfg = OUTDOOR[lv.sty];
+  let sd = 7;
+  for (const c of lv.id)
+    sd = (sd * 31 + c.charCodeAt(0)) % 2147483647;
+  const rnd = () => (sd = sd * 16807 % 2147483647) / 2147483647;
+  // [x, z, height, radius] round hills, placed outside the flat centre
+  const hl = [];
+  for (let i = 0; i < cfg.n; i++) {
+    const a = rnd() * 6.283;
+    const r = cfg.flat + 2 + rnd() * Math.max(2, A - cfg.flat - 7);
+    hl.push([Math.cos(a) * r, Math.sin(a) * r, cfg.amp * (.6 + rnd() * .8), 3.5 + rnd() * 4]);
+  }
+  return (x, z) => {
+    let h = .18 * Math.sin(x * .5 + 1.3) * Math.cos(z * .43) + .12;
+    for (const [hx, hz, hh, r] of hl) {
+      const d2 = ((x - hx) ** 2 + (z - hz) ** 2) / (r * r);
+      if (d2 < 6)
+        h += hh * Math.exp(-d2 * 1.6);
+    }
+    // Flatten toward the walls, the centre, your start point, the cover, and (Forerunner Ring) the lines along the axes
+    let f = smooth01((Math.min(IN - Math.abs(x), IN - Math.abs(z), (OCT - Math.abs(x) - Math.abs(z)) / 1.414) - 1) / 3);
+    f *= smooth01((Math.hypot(x, z) - cfg.flat) / 3) * smooth01((Math.hypot(x, z - A * .64) - 2) / 3);
+    if (cfg.axes)
+      f *= smooth01((Math.min(Math.abs(x), Math.abs(z)) - 1) / 2.5);
+    for (const [px, pz] of lay)
+      f *= smooth01((Math.hypot(x - px, z - pz) - 2.4) / 2.2);
+    return Math.max(0, h) * f;
+  };
+}
+
+// Builds the hilly ground mesh in place of the flat floor. Vertex colours lighten the hilltops and add soft patches,
+// so the ground texture doesn't look like one repeating tile.
+function missionTerrain(lv, lay, add) {
+  groundFn = missionGround(lv, lay);
+  floor.visible = false;
+  const g = new THREE.PlaneGeometry(A * 2, A * 2, 100, 100);
+  g.rotateX(-Math.PI / 2);
+  const p = g.attributes.position;
+  const col = [];
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i);
+    const z = p.getZ(i);
+    const h = groundFn(x, z);
+    p.setY(i, h);
+    const k = Math.min(1.08, .86 + h * .09 + .07 * Math.sin(x * .37 + z * .13) * Math.cos(z * .29 - x * .21) + .04 * Math.sin(x * 1.7) * Math.sin(z * 1.9));
+    col.push(k, k, k);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  const m = mat('terr' + lv.sty, () => {
+    const c = floorMat(lv.sty).clone();
+    c.vertexColors = true;
+    return c;
+  });
+  add(g, m, 0, 0, 0);
+  scatterProps(lv, lay, add);
+}
+
+// Small decorations on the ground (no collision): tufts, flowers and stones on the ring; rocks and dry scrub in the
+// desert; ice shards and frozen stones at the relay; rocks and scrap at the firebase.
+function scatterProps(lv, lay, add) {
+  const ph = (c, o) => mat('prop' + c + (o || ''), () => new THREE.MeshPhongMaterial({ color: c, flatShading: true, shininess: 6, transparent: !!o, opacity: o || 1 }));
+  const stone = (c, s) => {
+    const o = new THREE.Mesh(gcache('pstone', () => new THREE.DodecahedronGeometry(1)), ph(c));
+    o.scale.set(s * R(.8, 1.3), s * R(.5, .8), s * R(.8, 1.3));
+    o.rotation.y = R(0, 6);
+    return o;
+  };
+  const tuft = (c, n, hgt, w) => {
+    const grp = new THREE.Group();
+    for (let i = 0; i < n; i++) {
+      const o = new THREE.Mesh(gcache('ptuft', () => new THREE.ConeGeometry(.05, 1, 4)), ph(c));
+      o.scale.set(w, hgt * R(.7, 1.2), w);
+      o.position.set(R(-.15, .15), hgt * .45, R(-.15, .15));
+      o.rotation.set(R(-.35, .35), 0, R(-.35, .35));
+      grp.add(o);
+    }
+    return grp;
+  };
+  const makers = {
+    fr: [() => tuft(0x5f9a3c, 5, .55, 1), () => tuft(0x6aa845, 4, .4, 1), () => {
+      const grp = tuft(0x4f8a34, 3, .35, 1);
+      const fl = new THREE.Mesh(gcache('pflower', () => new THREE.SphereGeometry(.07, 6, 4)), ph([0xffe066, 0xff8fb0, 0xc6a8ff][Math.random() * 3 | 0]));
+      fl.position.y = .38;
+      grp.add(fl);
+      return grp;
+    }, () => stone(0x8a9088, R(.15, .4))],
+    ds: [() => stone(0xb0855a, R(.15, .5)), () => stone(0x9c7048, R(.3, .7)), () => tuft(0x8a6a3a, 6, .5, .7), () => tuft(0x7a8a4a, 4, .7, 1.2)],
+    sn: [() => {
+      const o = new THREE.Mesh(gcache('pshard', () => new THREE.ConeGeometry(.12, 1, 5)), ph(0xbfe8ff, .85));
+      const s = R(.5, 1.3);
+      o.scale.set(s, s, s);
+      o.position.y = s * .35;
+      o.rotation.set(R(-.4, .4), R(0, 6), R(-.4, .4));
+      const grp = new THREE.Group();
+      grp.add(o);
+      return grp;
+    }, () => stone(0x7f8fa0, R(.15, .5)), () => stone(0xdfe9f2, R(.2, .45))],
+    ob: [() => stone(0x6a5f55, R(.15, .5)), () => stone(0x7a6e62, R(.3, .6)), () => {
+      const o = new THREE.Mesh(gcache('pscrap', () => new THREE.BoxGeometry(1, 1, 1)), ph(0x4a5058));
+      o.scale.set(R(.2, .6), R(.05, .15), R(.2, .5));
+      o.rotation.y = R(0, 6);
+      return o;
+    }, () => tuft(0x7a7a4a, 4, .35, .9)]
+  }[lv.sty];
+  if (!makers)
+    return;
+  let n = 0;
+  for (let tries = 0; n < 90 && tries < 400; tries++) {
+    const x = R(-A + 2, A - 2);
+    const z = R(-A + 2, A - 2);
+    if (Math.abs(x) + Math.abs(z) > OCT - 2 || lay.some(([px, pz]) => Math.abs(x - px) < 2.2 && Math.abs(z - pz) < 2.2))
+      continue;
+    // Keep the Forerunner platform and the relay's floor rings clear
+    if ((lv.sty === 'fr' || lv.sty === 'sn') && Math.hypot(x, z) < OUTDOOR[lv.sty].flat - 1)
+      continue;
+    const o = makers[Math.random() * makers.length | 0]();
+    o.position.x = x;
+    o.position.z = z;
+    o.position.y += groundFn(x, z);
+    envG.add(o);
+    n++;
+  }
+}
+
 buildLevel(LV[0], true);

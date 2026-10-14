@@ -88,7 +88,7 @@ function update(dt) {
   }
   else if (P.wpn === 'sw') {
     if (down) {
-      if (P.ammo >= SWING_COST)
+      if (P.ammo >= swingCost())
         melee();
       else if (P.mcd <= 0) {
         P.mcd = .4;
@@ -151,13 +151,17 @@ function update(dt) {
         }
       }
     });
+    e.y = groundH(e.x, e.z);
     e.g.rotation.y = Math.atan2(dx, dz);
     walkAnim(e, dt);
     if (e.crits)
       e.crits.forEach(c => c.h.scale.setScalar(1 + .25 * Math.sin(T * 8)));
     e.mat.emissive.setHex(e.flash > 0 ? 0xffffff : 0);
-    e.aura.visible = e.sh > 0;
-    e.aura.material.opacity = .1 + .3 * e.sh / (e.maxsh || 1);
+    // Shield bubble; gold while an enraging boss is invulnerable
+    const inv = e.inv > T;
+    e.aura.visible = e.sh > 0 || inv;
+    e.aura.material.color.setHex(inv ? 0xffd040 : 0x78dcff);
+    e.aura.material.opacity = inv ? .45 : .1 + .3 * e.sh / (e.maxsh || 1);
     e.cd -= dt;
     if (e.melee) {
       // Sword Elite: lunge in from mid range, raise the sword (0.35s tell), then slash
@@ -204,12 +208,13 @@ function update(dt) {
     else if (e.cd <= 0 && !panic) {
       for (let k = 0; k < e.burst; k++) {
         const a = Math.atan2(nx, nz) + (e.spread ? (k - (e.burst - 1) / 2) * .14 : R(-.06, .06));
-        const dir = new THREE.Vector3(Math.sin(a), (1.3 - 1.3 * e.sc) / d, Math.cos(a)).normalize();
+        // Aim from the muzzle at the target's chest, allowing for hills between them
+        const dir = new THREE.Vector3(Math.sin(a), ((tg.y || 0) + 1.3 - e.y - 1.3 * e.sc) / d, Math.cos(a)).normalize();
         // Needler Jackals fire homing needles; everyone else fires plasma bolts
         const mm = e.needle
           ? new THREE.Mesh(new THREE.BoxGeometry(.06, .06, .42), new THREE.MeshBasicMaterial({ color: e.col }))
           : new THREE.Mesh(new THREE.SphereGeometry(.16, 8, 6), new THREE.MeshBasicMaterial({ color: e.col }));
-        mm.position.set(e.x, 1.4 * e.sc, e.z);
+        mm.position.set(e.x, e.y + 1.4 * e.sc, e.z);
         if (e.needle)
           mm.lookAt(mm.position.clone().add(dir));
         scene.add(mm);
@@ -360,6 +365,15 @@ function makeChoices() {
   const wp = pool.filter(b => b.w);
   const ot = pool.filter(b => !b.w);
   choices = (room % 2 ? [wp[0], ot[0], ot[1]] : pool.slice(0, 3)).filter(Boolean);
+  // From the second mission on, sometimes swap the last card for a variant of a gun you carry
+  const vars = P.done.length >= 1 ? P.slots.filter(k => k && VARIANTS[k] && !(P.vr && P.vr[k])) : [];
+  if (vars.length && choices.length && Math.random() < .5) {
+    const k = vars[Math.random() * vars.length | 0];
+    choices[choices.length - 1] = { n: VARIANTS[k].n, d: 'VARIANT of your ' + W[k].n + ': ' + VARIANTS[k].d, f: p => {
+      p.vr = p.vr || {};
+      p.vr[k] = 1;
+    } };
+  }
 }
 
 function tick(dt) {
@@ -408,7 +422,7 @@ function hud() {
   $('hp').firstChild.style.width = 100 * P.hp / P.maxHp + '%';
   $('en').style.display = P.wpn === 'sw' && state === 'play' ? 'block' : 'none';
   $('en').firstChild.style.width = P.ammo + '%';
-  $('info').textContent = P.slots.map((k, i) => k ? (i === P.cur ? '[' + W[k].n.split(' ')[0] + ']' : W[k].n.split(' ')[0]) : '-').join(' ') + '   ' + W[P.wpn].n + (W[P.wpn].ty === 'e' ? ' (energy)' : '') + '   ' + (P.wpn === 'sw' ? (P.ammo >= SWING_COST ? 'Energy ' + P.ammo + '%' : 'SWORD DEPLETED') : P.reload > 0 ? 'RELOADING' : P.ammo + P.sr[P.cur] <= 0 ? 'NO AMMO' : 'Ammo ' + P.ammo + ' | ' + P.sr[P.cur]) + '   Grenades ' + P.nades + '/' + P.nadeMax + (P.thrust ? '   Thruster ' + (P.tcd > 0 ? Math.ceil(P.tcd) + 's' : 'READY') : '');
+  $('info').textContent = P.slots.map((k, i) => k ? (i === P.cur ? '[' + wName(k).split(' ')[0] + ']' : wName(k).split(' ')[0]) : '-').join(' ') + '   ' + wName(P.wpn) + (W[P.wpn].ty === 'e' ? ' (energy)' : '') + '   ' + (P.wpn === 'sw' ? (P.ammo >= swingCost() ? 'Energy ' + P.ammo + '%' : 'SWORD DEPLETED') : P.reload > 0 ? 'RELOADING' : P.ammo + P.sr[P.cur] <= 0 ? 'NO AMMO' : 'Ammo ' + P.ammo + ' | ' + P.sr[P.cur]) + '   Grenades ' + P.nades + '/' + P.nadeMax + (P.thrust ? '   Thruster ' + (P.tcd > 0 ? Math.ceil(P.tcd) + 's' : 'READY') : '');
   // One bar for all bosses in the fight (Bonded Hunters are a pair), measured against their combined starting total
   const bss = enemies.filter(e => e.boss);
   $('boss').style.display = bss.length ? 'block' : 'none';

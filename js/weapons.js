@@ -4,7 +4,7 @@
  */
 
 const W = {
-  ar: { n: 'MA40 Assault Rifle', dmg: 8, rate: .09, mag: 32, rt: 1.3, sp: .012, pel: 1, hs: 1.5, mbs: 1, kick: .004 },
+  ar: { n: 'MA40 Assault Rifle', dmg: 7, rate: .09, mag: 32, rt: 1.3, sp: .012, pel: 1, hs: 1.5, mbs: 1, kick: .004 },
   br: { n: 'BR55 Battle Rifle', dmg: 13, rate: .42, mag: 36, rt: 1.5, sp: .004, pel: 1, hs: 2.2, mbs: 1, kick: .006, burst: 3 },
   sw: { n: 'Energy Sword', ty: 'e', dmg: 0, rate: .5, mag: 100, rt: 1, mbs: 0, kick: 0 },
   mg: { n: 'M6D Magnum', dmg: 30, rate: .34, mag: 12, rt: 1.1, sp: .004, pel: 1, hs: 2.5, mbs: .4, kick: .016 },
@@ -42,9 +42,51 @@ const dmgMul = () => soft(P.dmg / 8, 1.8);
 const nadeM = () => soft(P.nadeMul, 2.2);
 const meleeM = () => soft(P.meleeMul, 3);
 
+// Weapon variants: from the second mission on, boon screens can offer a special version of a gun you carry (one per gun type).
+// mod: stat changes applied in wst(); the other effects are hooked into fire(), updRockets(), updNeedles() and melee().
+const VARIANTS = {
+  ar: { n: 'MA40 Shredder', d: 'Rounds punch through one enemy into the next', mod: { pierce: 1 } },
+  br: { n: 'BR55 Recon', d: 'Headshots restore 8 shield' },
+  mg: { n: 'M6D Executioner', d: 'Kills detonate in a small blast' },
+  sg: { n: 'M90 Breacher', d: '+4 pellets and a 25% tighter spread', mod: { pel: 13, spMul: .75 } },
+  sn: { n: 'S2 Railgun', d: 'Pierces every enemy in a line' , mod: { pierce: 99 } },
+  pr: { n: 'Type-25 Storm', d: 'Hits arc lightning to another enemy within 6m (50% damage)' },
+  rk: { n: 'M41 Hunter-Killer', d: 'Rockets home in on enemies ahead; 30% bigger blast' },
+  nd: { n: 'Type-33 Hive', d: 'Supercombines at 5 needles instead of 7' },
+  sw: { n: 'Prophet\'s Bane', d: 'Swings cost half the energy; the lunge reaches 50% farther' }
+};
+// Is the held weapon the variant? / display name for a weapon you carry
+const hasVar = k => !!(P && P.vr && P.vr[k] && P.wpn === k);
+const wName = k => P && P.vr && P.vr[k] ? VARIANTS[k].n : W[k].n;
+
 function wst() {
   const w = W[P.wpn];
-  return Object.assign({}, w, { dmg: w.dmg * dmgMul(), rate: w.rate / soft(.09 / P.rate, 1.65), rt: w.rt * P.reloadT / 1.3, sp: (w.sp || 0) * (P.acc || 1) });
+  const v = (P.vr && P.vr[P.wpn] && VARIANTS[P.wpn].mod) || {};
+  return Object.assign({}, w, { dmg: w.dmg * dmgMul(), rate: w.rate / soft(.09 / P.rate, 1.65), rt: w.rt * P.reloadT / 1.3, sp: (w.sp || 0) * (P.acc || 1) * (v.spMul || 1) }, v.pierce ? { pierce: v.pierce } : {}, v.pel ? { pel: v.pel } : {});
+}
+
+// Storm variant: lightning jumps from a hit enemy to the nearest other one
+function arc(e, dmg) {
+  let b = null;
+  let bd = 6;
+  enemies.forEach(o => {
+    if (o === e || o.dead)
+      return;
+    const d = Math.hypot(o.x - e.x, o.z - e.z);
+    if (d < bd) {
+      bd = d;
+      b = o;
+    }
+  });
+  if (!b)
+    return;
+  dmgE(b, dmg, false, 'e');
+  const y0 = (e.y || 0) + 1.1 * e.sc;
+  const y1 = (b.y || 0) + 1.1 * b.sc;
+  const pts = [new THREE.Vector3(e.x, y0, e.z), new THREE.Vector3((e.x + b.x) / 2 + R(-.4, .4), (y0 + y1) / 2 + R(-.3, .5), (e.z + b.z) / 2 + R(-.4, .4)), new THREE.Vector3(b.x, y1, b.z)];
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x9ff8ff }));
+  scene.add(l);
+  tracers.push({ m: l, life: .12 });
 }
 
 function recalcMag() {
@@ -96,6 +138,8 @@ swLight.position.set(.3, -.1, -.8);
 cam.add(swLight);
 // Energy spent per sword swing (the sword's battery is its 100-point magazine).
 const SWING_COST = 10;
+// Sword energy per swing (halved by the Prophet's Bane variant)
+const swingCost = () => P && P.vr && P.vr.sw ? SWING_COST / 2 : SWING_COST;
 
 // Energy Sword model (player and Sword Elites): ribbed hilt, guard with glowing vents, and two curved
 // plasma blades made of a white-hot core plus two additive glow layers. Blades point along -z.
@@ -204,7 +248,7 @@ function animGun(dt) {
   const S = gun.userData.sw;
   swLight.intensity = 0;
   if (S && P) {
-    const on = P.ammo >= SWING_COST;
+    const on = P.ammo >= swingCost();
     S.blades.visible = on;
     S.g1.opacity = .5 + .12 * Math.sin(T * 31);
     S.g2.opacity = .22 + .08 * Math.sin(T * 17);
@@ -359,7 +403,7 @@ function updNeedles(dt) {
         e.ndl.push(n.m);
         n.hooked = true;
         n.life = -1;
-        if (e.nd >= 7 && !e.fuse)
+        if (e.nd >= (hasVar('nd') ? 5 : 7) && !e.fuse)
           e.fuse = .7;
         break;
       }
@@ -400,7 +444,9 @@ function mkDrop(k, x, z) {
     r.rotation.z = Math.PI / 2;
     g.add(r, new THREE.Mesh(new THREE.TorusGeometry(.42, .04, 6, 20), B(0xffb070)));
   }
-  g.position.set(x + R(-.5, .5), .6, z + R(-.5, .5));
+  x += R(-.5, .5);
+  z += R(-.5, .5);
+  g.position.set(x, groundH(x, z) + .6, z);
   scene.add(g);
   drops.push({ k, m: g, x: g.position.x, z: g.position.z, life: 25 });
 }
@@ -453,7 +499,7 @@ function grabAmmo(k) {
 function updDrops(dt) {
   drops.forEach(d => {
     d.life -= dt;
-    d.m.position.y = .6 + Math.sin(T * 3 + d.x) * .12;
+    d.m.position.y = groundH(d.x, d.z) + .6 + Math.sin(T * 3 + d.x) * .12;
     d.m.rotation.y += dt * 2;
     d.m.visible = d.life > 5 || Math.floor(T * 8) % 2 === 0;
     if (d.life > 0 && Math.hypot(P.x - d.x, P.z - d.z) < 1.3) {
@@ -498,11 +544,32 @@ function explode(x, y, z, rad, dm, selfD, ty, foe) {
 function updRockets(dt) {
   rockets.forEach(r => {
     const p = r.m.position;
+    // Hunter-Killer variant: steer toward the nearest enemy ahead
+    if (r.home) {
+      let b = null;
+      let bd = 25;
+      enemies.forEach(e => {
+        if (e.dead)
+          return;
+        const dx = e.x - p.x;
+        const dz = e.z - p.z;
+        const d = Math.hypot(dx, dz);
+        if (d < bd && (dx * r.v.x + dz * r.v.z) / (d * r.v.length()) > .5) {
+          bd = d;
+          b = e;
+        }
+      });
+      if (b) {
+        const s = r.v.length();
+        r.v.lerp(new THREE.Vector3(b.x - p.x, (b.y || 0) + 1.1 * b.sc - p.y, b.z - p.z).normalize().multiplyScalar(s), Math.min(1, dt * 3)).setLength(s);
+        r.m.lookAt(p.clone().add(r.v));
+      }
+    }
     p.addScaledVector(r.v, dt);
     r.life -= dt;
     if (r.life <= 0 || p.y < groundH(p.x, p.z) + .1 || outArena(p) || inPillar(p, 0) || enemies.some(e => !e.dead && Math.hypot(e.x - p.x, e.sc * 1.1 + (e.y || 0) - p.y, e.z - p.z) < .9 * e.sc)) {
       r.life = -1;
-      explode(p.x, p.y, p.z, 6 * Math.sqrt(nadeM()), W.rk.dmg * dmgMul(), 20, 'k');
+      explode(p.x, p.y, p.z, 6 * Math.sqrt(nadeM()) * (r.home ? 1.3 : 1), W.rk.dmg * dmgMul(), 20, 'k');
       scene.remove(r.m);
     }
   });
@@ -526,7 +593,7 @@ function fire() {
     m.position.y -= .2;
     m.lookAt(m.position.clone().add(f));
     scene.add(m);
-    rockets.push({ m, v: f.multiplyScalar(30), life: 4 });
+    rockets.push({ m, v: f.multiplyScalar(30), life: 4, home: hasVar('rk') });
   }
   else if (w.needle) {
     fireNeedle(w, o, right);
@@ -551,13 +618,20 @@ function fire() {
       let end = Math.min(wt, 60);
       if (!w.pierce && hits.length && hits[0].t < wt)
         end = hits[0].t;
-      hits.slice(0, w.pierce ? 2 : 1).forEach(h => {
+      hits.slice(0, w.pierce ? 1 + w.pierce : 1).forEach(h => {
         if (h.t < wt) {
           const head = o.y + d.y * h.t > 1.5 * h.e.sc + (h.e.y || 0);
           const cp = critHit(h.e, o, d);
           dmgE(h.e, w.dmg * (cp ? CRIT_MUL : head ? w.hs * (P.hsMul || 1) : 1), !!cp, w.ty || 'k');
           hitT = .12;
           hitCol = cp ? '#ff6a2a' : head ? '#ffd24a' : '#fff';
+          // Variant effects
+          if (head && hasVar('br'))
+            P.sh = Math.min(P.maxSh, P.sh + 8);
+          if (hasVar('mg') && h.e.dead && !h.e.net)
+            explode(h.e.x, (h.e.y || 0) + 1, h.e.z, 3.5, 45 * dmgMul(), 0, 'k');
+          if (hasVar('pr'))
+            arc(h.e, w.dmg * .5);
           if (cp) {
             if (i === 0)
               sfx.crit();
@@ -627,7 +701,7 @@ function thrust() {
 function melee() {
   if (P.mcd > 0 || state !== 'play')
     return;
-  const sw = P.wpn === 'sw' && P.ammo >= SWING_COST;
+  const sw = P.wpn === 'sw' && P.ammo >= swingCost();
   P.mcd = sw ? .5 : .7;
   P.swing = sw ? .32 : .22;
   if (sw)
@@ -635,7 +709,7 @@ function melee() {
   else
     sfx.melee();
   if (sw) {
-    P.ammo -= SWING_COST;
+    P.ammo -= swingCost();
     // Slash trail: a horizontal arc of light sweeping in front of you
     const arc = new THREE.Mesh(new THREE.RingGeometry(1.15, 1.6, 32, 1, Math.PI / 2 - .9, 1.8), new THREE.MeshBasicMaterial({ color: 0x7fe0ff, transparent: true, opacity: .6, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     arc.position.set(P.x, 1.45 + P.y, P.z);
@@ -648,7 +722,7 @@ function melee() {
   if (sw) {
     // Lunge: close the gap to the nearest enemy in front, within 6m
     let best = null;
-    let bd = 6;
+    let bd = hasVar('sw') ? 9 : 6;
     enemies.forEach(e => {
       const dx = e.x - P.x;
       const dz = e.z - P.z;
