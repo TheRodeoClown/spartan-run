@@ -13,6 +13,8 @@ let padG;
 let chantG;
 let drumG;
 let pulseG;
+let pianoG;
+let hall;
 let muted = false;
 let musOff = false;
 let mmode = -1;
@@ -72,6 +74,27 @@ const audio = {
       chantG = L(.9);
       drumG = L(.15);
       pulseG = L(.1);
+      pianoG = L(.5);
+      // A longer, darker hall for the title theme's choir, piano and strings
+      const hl = Math.floor(ac.sampleRate * 5);
+      const hb = ac.createBuffer(2, hl, ac.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const x = hb.getChannelData(c);
+        for (let i = 0; i < hl; i++)
+          x[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / hl, 3) * Math.min(1, i / 400);
+      }
+      hall = ac.createConvolver();
+      hall.buffer = hb;
+      const hg = ac.createGain();
+      hg.gain.value = .5;
+      hall.connect(hg);
+      hg.connect(musG);
+      [[chantG, .6], [pianoG, .7], [padG, .35]].forEach(([g, w]) => {
+        const s = ac.createGain();
+        s.gain.value = w;
+        g.connect(s);
+        s.connect(hall);
+      });
       applyAudio();
     }
     catch (e) {
@@ -505,19 +528,6 @@ function beat(s, t) {
   }
 }
 
-/* Original title theme: modal chant, rising strings and war drums, then a heroic melody. Not a copy of any existing piece. */
-const SP2 = 60 / 78 / 4;
-const TCH = [
-  [50, 57, 62, 65], [50, 57, 62, 65], [46, 53, 58, 62], [48, 55, 60, 64], [50, 57, 62, 65], [48, 55, 60, 64], [46, 53, 58, 62], [45, 57, 61, 64], [50, 57, 62, 65], [46, 53, 58, 62], [53, 57, 60, 65], [48, 55, 60, 64], [55, 58, 62, 67], [46, 53, 58, 62], [48, 55, 60, 64], [45, 57, 61, 64]
-];
-const TROOT = [38, 38, 34, 36, 38, 36, 34, 33, 38, 34, 41, 36, 43, 34, 36, 33];
-const TCHANT = [
-  [[0, 8, 57], [8, 8, 62]], [[0, 6, 60], [6, 10, 57]], [[0, 8, 58], [8, 8, 62]], [[0, 16, 60]], [[0, 8, 62], [8, 8, 65]], [[0, 8, 64], [8, 8, 60]], [[0, 8, 62], [8, 8, 58]], [[0, 16, 61]]
-];
-const TLEAD = [
-  [[0, 4, 69], [4, 4, 74], [8, 8, 72]], [[0, 4, 70], [4, 4, 69], [8, 8, 65]], [[0, 4, 65], [4, 4, 69], [8, 4, 72], [12, 4, 70]], [[0, 8, 69], [8, 8, 67]], [[0, 4, 70], [4, 4, 74], [8, 8, 77]], [[0, 4, 74], [4, 4, 72], [8, 8, 70]], [[0, 4, 72], [4, 4, 70], [8, 4, 69], [12, 4, 67]], [[0, 16, 69]]
-];
-
 function lead(n, t, dur) {
   const g = ac.createGain();
   const f = ac.createBiquadFilter();
@@ -551,33 +561,191 @@ function lead(n, t, dur) {
   });
 }
 
+/* Original title theme, in the spirit of epic sci-fi scores (not a copy of any existing piece). Three 8-bar
+   sections at 66 BPM, D minor, looping (~87s):
+   1. a cappella monk choir: "oh" chords on root and fifth under an "ah" melody, in a long cathedral hall
+   2. soft piano: arpeggios and a high melody over swelling strings, the choir underneath
+   3. full: war drums, a driving low-string ostinato, the melody on soaring strings, choir and strings behind */
+const SP2 = 60 / 66 / 4;
+// chord tones (strings / choir) and bass root, MIDI notes
+const TC = {
+  Dm: [[50, 57, 62, 65], 38], Bb: [[46, 53, 58, 62], 34], C: [[48, 55, 60, 64], 36], F: [[53, 57, 60, 65], 41],
+  A: [[45, 52, 57, 61], 33], Gm: [[43, 50, 55, 58], 31], Am: [[45, 52, 57, 60], 33], D: [[50, 57, 62, 66], 38]
+};
+const TPROG = ['Dm', 'Bb', 'C', 'Dm', 'F', 'C', 'Bb', 'A', 'Dm', 'Bb', 'F', 'C', 'Dm', 'Gm', 'Bb', 'A', 'Dm', 'Bb', 'C', 'Am', 'Dm', 'Bb', 'C', 'D'];
+// melody per bar: [start 16th, length in 16ths, note]
+const TMEL = [
+  // choir
+  [[0, 8, 62], [8, 4, 64], [12, 4, 65]], [[0, 12, 65], [12, 4, 64]], [[0, 8, 64], [8, 8, 60]], [[0, 16, 62]],
+  [[0, 6, 65], [6, 6, 67], [12, 4, 69]], [[0, 10, 67], [10, 6, 64]], [[0, 8, 65], [8, 4, 64], [12, 4, 62]], [[0, 16, 61]],
+  // piano
+  [[0, 4, 74], [4, 4, 72], [8, 8, 69]], [[0, 8, 70], [8, 8, 65]], [[0, 4, 69], [4, 4, 72], [8, 8, 77]], [[0, 16, 76]],
+  [[0, 4, 74], [4, 4, 77], [8, 4, 76], [12, 4, 74]], [[0, 8, 70], [8, 8, 74]], [[0, 6, 72], [6, 6, 70], [12, 4, 69]], [[0, 16, 69]],
+  // strings
+  [[0, 6, 62], [6, 2, 65], [8, 8, 69]], [[0, 6, 70], [6, 2, 69], [8, 8, 65]], [[0, 6, 67], [6, 2, 69], [8, 4, 72], [12, 4, 74]], [[0, 16, 69]],
+  [[0, 6, 74], [6, 2, 72], [8, 8, 77]], [[0, 6, 77], [6, 2, 74], [8, 8, 70]], [[0, 4, 72], [4, 4, 74], [8, 4, 76], [12, 4, 72]], [[0, 16, 74]]
+];
+
+// Monk choir voice: three slightly detuned saws with vibrato, shaped by vowel formants ('a' = ah, 'o' = oh)
+const VOW = { a: [[730, 6, 1], [1090, 8, .5], [2440, 10, .18]], o: [[570, 6, 1], [840, 8, .45], [2410, 10, .14]] };
+function choir(n, t, dur, v, vowel) {
+  const f = mtof(n);
+  const g = ac.createGain();
+  const mix = ac.createGain();
+  mix.gain.value = .9;
+  const src = [-8, 0, 8].map(d => {
+    const o = ac.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.value = f;
+    o.detune.value = d + R(-3, 3);
+    o.connect(mix);
+    return o;
+  });
+  const lfo = ac.createOscillator();
+  const lg = ac.createGain();
+  lfo.frequency.value = R(4.4, 5.2);
+  lg.gain.value = 6;
+  lfo.connect(lg);
+  src.forEach(o => lg.connect(o.detune));
+  VOW[vowel].forEach(([fr, q, a]) => {
+    const bp = ac.createBiquadFilter();
+    const m = ac.createGain();
+    bp.type = 'bandpass';
+    bp.frequency.value = fr;
+    bp.Q.value = q;
+    m.gain.value = a;
+    mix.connect(bp);
+    bp.connect(m);
+    m.connect(g);
+  });
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(v, t + .55);
+  g.gain.setValueAtTime(v, t + Math.max(.56, dur - .15));
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur + 1);
+  g.connect(chantG);
+  [...src, lfo].forEach(o => {
+    o.start(t);
+    o.stop(t + dur + 1.1);
+  });
+}
+
+// Soft piano: a few sine partials with a quick attack, a long decay and a closing filter
+function piano(n, t, v) {
+  const f = mtof(n);
+  const g = ac.createGain();
+  const lp = ac.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(Math.min(9000, f * 8), t);
+  lp.frequency.exponentialRampToValueAtTime(Math.max(300, f * 2), t + 1.5);
+  [[1, 1], [2, .45], [3, .2], [4, .1], [5.02, .05]].forEach(([h, a]) => {
+    const o = ac.createOscillator();
+    const og = ac.createGain();
+    o.type = 'sine';
+    o.frequency.value = f * h;
+    og.gain.value = a;
+    o.connect(og);
+    og.connect(lp);
+    o.start(t);
+    o.stop(t + 3.2);
+  });
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(v, t + .008);
+  g.gain.exponentialRampToValueAtTime(v * .3, t + .4);
+  g.gain.exponentialRampToValueAtTime(.0001, t + 3);
+  lp.connect(g);
+  g.connect(pianoG);
+}
+
+// String section: three detuned saws per note, slow bow-in
+function strings(chord, t, dur, v) {
+  chord.forEach(n => [-9, 0, 9].forEach(d => {
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    const f = ac.createBiquadFilter();
+    o.type = 'sawtooth';
+    o.frequency.value = mtof(n);
+    o.detune.value = d;
+    f.type = 'lowpass';
+    f.frequency.value = 1500;
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(v, t + 1.4);
+    g.gain.setValueAtTime(v, t + dur - .2);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur + 1.4);
+    o.connect(f);
+    f.connect(g);
+    g.connect(padG);
+    o.start(t);
+    o.stop(t + dur + 1.5);
+  }));
+}
+
+// Rising cymbal-like swell into the next section
+function swell(t, dur, v) {
+  const s = ac.createBufferSource();
+  const f = ac.createBiquadFilter();
+  const g = ac.createGain();
+  s.buffer = nbuf;
+  s.loop = true;
+  f.type = 'highpass';
+  f.frequency.setValueAtTime(700, t);
+  f.frequency.exponentialRampToValueAtTime(5000, t + dur);
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(v, t + dur);
+  g.gain.linearRampToValueAtTime(0, t + dur + .06);
+  s.connect(f);
+  f.connect(g);
+  g.connect(padG);
+  s.start(t);
+  s.stop(t + dur + .1);
+}
+
 function tbeat(s, t) {
-  const bar = Math.floor(s / 16) % 16;
+  const bar = Math.floor(s / 16) % 24;
   const st = s % 16;
-  const sec = bar >> 2;
+  const sec = bar >> 3; // 0 choir, 1 piano, 2 full
+  const [ch, root] = TC[TPROG[bar]];
+  const dur = 16 * SP2;
   if (st === 0) {
-    const tg = (g, v) => g.gain.setTargetAtTime(v, t, 1.2);
-    tg(padG, [.25, .45, .6, .7][sec]);
-    tg(chantG, sec < 2 ? .7 : .45);
-    tg(drumG, sec < 1 ? 0 : sec < 2 ? .5 : 1);
-    tg(pulseG, sec < 2 ? 0 : sec === 2 ? .5 : .7);
-    pad(TCH[bar], t, 16 * SP2);
-    osc('sine', mtof(TROOT[bar]), null, t, 16 * SP2, .5, padG);
-    if (bar < 8)
-      TCHANT[bar].forEach(([a, l, n]) => chant(n, t + a * SP2, l * SP2));
+    const tg = (g, v) => g.gain.setTargetAtTime(v, t, 1.5);
+    tg(chantG, [.95, .55, .6][sec]);
+    tg(padG, [.4, .6, .75][sec]);
+    tg(pianoG, [0, .85, .5][sec]);
+    tg(drumG, [0, .35, 1][sec]);
+    tg(pulseG, [0, 0, .75][sec]);
+    // choir "oh" on the root and fifth all the way through; strings join from section 2
+    choir(ch[0], t, dur, sec ? .32 : .42, 'o');
+    choir(ch[1], t, dur, sec ? .28 : .38, 'o');
+    if (sec)
+      strings(ch, t, dur, sec === 1 ? .035 : .05);
+    osc('sine', mtof(root), null, t, dur, sec ? .45 : .28, padG);
+    const mel = TMEL[bar];
+    if (sec === 0)
+      mel.forEach(([a, l, n]) => choir(n, t + a * SP2, l * SP2, .75, 'a'));
+    else if (sec === 1)
+      mel.forEach(([a, l, n]) => piano(n, t + a * SP2, .3));
     else
-      TLEAD[bar - 8].forEach(([a, l, n]) => lead(n, t + a * SP2, l * SP2));
+      mel.forEach(([a, l, n]) => lead(n, t + a * SP2, l * SP2));
+    if (bar % 8 === 7)
+      swell(t + 8 * SP2, 8 * SP2, .14);
   }
-  if (sec >= 1 && (st === 0 || st === 8 || (sec >= 2 && (st === 6 || st === 10))))
-    taiko(t, st ? .6 : 1);
-  if (sec >= 2) {
-    if (st === 8)
-      noise(t, .2, .35, 'bandpass', 1500, null, .8, drumG);
+  // piano arpeggio in eighths, and a soft drum every other bar
+  if (sec === 1) {
     if (st % 2 === 0)
-      osc('sawtooth', mtof(TROOT[bar] + 12 + [0, 0, 7, 0, 0, 7, 12, 7][st / 2]), null, t, .15, .2, pulseG, ['lowpass', 700]);
+      piano([ch[0] + 12, ch[1] + 12, ch[2] + 12, ch[3] + 12, ch[2] + 12, ch[1] + 12, ch[3], ch[2]][st / 2], t, .1);
+    if (st === 0 && bar % 2 === 0)
+      taiko(t, .5);
   }
-  if ((bar === 7 || bar === 15) && st >= 8)
-    taiko(t, .3 + (st - 8) * .09);
+  // full section: war drums, snare hits and the low-string ostinato
+  if (sec === 2) {
+    if (st === 0 || st === 10 || (st === 6 && bar % 2))
+      taiko(t, st ? .65 : 1);
+    if (st === 8 || (st === 14 && bar % 4 === 3))
+      noise(t, .2, .3, 'bandpass', 1500, null, .8, drumG);
+    if (st % 2 === 0)
+      osc('sawtooth', mtof(root + 12 + [0, 0, 7, 0, 12, 7, 0, 7][st / 2]), null, t, .14, .22, pulseG, ['lowpass', 800]);
+    if (bar === 23 && st >= 8)
+      taiko(t, .35 + (st - 8) * .08);
+  }
 }
 
 function sched() {
@@ -606,6 +774,7 @@ const music = {
     s(chantG, m < 0 ? 0 : m === 1 ? .35 : .6);
     s(drumG, m === 1 ? 1 : 0);
     s(pulseG, m === 1 ? .8 : 0);
+    s(pianoG, m === 2 ? .5 : 0);
     if (m >= 0 && !mtimer) {
       mstep = 0;
       nextT = t + .15;
@@ -620,3 +789,14 @@ const music = {
       }, 3500);
   }
 };
+
+// Browsers only allow sound after the first click or key press: start the title music right then
+function firstSound() {
+  removeEventListener('pointerdown', firstSound);
+  removeEventListener('keydown', firstSound);
+  audio.init();
+  if (state === 'title' || state === 'menu')
+    music.set(2);
+}
+addEventListener('pointerdown', firstSound);
+addEventListener('keydown', firstSound);

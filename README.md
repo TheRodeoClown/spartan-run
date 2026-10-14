@@ -67,7 +67,7 @@ How it connects: peer to peer over WebRTC with [PeerJS](https://peerjs.com/). Ev
 - Bosses enrage at half health (a single burst can't skip past it) and are invulnerable for 1.5s while they do; in co-op their health scales hard with squad size. Legendary boons can only be taken once per run.
 - Outdoor levels have rolling hills (cover, walls and markings stay on level ground) and scattered ground detail.
 - Meta-progression: credits are banked even if you die and spent in the Armory on permanent upgrades and starting sidearms.
-- Original adaptive score and title theme, synthesised live (chant, pad, war drums).
+- Original adaptive score, synthesised live. The title theme (original, in the spirit of epic sci-fi scores) moves from an a cappella monk choir to piano and strings, then to war drums with a driving string ostinato; it starts on your first click or key press.
 
 ## Project layout
 
