@@ -151,6 +151,9 @@ function startPick() {
   makeChoices();
   ov.style.display = 'flex';
   showPick('CHOOSE A BOON');
+  // You walked in on purpose, so no anti-misclick lock (the legendary pick after a boss keeps it)
+  pickAt = 0;
+  pickTick();
 }
 
 function bossDown() {
