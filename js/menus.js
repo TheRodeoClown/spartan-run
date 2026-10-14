@@ -61,7 +61,7 @@ function afterPick() {
     nextMission();
   }
   else
-    openGate();
+    nextRoom();
 }
 
 function dropW(s) {
@@ -195,8 +195,23 @@ const SLIDERS = [['master', 'Master volume', 0, 100, 100], ['music', 'Music', 0,
 const fmtSet = k => k === 'sens' ? SET.sens.toFixed(2) + 'x' : Math.round(SET[k] * 100) + '%';
 
 function settingsHTML() {
-  return '<div class="set">' + SLIDERS.map(([k, n, a, b, s]) => '<label for="s_' + k + '">' + n + '</label><input type="range" id="s_' + k + '" min="' + a + '" max="' + b + '" value="' + Math.round(SET[k] * s) + '" oninput="setVal(\'' + k + '\',this.value/' + s + ')"><span id="v_' + k + '">' + fmtSet(k) + '</span>').join('') + '</div>';
+  return '<div class="set">' + SLIDERS.map(([k, n, a, b, s]) => '<label for="s_' + k + '">' + n + '</label><input type="range" id="s_' + k + '" min="' + a + '" max="' + b + '" value="' + Math.round(SET[k] * s) + '" oninput="setVal(\'' + k + '\',this.value/' + s + ')"><span id="v_' + k + '">' + fmtSet(k) + '</span>').join('') + '</div><button id="fsbtn" class="linkbtn" onclick="toggleFull()">' + fsLabel() + '</button>';
 }
+
+// Fullscreen: the game area fills the screen (the settings panel's button toggles it; Esc also leaves)
+function toggleFull() {
+  if (document.fullscreenElement)
+    document.exitFullscreen().catch(() => { });
+  else if (wrap.requestFullscreen)
+    wrap.requestFullscreen({ navigationUI: 'hide' }).catch(() => banner('FULLSCREEN IS NOT AVAILABLE HERE'));
+}
+document.addEventListener('fullscreenchange', () => {
+  const b = $('fsbtn');
+  if (b)
+    b.textContent = fsLabel();
+  setTimeout(resize, 50);
+});
+const fsLabel = () => document.fullscreenElement ? 'EXIT FULLSCREEN' : 'FULLSCREEN';
 
 function setVal(k, v) {
   SET[k] = v;

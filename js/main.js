@@ -53,8 +53,7 @@ function update(dt) {
       if (NET.client)
         NET.gt = room;
       else {
-        gate.open = false;
-        nextRoom();
+        startPick();
         return;
       }
     }
@@ -357,6 +356,15 @@ function update(dt) {
   // Rooms and bosses are decided only by the page that runs the world (solo, or the co-op host)
   if (NET.mode === 'vs' || NET.client)
     return;
+  if (L.wave) {
+    L.waveT -= dt;
+    if (L.waveT <= 0) {
+      const w = L.wave;
+      L.wave = null;
+      w();
+    }
+    return;
+  }
   if (state === 'play' && lroom > L.rooms && !enemies.some(e => e.boss)) {
     enemies.forEach(e => {
       e.dead = true;
@@ -372,16 +380,10 @@ function update(dt) {
 
 function roomClear() {
   L.cleared = true;
-  NET.phase = 'k';
-  NET.menu = 0;
-  state = 'pick';
   earn(8 + lroom * 2);
   music.set(0);
   sfx.clear();
-  document.exitPointerLock && document.exitPointerLock();
-  makeChoices();
-  ov.style.display = 'flex';
-  showPick('ROOM CLEARED');
+  openGate();
 }
 
 // The boon offer after a room: one weapon boon on odd rooms; never a weapon you hold, a one-off you have, or a maxed boon
@@ -449,7 +451,7 @@ function hud() {
   $('hp').firstChild.style.width = 100 * P.hp / P.maxHp + '%';
   $('en').style.display = P.wpn === 'sw' && state === 'play' ? 'block' : 'none';
   $('en').firstChild.style.width = P.ammo + '%';
-  $('info').textContent = P.slots.map((k, i) => k ? (i === P.cur ? '[' + wName(k).split(' ')[0] + ']' : wName(k).split(' ')[0]) : '-').join(' ') + '   ' + wName(P.wpn) + (W[P.wpn].ty === 'e' ? ' (energy)' : '') + '   ' + (P.wpn === 'sw' ? (P.ammo >= swingCost() ? 'Energy ' + P.ammo + '%' : 'SWORD DEPLETED') : P.reload > 0 ? 'RELOADING' : P.ammo + P.sr[P.cur] <= 0 ? 'NO AMMO' : 'Ammo ' + P.ammo + ' | ' + P.sr[P.cur]) + '   Grenades ' + P.nades + '/' + P.nadeMax + (P.thrust ? '   Thruster ' + (P.tcd > 0 ? Math.ceil(P.tcd) + 's' : 'READY') : '');
+  hudWeapon();
   // One bar for all bosses in the fight (Bonded Hunters are a pair), measured against their combined starting total
   const bss = enemies.filter(e => e.boss);
   $('boss').style.display = bss.length ? 'block' : 'none';
@@ -460,6 +462,56 @@ function hud() {
   $('room').textContent = NET.mode ? netRoomText() : (L ? (LEGEND ? 'LEGENDARY | ' : '') + L.n + ' | ' + (lroom > L.rooms ? 'BOSS' : 'Room ' + lroom + '/' + L.rooms) : '') + '  Kills ' + kills;
   $('vig').style.opacity = vig;
   $('cross').style.borderColor = hitT > 0 ? hitCol : 'rgba(155,196,90,.8)';
+}
+// Weapon panel (bottom right): name and damage type, magazine count and reserve, a row of rounds that empties as you
+// fire (it refills during a reload), your other weapon underneath; grenades and thruster on the left.
+const hudK = {};
+function hudSet(id, prop, v) {
+  if (hudK[id + prop] === v)
+    return;
+  hudK[id + prop] = v;
+  const el = $(id);
+  if (prop === 'text')
+    el.textContent = v;
+  else if (prop === 'html')
+    el.innerHTML = v;
+  else if (prop === 'cls')
+    el.className = v;
+  else
+    el.style[prop] = v;
+}
+
+function hudWeapon() {
+  const k = P.wpn;
+  const w = W[k];
+  const sw = k === 'sw';
+  const energy = w.ty === 'e';
+  hudSet('wname', 'html', esc(wName(k).toUpperCase()) + '<i class="' + (energy ? 'te' : 'tk') + '">' + (sw ? 'ENERGY BLADE' : energy ? 'ENERGY' : 'KINETIC') + '</i>');
+  hudSet('wname', 'cls', P.vr && P.vr[k] ? 'var' : '');
+  const reloading = P.reload > 0;
+  const res = sw ? '' : P.sr[P.cur];
+  let mag = sw ? Math.round(P.ammo) : P.ammo;
+  let fill = sw ? P.ammo / 100 : P.ammo / P.magMax;
+  if (reloading) {
+    fill = 1 - P.reload / wst().rt;
+    mag = 'RELOADING';
+  }
+  else if (!sw && P.ammo + P.sr[P.cur] <= 0)
+    mag = 'EMPTY';
+  else if (sw && P.ammo < swingCost())
+    mag = 'DEPLETED';
+  hudSet('amag', 'text', String(mag) + (sw && typeof mag === 'number' ? '%' : ''));
+  hudSet('ares', 'text', sw || reloading || typeof mag !== 'number' ? '' : '/ ' + res);
+  hudSet('wammo', 'cls', reloading ? 'rl' : typeof mag !== 'number' || fill <= .25 ? 'low' : '');
+  // Rounds: one segment per round in the magazine (a smooth bar for big magazines and the sword)
+  const seg = sw || P.magMax > 40 ? 0 : (wbar.clientWidth || 220) / P.magMax;
+  hudSet('wpips', 'backgroundSize', seg ? seg + 'px 100%' : '100% 100%');
+  hudSet('wpips', 'cls', seg ? '' : 'smooth');
+  hudSet('wpips', 'width', Math.max(0, Math.min(1, fill)) * 100 + '%');
+  const o = P.slots[1 - P.cur];
+  hudSet('wsec', 'text', o ? (2 - P.cur) + '   ' + wName(o).toUpperCase() + (o === 'sw' ? '' : '   ' + ((P.sa[1 - P.cur] || 0) + P.sr[1 - P.cur])) : '');
+  hudSet('gnade', 'html', '<b>GRENADES</b>' + '<i class="on"></i>'.repeat(Math.max(0, P.nades)) + '<i></i>'.repeat(Math.max(0, P.nadeMax - P.nades)));
+  hudSet('gthr', 'html', P.thrust ? '<b>THRUSTER</b><span><i style="width:' + Math.round(100 * (1 - Math.max(0, P.tcd) / 2.5)) + '%"></i></span>' : '');
 }
 let last = performance.now();
 

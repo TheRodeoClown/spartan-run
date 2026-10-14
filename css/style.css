@@ -52,3 +52,27 @@ canvas{width:100%;height:100%;display:block}
   main>h1,main>p{display:none}
   #wrap{margin:0;border:0;border-radius:0;width:100vw;height:100vh;aspect-ratio:auto}
 }
+/* Weapon panel and gear (HUD) */
+#wpn{position:absolute;right:16px;bottom:14px;min-width:230px;max-width:42%;padding:8px 14px 9px 22px;text-align:right;font-family:Bahnschrift,"DIN Alternate","Segoe UI",system-ui,sans-serif;background:linear-gradient(100deg,rgba(6,14,24,0) 0,rgba(6,14,24,.62) 14%);clip-path:polygon(12px 0,100% 0,100% 100%,0 100%);border-right:2px solid rgba(94,200,242,.75)}
+#wname{font-size:13px;letter-spacing:.18em;color:#e8f4ff;text-shadow:0 0 6px rgba(94,200,242,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#wname.var{color:#ffd76a;text-shadow:0 0 8px rgba(255,190,60,.6)}
+#wname i{font-style:normal;font-size:9px;letter-spacing:.14em;margin-left:8px;padding:1px 5px;border-radius:2px;vertical-align:2px}
+#wname i.tk{color:#ffcf8a;border:1px solid rgba(255,190,110,.55)}#wname i.te{color:#8ff0ff;border:1px solid rgba(110,230,255,.55)}
+#wammo{line-height:1;margin-top:2px;color:#fff;text-shadow:0 0 10px rgba(94,200,242,.55)}
+#amag{font-size:34px;font-weight:600;letter-spacing:.04em}#ares{font-size:15px;color:#9fc4d8;margin-left:6px;letter-spacing:.06em}
+#wammo.low #amag{color:#ff8a6a;text-shadow:0 0 10px rgba(255,90,60,.6)}
+#wammo.rl #amag{font-size:16px;letter-spacing:.24em;color:#9fdcff;animation:pulse 1s ease-in-out infinite}
+#wbar{height:7px;margin:5px 0 4px auto;width:100%;max-width:220px;background:rgba(94,200,242,.12)}
+#wpips{height:100%;margin-left:auto;background-image:linear-gradient(90deg,#9fe4ff 0 70%,transparent 70% 100%);background-repeat:repeat-x;background-position:right;transition:width .06s}
+#wpips.smooth{background-image:linear-gradient(90deg,#5ec8f2,#c8f2ff)}
+#wammo.low+#wbar #wpips{background-image:linear-gradient(90deg,#ff9a7a 0 70%,transparent 70% 100%)}
+#wsec{font-size:11px;letter-spacing:.16em;color:#8aa4b4;white-space:nowrap}
+#gear{position:absolute;left:16px;bottom:14px;font-family:Bahnschrift,"DIN Alternate","Segoe UI",system-ui,sans-serif;font-size:10px;letter-spacing:.18em;color:#9fc4d8}
+#gear b{font-weight:400;margin-right:8px;vertical-align:1px}
+#gnade i{display:inline-block;width:9px;height:9px;margin-right:4px;transform:rotate(45deg);border:1px solid rgba(155,220,120,.7)}
+#gnade i.on{background:#9be06a;box-shadow:0 0 6px rgba(155,224,106,.8)}
+#gthr{margin-top:6px}#gthr span{display:inline-block;width:90px;height:4px;background:rgba(94,200,242,.15);vertical-align:2px}#gthr span i{display:block;height:100%;background:#5ec8f2}
+@media (max-width:640px){#amag{font-size:24px}#wpn{min-width:160px}}
+
+/* Fullscreen: the game area fills the screen */
+#wrap:fullscreen{width:100vw;height:100vh;aspect-ratio:auto;border:0;border-radius:0;margin:0}

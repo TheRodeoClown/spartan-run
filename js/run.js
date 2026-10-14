@@ -78,6 +78,9 @@ function nextRoom() {
   music.set(1);
   P.nades = Math.min(P.nadeMax, P.nades + 1);
   P.hp = Math.min(P.maxHp, P.hp + 6);
+  // The room's enemies warp in a second after you arrive (see L.wave in update)
+  L.waveT = 1;
+  L.wave = () => {
   // Every extra co-op player adds two enemies per room
   const n = Math.min(3 + lroom * 2 + P.done.length * 2 + DIFF.extra + 2 * NET.others(), 14 + DIFF.extra + 2 * NET.others());
   if (lroom > L.rooms) {
@@ -104,6 +107,10 @@ function nextRoom() {
     }
   if (lroom === L.rooms)
     spawn('hunter');
+  // a flash where each one appears
+  enemies.forEach(e => flashFx(e.x, groundH(e.x, e.z) + 1.2 * e.sc, e.z, 1.6 * e.sc, ET[e.t].col || 0x7fd8ff));
+  sfx.room();
+  };
   addGate(lroom <= L.rooms);
   banner(lroom > L.rooms ? 'BOSS: ' + (L.bn || ET[L.boss].bn) : L.n + ' - ROOM ' + lroom + '/' + L.rooms);
   lock();
@@ -125,18 +132,25 @@ function setupRoom() {
   pitch = 0;
 }
 
-// Room cleared and boon picked: the exit gate opens; walking through it starts the next room
+// Room cleared: the exit gate opens. Walking through it brings up the boon choice, then the next room starts.
 function openGate() {
   NET.phase = 'g';
-  state = 'play';
-  ov.style.display = 'none';
-  ov.style.background = '';
-  ov.style.justifyContent = '';
   setGateOpen();
-  music.set(1);
   sfx.recharge();
-  banner('EXIT OPEN: HEAD NORTH');
-  lock();
+  banner('ROOM CLEAR: HEAD THROUGH THE EXIT');
+}
+
+// Through the exit gate: choose a boon (afterPick then starts the next room)
+function startPick() {
+  NET.phase = 'k';
+  NET.menu = 0;
+  state = 'pick';
+  if (gate)
+    gate.open = false;
+  document.exitPointerLock && document.exitPointerLock();
+  makeChoices();
+  ov.style.display = 'flex';
+  showPick('CHOOSE A BOON');
 }
 
 function bossDown() {

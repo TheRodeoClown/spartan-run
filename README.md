@@ -44,7 +44,7 @@ How it connects: peer to peer over WebRTC with [PeerJS](https://peerjs.com/). Ev
 
 ## Controls
 
-The full list is under **Controls** in the pause menu (Esc) and in Settings. The basics: WASD to move, mouse to look and fire, Space to jump, Shift + A/D to dash, Shift + W to sprint in versus, R to reload, Q for a grenade, F to melee.
+The full list is under **Controls** in the pause menu (Esc) and in Settings, which also has a **Fullscreen** button. The basics: WASD to move, mouse to look and fire, Space to jump, Shift + A/D to dash, Shift + W to sprint in versus, R to reload, Q for a grenade, F to melee.
 
 ## Features
 
@@ -53,7 +53,7 @@ The full list is under **Controls** in the pause menu (Esc) and in Settings. The
 - Per-weapon reload animations, dropped magazines and sound effects.
 - Three themed levels (UNSC outpost, Covenant cruiser, Forerunner ring), each with rooms of waves and a boss.
 - Roguelite loop: boon after every room, a legendary boon after each boss, then mission select. Enemies scale with each level cleared.
-- Missions are a run of separate rooms: each room has its own cover layout and ground. Clear it, pick a boon, then walk through the exit gate on the far wall into the next room.
+- Missions are a run of separate rooms: each room has its own cover layout and ground. Clear it and the exit gate on the far wall opens; walk through it to pick a boon, then the next room's enemies warp in a second after you arrive.
 - Nine bosses (Zealot Commander, Hunter Warlord, Forerunner Warden, Bonded Hunters, Blademaster, Shipmaster, Skirmisher Alpha, Grunt Deacon, Ironclad Hunter). Each mission draws its boss from a pool of three, so runs differ.
 - Fourteen legendary boons, including Infinity Magazine, Bubble Shield, Vampire Rounds, Chain Reaction, Active Camo, Overcharged Shields, Grenadier and Spartan Charge.
 - Weapon variants: from the second mission on, boon screens can offer a special version of a gun you carry (MA40 Shredder, BR55 Recon, M6D Executioner, M90 Breacher, S2 Railgun, Type-25 Storm, M41 Hunter-Killer, Type-33 Hive, Prophet's Bane).

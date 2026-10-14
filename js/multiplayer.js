@@ -507,10 +507,9 @@ function coopHost(dt) {
   if (!NET.started || state !== 'play')
     return;
   netHostDamage();
-  // A guest walked into the open exit gate: everyone moves on
+  // A guest walked into the open exit gate: everyone picks a boon, then moves on
   if (gate && gate.open && Object.values(NET.rp).some(r => r.gt === room)) {
-    gate.open = false;
-    nextRoom();
+    startPick();
     return;
   }
   if (NET.down && !netRemotes().length) {
@@ -529,7 +528,7 @@ function netHostIdle(dt) {
     if (NET.next === 'm')
       nextMission();
     else
-      openGate();
+      nextRoom();
   }
 }
 
@@ -771,17 +770,24 @@ function coopClient(w, dt) {
       setGateOpen();
     }
   }
-  else if (w.s === 'k' && state === 'play' && +w.rm === room) {
+  else if (w.s === 'g' && state === 'play' && +w.rm === room && !L.cleared) {
+    // Room cleared on the host: the exit opens here too
     netClearGhosts();
-    roomClear();
-  }
-  else if (w.s === 'g' && state === 'wait' && +w.rm === room) {
-    // The host opened the exit: back into the cleared room, the gate is open
-    state = 'play';
-    ov.style.display = 'none';
+    L.cleared = true;
+    earn(8 + lroom * 2);
+    music.set(0);
+    sfx.clear();
     setGateOpen();
-    banner('EXIT OPEN: HEAD NORTH');
-    lock();
+    banner('ROOM CLEAR: HEAD THROUGH THE EXIT');
+  }
+  else if (w.s === 'k' && state === 'play' && +w.rm === room) {
+    // Someone went through the exit: boon time
+    netClearGhosts();
+    if (!L.cleared) {
+      L.cleared = true;
+      earn(8 + lroom * 2);
+    }
+    startPick();
   }
   else if (w.s === 'L' && state === 'play' && +w.rm === room) {
     netClearGhosts();
