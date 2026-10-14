@@ -84,6 +84,7 @@ js/               game code (classic scripts, loaded in this order)
   meta.js         save data, armory upgrades, loadouts, legendary boons
   run.js          run flow: rooms, mission start/end
   bosses.js       boss kits: signature moves, summons, boss AI
+  title.js        title-screen scene (portal, ring, meadow) and logo
   menus.js        overlay screens
   input.js        mouse and keyboard
   multiplayer.js  online co-op and versus (PeerJS), Blood Gulch map

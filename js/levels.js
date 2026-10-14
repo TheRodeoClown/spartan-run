@@ -419,6 +419,7 @@ function buildLevel(lv, empty) {
   groundFn = null;
   floor.visible = true;
   gate = null;
+  titleScene = false;
   while (envG.children.length)
     envG.remove(envG.children[0]);
   pillars.length = 0;

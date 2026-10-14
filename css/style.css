@@ -29,3 +29,12 @@ canvas{width:100%;height:100%;display:block}
 #boss{position:absolute;top:10px;left:50%;width:34%;transform:translateX(-50%);text-align:center;font-size:13px;display:none}.bb{height:9px;background:#3a1e1e;border:1px solid #6b2b2b;margin-top:2px}.bb i{display:block;height:100%;background:#e5534b}
 .keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 .keys div{background:var(--card);border:1px solid var(--bd);border-radius:6px;padding:6px 10px;font-size:13px}
+
+/* Title screen logo (over the portal) */
+.logo{text-align:center;user-select:none;pointer-events:none}
+.logo .l1{font-weight:700;font-size:clamp(16px,3.2vw,30px);letter-spacing:.55em;margin-right:-.55em;background:linear-gradient(180deg,#ffffff 0%,#c8d4ea 45%,#7f8ea8 55%,#e8eef8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 6px rgba(140,190,255,.6))}
+.logo .l2{font-weight:200;font-size:clamp(34px,9vw,84px);letter-spacing:.5em;margin-right:-.5em;line-height:1.05;color:#f4f6ff;text-shadow:0 0 18px rgba(150,200,255,.75),0 0 40px rgba(140,110,255,.45)}
+#ov .tag{letter-spacing:.32em;font-size:12px;color:#d6d0f2;text-shadow:0 0 8px rgba(0,0,0,.6)}
+#ov .press{margin-top:8%;background:none;border:none;color:#eef2ff;font:inherit;font-size:14px;letter-spacing:.32em;cursor:pointer;text-shadow:0 0 10px rgba(150,200,255,.8);animation:pulse 2.2s ease-in-out infinite}
+#ov .press:hover{color:#fff}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}

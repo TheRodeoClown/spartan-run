@@ -437,6 +437,8 @@ function tick(dt) {
 }
 
 function hud() {
+  // No health bars or crosshair on the title and menu screens
+  $('hud').style.visibility = state === 'title' || state === 'menu' ? 'hidden' : 'visible';
   const sc = scoped();
   $('scope').style.display = sc ? 'block' : 'none';
   $('cross').style.display = state === 'play' && !sc ? 'block' : 'none';

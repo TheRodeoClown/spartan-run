@@ -9,11 +9,14 @@ const decor = ['grunt', 'jackal', 'elite', 'hunter'].map((t, i) => {
   g.scale.setScalar(ET[t].sc);
   g.position.set(-4.8 + i * 3.2, 0, 0);
   g.rotation.y = (1.5 - i) * .12;
-  scene.add(g);
   return g;
 });
 
 function orbit(dt) {
+  if (titleScene) {
+    titleCam(dt);
+    return;
+  }
   T += dt;
   const a = Math.sin(T * .25) * .9;
   cam.position.set(Math.sin(a) * 9, 2.2 + Math.sin(T * .4) * .3, Math.cos(a) * 9);
@@ -176,10 +179,14 @@ function banner(s) {
   }, 50);
 }
 
+// The title backdrop: the scene shows through, darkened a little at the edges and the bottom for the menus
+const TITLE_BG = 'radial-gradient(ellipse at 50% 42%,rgba(10,8,30,0) 35%,rgba(10,8,30,.55) 100%),linear-gradient(rgba(0,0,0,0) 60%,rgba(8,6,20,.7))';
+
 function showTitle() {
-  ov.style.background = 'linear-gradient(rgba(8,10,6,.1),rgba(8,10,6,.9))';
-  ov.style.justifyContent = 'flex-end';
-  ov.innerHTML = '<h2 style="font-size:clamp(28px,7vw,64px);letter-spacing:.25em;text-shadow:0 0 24px #5ec8f2">SPARTAN RUN</h2><div style="letter-spacing:.2em;font-size:12px;color:#99a28f">A HALO-INSPIRED ROGUE-LITE</div><button class="card" style="text-align:center;width:auto;padding:10px 28px;margin-bottom:5%" onclick="startTitle()">PRESS START</button>';
+  buildTitle();
+  ov.style.background = TITLE_BG;
+  ov.style.justifyContent = 'center';
+  ov.innerHTML = TITLE_LOGO + '<div class="tag">A HALO-INSPIRED ROGUE-LITE</div><button class="press" onclick="startTitle()">PRESS START</button>';
 }
 
 // Settings panel (pause menu and title screen): sliders write SET live and save it.
@@ -251,11 +258,11 @@ function startTitle() {
   audio.init();
   music.set(2);
   state = 'title';
-  buildLevel(LV[0], true);
-  decor.forEach(g => scene.add(g));
+  if (!titleScene)
+    buildTitle();
   ov.style.display = 'flex';
-  ov.style.background = 'linear-gradient(rgba(8,10,6,.1),rgba(8,10,6,.9))';
+  ov.style.background = TITLE_BG;
   ov.style.justifyContent = 'flex-end';
-  ov.innerHTML = '<h2 style="font-size:clamp(28px,7vw,64px);letter-spacing:.25em;text-shadow:0 0 24px #5ec8f2">SPARTAN RUN</h2><div style="letter-spacing:.2em;font-size:12px;color:#99a28f">A HALO-INSPIRED ROGUE-LITE</div><div>Credits: ' + S.cr + '</div><div class="cards"><button class="card" style="text-align:center" onclick="newRun(false)"><b>DEPLOY</b><small>Start a new run (normal)</small></button><button class="card" style="text-align:center;border-color:#c9a227" onclick="newRun(true)"><b style="color:#ffd060">LEGENDARY</b><small>Tougher enemies that hit much harder. 1.5x credits</small></button><button class="card" style="text-align:center" onclick="armory()"><b>ARMORY</b><small>Spend credits on permanent upgrades</small></button><button class="card" style="text-align:center;border-color:#5ec8f2" onclick="mpMenu()"><b style="color:#8fd8ff">MULTIPLAYER</b><small>Online co-op missions, or versus on Blood Gulch</small></button><button class="card" style="text-align:center" onclick="titleSettings()"><b>SETTINGS</b><small>Volume and mouse sensitivity</small></button></div><div style="font-size:12px;color:#99a28f;margin-bottom:4%">' + (best ? 'Best room: ' + best + ' | ' : '') + 'M mutes all sound, N mutes music</div>';
+  ov.innerHTML = '<div style="flex:1"></div>' + TITLE_LOGO + '<div class="tag">Credits: ' + S.cr + (best ? ' | Best room: ' + best : '') + '</div><div style="flex:1"></div><div class="cards sm"><button class="card" style="text-align:center" onclick="newRun(false)"><b>DEPLOY</b><small>Start a new run (normal)</small></button><button class="card" style="text-align:center;border-color:#c9a227" onclick="newRun(true)"><b style="color:#ffd060">LEGENDARY</b><small>Tougher enemies, 1.5x credits</small></button><button class="card" style="text-align:center" onclick="armory()"><b>ARMORY</b><small>Permanent upgrades</small></button><button class="card" style="text-align:center;border-color:#5ec8f2" onclick="mpMenu()"><b style="color:#8fd8ff">MULTIPLAYER</b><small>Online co-op or versus</small></button><button class="card" style="text-align:center" onclick="titleSettings()"><b>SETTINGS</b><small>Volume and mouse sensitivity</small></button></div><div style="font-size:12px;color:#b8b0d8;margin-bottom:2%">M mutes all sound, N mutes music</div>';
 }
 showTitle();

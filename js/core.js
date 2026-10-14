@@ -53,6 +53,8 @@ const outArena = p => Math.abs(p.x) > A || Math.abs(p.z) > A || Math.abs(p.x) + 
 
 // Ground height: flat (0) in missions; the versus map installs a terrain function (see bgBuild)
 let groundFn = null;
+// true while the title scene (title.js) is showing instead of a level
+let titleScene = false;
 const groundH = (x, z) => groundFn ? groundFn(x, z) : 0;
 
 // Resize the arena (each level sets it when it's built).
