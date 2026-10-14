@@ -1168,7 +1168,7 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
     o2.rotation.y = rnd() * 3;
   });
   // Scattered boulders and pines, kept clear of the bases, outcrops, pickups and spawn points
-  const avoid = [[0, -60, 11], [0, 60, 11], ...VSP.map(([k, x, z]) => [x, z, 3]), ...VSPAWN.map(([x, z]) => [x, z, 3]), ...VS_PW_SPOTS.map(([x, z]) => [x, z, 3]), ...FF_GENS.map(([x, z]) => [x, z, 3]), ...BG_ROCKS.map(([x, z, hw, hd]) => [x, z, Math.max(hw, hd) + 1])];
+  const avoid = [[0, -60, 11], [0, 60, 11], ...VSP.map(([k, x, z]) => [x, z, 3]), ...VSPAWN.map(([x, z]) => [x, z, 3]), ...VS_PW_SPOTS.map(([x, z]) => [x, z, 3]), ...BG_ROCKS.map(([x, z, hw, hd]) => [x, z, Math.max(hw, hd) + 1])];
   let n = 0;
   let tries = 0;
   while (n < 28 && tries++ < 800) {

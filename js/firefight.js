@@ -1,5 +1,5 @@
 /*
- * firefight.js: Warzone Firefight, a co-op multiplayer mode (1-4 players) on Blood Gulch.
+ * firefight.js: Warzone Firefight, a co-op multiplayer mode (1-4 players) on Arc Facility (arcmap.js).
  * Classic script (no modules): all files share one global scope, so load order in index.html matters.
  *
  * Five timed rounds with escalating objectives: clear the area, defend the generators, eliminate the commanders,
@@ -29,13 +29,12 @@ const FF_REQ = [
   { k: 'rk', n: 'M41 Rocket Launcher', c: 300, lv: 3 }, { id: 'os', n: 'Overshield (+60 shield)', c: 150, lv: 3 },
   { k: 'sn', vr: 1, n: 'S2 Railgun (pierces everything)', c: 400, lv: 4 }, { k: 'sw', vr: 1, n: 'Prophet\'s Bane (legendary sword)', c: 420, lv: 4 }, { k: 'rk', vr: 1, n: 'M41 Hunter-Killer (homing rockets)', c: 450, lv: 4 }
 ];
-// The map: Blood Gulch, defending the red base
-const FFL = Object.assign({}, BG, { id: 'ffbg', n: 'Firefight: Blood Gulch', ff: 1 });
-const FF_SPAWNS = [[-3, -58.5], [3, -58.5], [-3.5, -62.5], [3.5, -62.5]]; // where players (re)deploy: inside the base, around the REQ station
+// The map: Arc Facility (arcmap.js), defending building 01 at the south end
+const FF_SPAWNS = [[-3, -58.5], [3, -58.5], [-3.5, -62.5], [3.5, -62.5]]; // where players (re)deploy: inside building 01, around the REQ station
 const FF_STATION = [0, -61]; // REQ station, inside the base
-const FF_GENS = [[-13, -40], [13, -40]];
+const FF_GENS = [[-10, -38], [10, -38]];
 // Enemy drop zones [centre x, centre z, half-width, half-depth], far end first; later rounds also use the flanks
-const FF_ZONES = [[0, 55, 30, 14], [-34, 28, 12, 14], [34, 28, 12, 14], [0, 18, 24, 8]];
+const FF_ZONES = [[0, 54, 20, 7], [-40, 34, 9, 10], [42, 36, 8, 8], [-4, 18, 18, 6]];
 
 const FF = { on: false, round: 0, ph: 'break', t: 0, rl: 1, left: 0, spawnT: 0, gens: [], station: null, kills: 0 };
 
@@ -54,7 +53,7 @@ function ffSetup() {
   rockets = [];
   needles = [];
   decor.forEach(g => scene.remove(g));
-  L = Object.assign({}, FFL);
+  L = Object.assign({}, ARC, { ff: 1 });
   lroom = 1;
   room = 0;
   buildLevel(L);
@@ -103,7 +102,7 @@ function ffSetup() {
   ov.style.justifyContent = '';
   P.req = P.req || 0;
   music.set(0);
-  banner('WARZONE FIREFIGHT: HOLD THE RED BASE');
+  banner('WARZONE FIREFIGHT: ARC FACILITY');
   lock();
 }
 
@@ -332,7 +331,7 @@ function ffReq() {
   if (!FF.on || state !== 'play' || NET.down)
     return;
   if (!ffNear()) {
-    banner('REQ STATION: INSIDE THE RED BASE');
+    banner('REQ STATION: INSIDE BUILDING 01');
     return;
   }
   NET.menu = 1;

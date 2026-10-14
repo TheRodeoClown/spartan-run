@@ -912,6 +912,8 @@ function buildLevel(lv, empty) {
         add(new THREE.SphereGeometry(.25, 8, 6), pus, x + R(-1, 1), 3.9, z + R(-1, 1));
       });
   }
+  else if (lv.sty === 'arc')
+    arcBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground }); // Arc Facility (Firefight), in arcmap.js
   else if (lv.sty === 'bg')
     bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pines }); // Blood Gulch (versus), in multiplayer.js
   else if (lv.sty === 'fr') {
