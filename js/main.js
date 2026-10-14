@@ -22,7 +22,9 @@ function update(dt) {
   const cy = Math.cos(yaw);
   // Adrenaline boon: speed boost for 3s after a kill
   P.adrT = (P.adrT || 0) - dt;
-  const spd = P.speed * (P.adrT > 0 ? 1.35 : 1);
+  // Sprint (versus): hold Shift while moving forward; firing or zooming stops it, and you can't shoot while sprinting
+  P.spr = NET.mode === 'vs' && !frz && f > 0 && (keys.ShiftLeft || keys.ShiftRight) && !down && !zoomOn;
+  const spd = P.speed * (P.adrT > 0 ? 1.35 : 1) * (P.spr ? 1.6 : 1);
   P.x = clamp(P.x + (-sy * f + cy * s) / m * spd * dt, -A + 1, A - 1);
   P.z = clamp(P.z + (-cy * f - sy * s) / m * spd * dt, -A + 1, A - 1);
   // Thruster dash: sideways burst over 0.18s
@@ -71,7 +73,7 @@ function update(dt) {
   else
     P.rch = 0;
   // Burst weapons (BR) keep firing the rest of the burst 0.07s apart once the trigger starts it.
-  if (frz) { }
+  if (frz || P.spr) { }
   else if (P.bl > 0) {
     P.bt -= dt;
     if (P.bt <= 0) {
@@ -364,7 +366,7 @@ function tick(dt) {
   animGun(dt);
   if (envTick)
     envTick(dt);
-  cam.fov += ((zoomOn && P && P.wpn !== 'sw' ? (P.wpn === 'sn' ? 18 : 45) : 75) - cam.fov) * Math.min(1, dt * 12);
+  cam.fov += ((zoomOn && P && P.wpn !== 'sw' ? (P.wpn === 'sn' ? 18 : 45) : P && P.spr && state === 'play' ? 83 : 75) - cam.fov) * Math.min(1, dt * 12);
   cam.updateProjectionMatrix();
   tracers.forEach(t => {
     t.life -= dt;

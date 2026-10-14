@@ -19,6 +19,10 @@
 
 const MAXP = 4;
 const WIN_KILLS = 15;
+const MATCH_TIME = 300; // versus: 5 minutes or 15 kills, whichever comes first
+// Versus loadouts: pick a primary and a secondary; power weapons only spawn on the map
+const VS_PRIM = ['ar', 'br', 'sg', 'nd'];
+const VS_SEC = ['mg', 'pr'];
 const ETK = Object.keys(ET);
 const COLS = ['#5ec8f2', '#e5534b', '#9bc45a', '#ffd060', '#c48cff', '#ff9a3c'];
 const PEER_PREFIX = 'spartanrun-v1-';
@@ -31,13 +35,19 @@ const NET = {
   rp: {}, seen: {}, cm: {}, cmT: {}, out: {}, outSeen: null, kl: {}, klPrev: {}, ghosts: {}, shp: [], hzp: [], pks: [],
   fxl: [], exl: [], fxSeq: 0, seenFx: {}, rd: 0, ep: 0, vep: -1, sendT: 0, uiT: 0, uiK: '', started: false, w: null,
   phase: 'lobby', lg: false, resp: 0, la: null, laT: -9, tab: 0, next: 'r', waitT: 0, win: '', paid: 0, ui: null,
-  joinT: 0, joined: 0, hostGone: 0, modeKnown: 0
+  joinT: 0, joined: 0, hostGone: 0, modeKnown: 0,
+  lo: { p: 'ar', s: 'mg' }, mt: MATCH_TIME, tl: MATCH_TIME, pw: [], pwId: 0, pwT: 20, pwm: {}, mycl: []
 };
 try {
   NET.nick = (localStorage.getItem('spartan_nick') || '').slice(0, 20);
   const c = localStorage.getItem('spartan_col');
   if (COLS.includes(c))
     NET.col = c;
+  const lo = JSON.parse(localStorage.getItem('spartan_vsload') || '{}');
+  if (VS_PRIM.includes(lo.p))
+    NET.lo.p = lo.p;
+  if (VS_SEC.includes(lo.s))
+    NET.lo.s = lo.s;
 }
 catch (e) { }
 if (!NET.nick)
@@ -330,6 +340,7 @@ function netRead(r, q) {
   r.kl = o(q.kl);
   r.fx = Array.isArray(q.fx) ? q.fx.slice(0, 4) : [];
   r.ex = Array.isArray(q.ex) ? q.ex.slice(0, 4) : [];
+  r.cl = Array.isArray(q.cl) ? q.cl.slice(0, 10).map(Number) : [];
   if (r.isNew) {
     // First sight: whatever it reported before now is history
     r.isNew = 0;
@@ -454,7 +465,7 @@ function netHzOut() {
 function netWorld() {
   const w = { md: NET.mode, lg: NET.lg ? 1 : 0, s: NET.phase, ep: NET.ep };
   if (NET.mode === 'vs')
-    w.win = NET.win || '';
+    Object.assign(w, { win: NET.win || '', tl: Math.max(0, Math.ceil(NET.mt)), pw: NET.pw.map(q => [q.id, q.k, q.x, q.z]) });
   else if (NET.started)
     Object.assign(w, {
       lv: L ? L.id : '', rm: room, lr: lroom, bt: Math.round(bossTotal), out: NET.out,
@@ -891,8 +902,11 @@ function netFinish() {
 
 const BG = { id: 'bg', n: 'Blood Gulch', rooms: 0, A: 80, cut: 34, fog: 0xa8c4d8, fogN: 70, fogF: 340, sky: [0x3a78c8, 0xcfe0ea, 0x8a9a78], hemi: [0xdcecff, 0x4f6a3a, .95], sun: [0xfff2d8, .95, 8, 12, 3], trim: 0xffffff, sty: 'bg', lay: [] };
 // Weapon/ammo pickups [kind, x, z] (each player has their own copies; they come back after 25-45s)
-const VSP = [['sn', 0, -61], ['sn', 0, 61], ['rk', 0, 0], ['sg', -34, 0], ['sw', 34, 0], ['pr', -24, -30], ['pr', 24, 30], ['nd', 24, -30], ['nd', -24, 30], ['br', -8, -40], ['br', 8, 40],
-  ['nade', -10, 0], ['nade', 10, 0], ['nade', -44, -46], ['nade', 44, 46], ['ammo', -44, 46], ['ammo', 44, -46], ['ammo', 0, -24], ['ammo', 0, 24]];
+// Grenade and ammo pickups [kind, x, z] (each player has their own copies; they come back after 25s)
+const VSP = [['ammo', 0, -61], ['ammo', 0, 61], ['nade', -10, 0], ['nade', 10, 0], ['nade', -44, -46], ['nade', 44, 46], ['ammo', -44, 46], ['ammo', 44, -46], ['ammo', 0, -24], ['ammo', 0, 24],
+  ['nade', -24, -30], ['nade', 24, 30], ['ammo', 24, -30], ['ammo', -24, 30]];
+// Where sniper rifles and rocket launchers can appear during a match (hilltops, the ridges, the middle)
+const VS_PW_SPOTS = [[0, 0], [-19, -15], [19, 15], [-32, 24], [32, -24], [-47, 0], [47, 0], [0, -32], [0, 32], [-10, 36], [10, -36], [-40, -6], [40, 6]];
 const VSPAWN = [[0, -50], [-12, -61], [12, -61], [0, 50], [-12, 61], [12, 61], [-46, -22], [46, 22], [-46, 22], [46, -22], [-30, 8], [30, -8]];
 const PKC = { sn: 0x8fa0b0, rk: 0xff6a3a, sg: 0xc08850, sw: 0x7fe0ff, pr: 0x7dff9a, nd: 0xff5fd0, br: 0x9bc45a, nade: 0x7dff6a, ammo: 0xd8c070 };
 
@@ -1044,7 +1058,7 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
     o2.rotation.y = rnd() * 3;
   });
   // Scattered boulders and pines, kept clear of the bases, outcrops, pickups and spawn points
-  const avoid = [[0, -60, 11], [0, 60, 11], ...VSP.map(([k, x, z]) => [x, z, 3]), ...VSPAWN.map(([x, z]) => [x, z, 3]), ...BG_ROCKS.map(([x, z, hw, hd]) => [x, z, Math.max(hw, hd) + 1])];
+  const avoid = [[0, -60, 11], [0, 60, 11], ...VSP.map(([k, x, z]) => [x, z, 3]), ...VSPAWN.map(([x, z]) => [x, z, 3]), ...VS_PW_SPOTS.map(([x, z]) => [x, z, 3]), ...BG_ROCKS.map(([x, z, hw, hd]) => [x, z, Math.max(hw, hd) + 1])];
   let n = 0;
   let tries = 0;
   while (n < 28 && tries++ < 800) {
@@ -1081,24 +1095,31 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
   }
 }
 
+// A floating pickup: the item, a ring and a light beam (taller and brighter for power weapons)
+function pickupMesh(k, x, z, big) {
+  const g = new THREE.Group();
+  const c = PKC[k];
+  const geo = k === 'nade' ? new THREE.SphereGeometry(.22, 10, 8) : k === 'ammo' ? new THREE.BoxGeometry(.5, .3, .34) : new THREE.BoxGeometry(.14, .18, k === 'rk' ? 1.1 : .8);
+  g.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: .3 })));
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(big ? .7 : .5, .035, 6, 24), new THREE.MeshBasicMaterial({ color: c }));
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = -.45;
+  g.add(ring);
+  const bh = big ? 30 : 6;
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(big ? .12 : .06, big ? .12 : .06, bh, 6, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: big ? .4 : .25, depthWrite: false }));
+  beam.position.y = bh / 2 - .5;
+  g.add(beam);
+  g.userData.gy = groundH(x, z);
+  g.position.set(x, g.userData.gy + .8, z);
+  scene.add(g);
+  return g;
+}
+
 function vsPickupsBuild() {
   NET.pks.forEach(p => scene.remove(p.m));
   NET.pks = VSP.map(([k, x, z]) => {
-    const g = new THREE.Group();
-    const c = PKC[k];
-    const geo = k === 'nade' ? new THREE.SphereGeometry(.22, 10, 8) : k === 'ammo' ? new THREE.BoxGeometry(.5, .3, .34) : new THREE.BoxGeometry(.14, .18, k === 'rk' ? 1.1 : .8);
-    g.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: .3 })));
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(.5, .035, 6, 24), new THREE.MeshBasicMaterial({ color: c }));
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = -.45;
-    g.add(ring);
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 6, 6, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .25, depthWrite: false }));
-    beam.position.y = 2.5;
-    g.add(beam);
-    const gy = groundH(x, z);
-    g.position.set(x, gy + .8, z);
-    scene.add(g);
-    return { k, x, z, gy, m: g, t: 0 };
+    const m = pickupMesh(k, x, z);
+    return { k, x, z, gy: m.userData.gy, m, t: 0 };
   });
 }
 
@@ -1155,7 +1176,7 @@ function vsPickups(dt) {
   });
 }
 
-// (Re)spawn at the spawn point farthest from everyone else, with base stats and the AR + Magnum
+// (Re)spawn at the spawn point farthest from everyone else, with base stats and your chosen loadout
 function vsRespawn() {
   const opp = netRemotes();
   let best = VSPAWN[0];
@@ -1167,9 +1188,11 @@ function vsRespawn() {
       best = s;
     }
   });
-  P = { x: best[0], z: best[1], hp: 40, maxHp: 40, sh: 60, maxSh: 60, shDelay: 3, last: -99, speed: 6, dmg: 8, rate: .09, cd: 0, magMax: 32, ammo: 32, reload: 0, wpn: 'ar', slots: ['ar', 'mg'], sa: [32, W.mg.mag], sr: [W.ar.rs, W.mg.rs], cur: 0, mb: 0, reloadT: 1.3, nades: 2, nadeMax: 4, nadeMul: 1, mcd: 0, meleeMul: 1, boons: [], done: [], cr: P ? P.cr : 0, revive: 0, y: 0, vy: 0, thrust: true, tcd: 0, dash: 0, dashDir: 0 };
+  const a = NET.lo.p;
+  const b = NET.lo.s;
+  P = { x: best[0], z: best[1], hp: 40, maxHp: 40, sh: 60, maxSh: 60, shDelay: 3, last: -99, speed: 6, dmg: 8, rate: .09, cd: 0, magMax: W[a].mag, ammo: W[a].mag, reload: 0, wpn: a, slots: [a, b], sa: [W[a].mag, W[b].mag], sr: [W[a].rs, W[b].rs], cur: 0, mb: 0, reloadT: 1.3, nades: 2, nadeMax: 4, nadeMul: 1, mcd: 0, meleeMul: 1, boons: [], done: [], cr: P ? P.cr : 0, revive: 0, y: 0, vy: 0, thrust: true, tcd: 0, dash: 0, dashDir: 0 };
   P.y = groundH(P.x, P.z);
-  setGun('ar');
+  setGun(a);
   // Face the middle of the map
   yaw = Math.atan2(best[0], best[1]);
   pitch = 0;
@@ -1200,6 +1223,16 @@ function vsStart() {
   L = BG;
   buildLevel(BG);
   vsPickupsBuild();
+  // Power weapons: forget the last match's; the host starts a fresh spawn timer
+  Object.values(NET.pwm).forEach(q => scene.remove(q.m));
+  NET.pwm = {};
+  NET.mycl = [];
+  NET.pwSync = 0;
+  if (NET.host) {
+    NET.pw = [];
+    NET.pwT = 20;
+    NET.mt = MATCH_TIME;
+  }
   room = 0;
   kills = 0;
   vsRespawn();
@@ -1208,7 +1241,7 @@ function vsStart() {
   ov.style.justifyContent = '';
   music.set(1);
   sfx.room();
-  banner('BLOOD GULCH: FIRST TO ' + WIN_KILLS + ' KILLS');
+  banner('BLOOD GULCH: ' + WIN_KILLS + ' KILLS OR 5 MINUTES');
   lock();
 }
 
@@ -1262,7 +1295,8 @@ function vsOver(w) {
     NET.paid = NET.ep;
     P.cr += 60;
   }
-  endScreen('<h2>' + (w.win === NET.me ? 'YOU WIN!' : esc(nm(w.win)).toUpperCase() + ' WINS') + '</h2>', 'Slayer: first to ' + WIN_KILLS + ' kills');
+  const title = w.win === 'tie' ? 'DRAW!' : w.win === NET.me ? 'YOU WIN!' : esc(nm(w.win)).toUpperCase() + ' WINS';
+  endScreen('<h2>' + title + '</h2>', +w.tl > 0 ? 'First to ' + WIN_KILLS + ' kills' : 'Time! Most kills after 5 minutes');
   music.set(2);
   if (NET.host)
     ov.querySelector('.cards').insertAdjacentHTML('afterbegin', '<button class="card" style="text-align:center" onclick="vsAgain()"><b>PLAY AGAIN</b><small>New match, same lobby</small></button>');
@@ -1276,6 +1310,7 @@ function vsAgain() {
   NET.ep++;
   NET.phase = 'p';
   NET.win = '';
+  NET.mt = MATCH_TIME;
 }
 
 function vsTick(w, dt) {
@@ -1302,13 +1337,18 @@ function vsTick(w, dt) {
   }
   netVsDamage();
   netKillFeed();
+  NET.tl = isFinite(+w.tl) ? +w.tl : NET.tl;
   if (NET.host && NET.phase === 'p') {
-    const win = netParts().find(p => netScore(p.id) >= WIN_KILLS);
-    if (win) {
+    // 15 kills wins at once; when time runs out the leader wins (a shared lead is a draw)
+    NET.mt -= dt;
+    const ps = netParts().map(p => ({ id: p.id, s: netScore(p.id) })).sort((a, b) => b.s - a.s);
+    if (ps[0].s >= WIN_KILLS || NET.mt <= 0) {
       NET.phase = 'o';
-      NET.win = win.id;
+      NET.win = ps[1] && ps[1].s === ps[0].s ? 'tie' : ps[0].id;
     }
+    vsPowerHost(dt);
   }
+  vsPowerSync(w);
   if (state === 'play') {
     if (NET.down) {
       NET.resp -= dt;
@@ -1317,6 +1357,101 @@ function vsTick(w, dt) {
     }
     vsPickups(dt);
   }
+}
+
+/* ---------- Versus: loadouts and power weapons ---------- */
+
+// Loadout picker (versus lobby and Esc menu); a change applies from your next spawn
+function loadoutHTML() {
+  return '<div id="mplo">' + loadoutInner() + '</div>';
+}
+
+function loadoutInner() {
+  const row = (label, list, slot) => '<div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap"><span style="color:#99a28f;font-size:13px;width:76px;text-align:right">' + label + '</span>'
+    + list.map(k => '<button class="card" style="width:auto;padding:5px 10px;text-align:center;' + (NET.lo[slot] === k ? 'border-color:#9bc45a;color:#c8f08a' : '') + '" onclick="netLoad(\'' + slot + '\',\'' + k + '\')">' + W[k].n.replace(/^\S+ /, '') + '</button>').join('') + '</div>';
+  return '<div style="display:flex;flex-direction:column;gap:6px"><div style="font-size:13px;color:#99a28f">LOADOUT (used from your next spawn)</div>' + row('Primary', VS_PRIM, 'p') + row('Secondary', VS_SEC, 's') + '</div>';
+}
+
+function netLoad(slot, k) {
+  if (!(slot === 'p' ? VS_PRIM : VS_SEC).includes(k))
+    return;
+  NET.lo[slot] = k;
+  try {
+    localStorage.setItem('spartan_vsload', JSON.stringify(NET.lo));
+  }
+  catch (e) { }
+  const el = $('mplo');
+  if (el)
+    el.innerHTML = loadoutInner();
+}
+
+// Power weapons: the host spawns a sniper rifle or rocket launcher every 35-55s (at most 2 on the map) at a random
+// spot. They're shared: whoever reaches one first takes it (their presence lists it in `cl`) and it's gone for everyone.
+const PW_NAME = { sn: 'SNIPER RIFLE', rk: 'ROCKET LAUNCHER' };
+
+function vsPowerHost(dt) {
+  const taken = NET.mycl.concat(...Object.values(NET.rp).map(r => r.cl));
+  NET.pw = NET.pw.filter(q => !taken.includes(q.id));
+  NET.pwT -= dt;
+  if (NET.pwT <= 0) {
+    NET.pwT = R(35, 55);
+    if (NET.pw.length < 2) {
+      const free = VS_PW_SPOTS.filter(([x, z]) => !NET.pw.some(q => q.x === x && q.z === z));
+      const [x, z] = free[Math.random() * free.length | 0];
+      NET.pw.push({ id: ++NET.pwId, k: Math.random() < .5 ? 'sn' : 'rk', x, z });
+    }
+  }
+}
+
+// Everyone: show the host's list of power weapons, announce new ones, and pick them up
+function vsPowerSync(w) {
+  const live = {};
+  (Array.isArray(w.pw) ? w.pw.slice(0, 4) : []).forEach(a => {
+    if (!Array.isArray(a) || !isFinite(+a[0]))
+      return;
+    const id = +a[0];
+    const k = a[1] === 'rk' ? 'rk' : 'sn';
+    const x = clamp(+a[2] || 0, -A, A);
+    const z = clamp(+a[3] || 0, -A, A);
+    live[id] = 1;
+    if (!NET.pwm[id]) {
+      NET.pwm[id] = { k, x, z, m: pickupMesh(k, x, z, true) };
+      if (NET.pwSync && !NET.mycl.includes(id)) {
+        banner(PW_NAME[k] + ' HAS SPAWNED');
+        sfx.recharge();
+      }
+    }
+  });
+  NET.pwSync = 1;
+  Object.keys(NET.pwm).forEach(id => {
+    if (!live[id]) {
+      scene.remove(NET.pwm[id].m);
+      delete NET.pwm[id];
+    }
+  });
+  Object.keys(NET.pwm).forEach(key => {
+    const q = NET.pwm[key];
+    const id = +key;
+    const mine = NET.mycl.includes(id);
+    q.m.visible = !mine;
+    q.m.rotation.y = T * 1.5;
+    q.m.position.y = q.m.userData.gy + .8 + Math.sin(T * 2) * .12;
+    if (mine || NET.down || state !== 'play' || Math.hypot(P.x - q.x, P.z - q.z) > 1.6)
+      return;
+    const i = P.slots.indexOf(q.k);
+    // Already carrying one with full ammo: leave it for someone else
+    if (i >= 0 && P.sr[i] >= rxOf(q.k))
+      return;
+    if (i < 0)
+      setW(P, q.k);
+    else
+      P.sr[i] = rxOf(q.k);
+    NET.mycl.push(id);
+    if (NET.mycl.length > 10)
+      NET.mycl.shift();
+    banner(W[q.k].n.toUpperCase());
+    sfx.grab();
+  });
 }
 
 /* ---------- Scoreboard and HUD text ---------- */
@@ -1341,7 +1476,8 @@ function netRoomText() {
   if (NET.mode === 'vs') {
     let top = 0;
     netParts().forEach(p => top = Math.max(top, netScore(p.id)));
-    return 'BLOOD GULCH | First to ' + WIN_KILLS + ' | You ' + netScore(NET.me) + ' | Lead ' + top + ' | Tab: scores';
+    const tl = Math.max(0, NET.tl | 0);
+    return 'BLOOD GULCH | ' + (tl / 60 | 0) + ':' + String(tl % 60).padStart(2, '0') + ' | You ' + netScore(NET.me) + ' | Lead ' + top + ' (first to ' + WIN_KILLS + ') | Tab: scores';
   }
   const ps = netParts();
   return (NET.lg ? 'LEGENDARY | ' : '') + (L ? L.n + ' | ' + (lroom > L.rooms ? 'BOSS' : 'Room ' + lroom + '/' + L.rooms) : '') + ' | Squad ' + ps.filter(p => !p.dn).length + '/' + ps.length + '  Kills ' + kills;
@@ -1467,7 +1603,7 @@ function netRoomUI() {
   const title = !NET.modeKnown ? 'CONNECTING...' : NET.mode === 'vs' ? 'VERSUS: BLOOD GULCH' : 'CO-OP' + (NET.lg ? ' LEGENDARY' : '');
   const h = '<h2>' + title + '</h2>'
     + (NET.host ? '<div>Game code <b style="font-size:26px;letter-spacing:.2em;color:#9bc45a">' + NET.code + '</b></div><div class="cards sm"><button class="card" style="text-align:center" onclick="netCopy()"><b id="mpcopy">COPY INVITE LINK</b><small>Friends open it and press Join</small></button></div>' : '')
-    + '<div style="color:#99a28f">' + (NET.host ? 'Waiting for players. Start when your squad is in' + (NET.mode === 'vs' ? ' (others can also join mid-match).' : '.') : NET.joined ? 'Waiting for the host to start...' : 'Connecting to the host...') + '</div>' + netBoard()
+    + '<div style="color:#99a28f">' + (NET.host ? 'Waiting for players. Start when your squad is in' + (NET.mode === 'vs' ? ' (others can also join mid-match).' : '.') : NET.joined ? 'Waiting for the host to start...' : 'Connecting to the host...') + '</div>' + netBoard() + (NET.mode === 'vs' && NET.modeKnown ? loadoutHTML() : '')
     + '<div class="cards">' + (NET.host ? '<button class="card" style="text-align:center" onclick="netStart()"><b>START</b><small>' + (1 + Object.keys(NET.rp).length) + '/' + MAXP + ' players</small></button>' : '')
     + '<button class="card" style="text-align:center" onclick="netLeave()"><b>LEAVE</b></button></div>';
   if (h !== NET.uiK) {
@@ -1555,7 +1691,7 @@ function netMenu() {
   ov.style.display = 'flex';
   ov.style.background = 'rgba(8,10,6,.55)';
   ov.style.justifyContent = '';
-  ov.innerHTML = '<h2>MENU</h2><div style="color:#99a28f;font-size:13px">The match keeps running while this is open</div>' + settingsHTML()
+  ov.innerHTML = '<h2>MENU</h2><div style="color:#99a28f;font-size:13px">The match keeps running while this is open</div>' + (NET.mode === 'vs' ? loadoutHTML() : '') + settingsHTML()
     + '<div class="cards"><button class="card" style="text-align:center" onclick="netResume()"><b>RESUME</b></button><button class="card" style="text-align:center" onclick="netLeave()"><b>LEAVE GAME</b><small>Credits earned so far are kept</small></button></div>';
 }
 
@@ -1586,7 +1722,7 @@ function netSend(dt) {
       }
     });
   if (live)
-    Object.assign(p, { x: r1(P.x), y: r1(P.y), z: r1(P.z), yw: r2(yaw), hp: Math.round(P.hp), sh: Math.round(P.sh), w: P.wpn, dn: NET.down ? 1 : 0, fx: NET.fxl, ex: NET.exl, cm: NET.cm, kl: NET.kl });
+    Object.assign(p, { cl: NET.mycl, x: r1(P.x), y: r1(P.y), z: r1(P.z), yw: r2(yaw), hp: Math.round(P.hp), sh: Math.round(P.sh), w: P.wpn, dn: NET.down ? 1 : 0, fx: NET.fxl, ex: NET.exl, cm: NET.cm, kl: NET.kl });
   const o = { p };
   if (NET.host)
     o.w = NET.w;
@@ -1669,7 +1805,7 @@ function netTick(dt) {
       netRoomUI();
     }
   }
-  const msg = NET.started && NET.down && state === 'play' ? (NET.mode === 'vs' ? 'RESPAWNING IN ' + Math.max(1, Math.ceil(NET.resp)) : 'YOU ARE DOWN<br><small>You redeploy when your squad clears the room</small>') : '';
+  const msg = NET.started && NET.down && state === 'play' ? (NET.mode === 'vs' ? 'RESPAWNING IN ' + Math.max(1, Math.ceil(NET.resp)) + '<br><small>Esc to change your loadout</small>' : 'YOU ARE DOWN<br><small>You redeploy when your squad clears the room</small>') : '';
   nmsg.style.display = msg ? 'block' : 'none';
   if (msg && nmsg.innerHTML !== msg)
     nmsg.innerHTML = msg;

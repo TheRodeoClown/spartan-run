@@ -217,6 +217,12 @@ function animGun(dt) {
   let ry = 0;
   let rz = 0;
   if (P && state === 'play') {
+    // Sprinting: gun tilted down and across
+    if (P.spr) {
+      y -= .1;
+      rx -= .55;
+      ry += .5;
+    }
     if (swapT > 0) {
       swapT = Math.max(0, swapT - dt);
       y -= .45 * swapT / .3;

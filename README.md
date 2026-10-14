@@ -24,7 +24,12 @@ Click **MULTIPLAYER** on the title screen. Set a name and colour, then either:
 
 **Co-op** (2-4 players): the host's game runs the missions and enemies. Everyone picks their own boons; the next room starts when the whole squad has picked. Downed players come back in the next room. If everyone goes down, the run ends.
 
-**Versus** (2-4 players): free-for-all slayer on **Blood Gulch**, modelled on the classic Halo map: a long box canyon between two bases, with rolling hills, sniper ridges along the cliffs, a winding creek, rock outcrops and trees to hide behind, and weapon pickups. Hills block line of sight and shots. Everyone starts with the AR and Magnum. First to 15 kills wins. Hold **Tab** for scores.
+**Versus** (2-4 players): free-for-all slayer on **Blood Gulch**, modelled on the classic Halo map: a long box canyon between two bases, with rolling hills, sniper ridges along the cliffs, a winding creek, rock outcrops and trees to hide behind. Hills block line of sight and shots.
+
+- **Loadout:** pick your primary (Assault Rifle, Battle Rifle, Shotgun or Needler) and secondary (Magnum or Plasma Rifle) in the lobby, or from the Esc menu during a match (used from your next spawn).
+- **Power weapons:** a sniper rifle or rocket launcher spawns at a random spot every 35-55 seconds (at most two at once). They're shared: the first player to reach one takes it. Grenades and ammo lie around the map too.
+- **Sprint:** hold Shift while moving forward. You can't shoot while sprinting.
+- **Winning:** first to 15 kills, or the most kills when the 5-minute clock runs out (a shared lead is a draw). Hold **Tab** for scores.
 
 How it connects: peer to peer over WebRTC with [PeerJS](https://peerjs.com/). Every guest connects straight to the host's browser. The free public PeerJS server is only used to find each other by code, so there is no game server to run. Some strict corporate or school networks block direct connections; home networks usually work. If the host closes the game, the match ends.
 
@@ -41,6 +46,7 @@ How it connects: peer to peer over WebRTC with [PeerJS](https://peerjs.com/). Ev
 | Space | Jump |
 | F | Melee |
 | Shift + A/D | Thruster dash |
+| Shift + W | Sprint (versus) |
 | R | Reload |
 | Mouse wheel / 1 / 2 | Swap weapons |
 | 1-3 | Pick a boon on the boon screen |
