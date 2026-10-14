@@ -24,7 +24,18 @@ const ET = {
   shipmaster: { model: 'elite', tint: 0x7a3fb0, bn: 'Shipmaster', hp: 320, sh: 300, sp: 4.8, sc: 2, col: 0xc890ff, fr: 1.2, bs: 24, bd: 14, burst: 4, spread: 1, pref: 12, sum: 1, armor: .25 },
   skirmisher: { model: 'jackal', tint: 0x8a4a2a, bn: 'Skirmisher Alpha', hp: 260, sh: 220, sp: 6.5, sc: 1.8, col: 0xff8a4a, fr: 1.1, bs: 24, bd: 9, burst: 3, pref: 16, needle: 1, armor: .2 },
   deacon: { model: 'grunt', tint: 0xd8b040, bn: 'Grunt Deacon', hp: 380, sh: 140, sp: 3.6, sc: 2.2, col: 0x9fe8ff, fr: 1.4, bs: 20, bd: 12, burst: 5, spread: 1, pref: 12, armor: .3 },
-  ironclad: { model: 'hunter', tint: 0x6a7480, bn: 'Ironclad Hunter', hp: 720, sh: 0, sp: 3, sc: 2.4, col: 0x8ff6ff, fr: 2.1, bs: 18, bd: 18, burst: 3, spread: 1, armor: .5, pref: 10 }
+  ironclad: { model: 'hunter', tint: 0x6a7480, bn: 'Ironclad Hunter', hp: 720, sh: 0, sp: 3, sc: 2.4, col: 0x8ff6ff, fr: 2.1, bs: 18, bd: 18, burst: 3, spread: 1, armor: .5, pref: 10 },
+  // Jackal Sniper: hangs back, aims a red laser sight, then fires a beam rifle shot (MOVES.snipe). Jackal Major: tougher, faster-firing, gold armour
+  jsniper: { model: 'jsniper', hp: 16, sh: 0, sp: 4.5, sc: .95, col: 0xff4f8f, fr: 3.4, bs: 0, bd: 24, burst: 0, pref: 22, sniper: 1 },
+  jmajor: { model: 'jmajor', tint: 0x8a6a2a, hp: 26, sh: 75, sp: 6, sc: 1.05, col: 0xffb040, fr: 1.25, bs: 15, bd: 4, burst: 4, pref: 13, needle: 1 },
+  // Skimmer: flies (fly) a few metres up, darting about and over cover
+  skimmer: { model: 'skimmer', hp: 14, sh: 25, sp: 7.5, sc: 1, col: 0x9fff6a, fr: 1.3, bs: 17, bd: 5, burst: 3, pref: 12, fly: 1 },
+  // The Flood. boom: [radius, damage to enemies, damage to you] when a kami form bursts; prime / kfuse: how close it gets and how long it takes; brood: infection forms released
+  finf: { model: 'finf', hp: 5, sh: 0, sp: 8.5, sc: .55, col: 0xd8e070, fr: 9, bs: 0, bd: 0, burst: 0, pref: 0, kami: 1, boom: [2.2, 15, 9], prime: 1.3, kfuse: .12 },
+  fcomb: { model: 'fcomb', hp: 55, sh: 0, sp: 5.4, sc: 1.1, col: 0xd8e070, fr: 1.3, bs: 0, bd: 16, burst: 0, pref: 0, melee: 1 },
+  fcarr: { model: 'fcarr', hp: 30, sh: 0, sp: 2.2, sc: 1, col: 0xd8e070, fr: 9, bs: 0, bd: 0, burst: 0, pref: 0, kami: 1, boom: [5, 50, 30], prime: 2.6, kfuse: .9, brood: 3 },
+  gravemind: { model: 'gravemind', tint: 0x9a8a58, bn: 'Proto-Gravemind', hp: 950, sh: 0, sp: 1.3, sc: 2.2, col: 0xd8e070, fr: 1.6, bs: 14, bd: 12, burst: 5, spread: 1, pref: 10, armor: .35 },
+  abom: { model: 'fcomb', tint: 0x6a6a3a, bn: 'Flood Abomination', hp: 720, sh: 0, sp: 4.8, sc: 2.1, col: 0xd8e070, fr: 1.6, bs: 0, bd: 28, burst: 0, pref: 0, melee: 1, armor: .35 }
 };
 // Boss weak points [x, y, z, radius] in model space (scaled with the boss). Elites: helmet gem + back power core.
 // Hunters: exposed orange core in the stomach and on the back. A hit deals CRIT_MUL and ignores armor.
@@ -33,7 +44,10 @@ const CRITS = {
   hunter: { col: 0xff7a2a, pts: [[0, 1.12, .4, .18], [0, 1.15, -.6, .2]] },
   // Jackal: head and the back of the harness; Grunt: breather mask and methane tank
   jackal: { col: 0xffa050, pts: [[0, 1.7, .28, .13], [0, 1.15, -.22, .16]] },
-  grunt: { col: 0x7fe0ff, pts: [[0, 1.36, .42, .14], [0, 1.15, -.45, .2]] }
+  grunt: { col: 0x7fe0ff, pts: [[0, 1.36, .42, .14], [0, 1.15, -.45, .2]] },
+  // Flood: glowing pustules on the Gravemind's crown and back; the Abomination's head growth and hump
+  gravemind: { col: 0xeaff60, pts: [[0, 2.62, .5, .2], [0, 1.5, -.95, .26]] },
+  fcomb: { col: 0xeaff60, pts: [[0, 1.66, .44, .12], [.1, 1.45, -.3, .17]] }
 };
 const CRIT_MUL = 2.5;
 const BOONS = [

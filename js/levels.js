@@ -29,6 +29,12 @@ const LV = [
     id: 'sn', n: 'Glacier Relay', sub: 'A Forerunner relay buried in ice, deep in a blizzard.', rooms: 5, boss: 'blademaster', bosses: ['blademaster', 'skirmisher', 'shipmaster'], mix: ['jackal', 'grunt', 'elite'],
     fog: 0xc8d6e2, fogN: 18, fogF: 120, sky: [0x7d93ab, 0xd4dee8, 0xc0ccd8], hemi: [0xdde8f5, 0x8090a0, .9], sun: [0xe8f0ff, .6, -4, 8, 5], trim: 0x6fd0ff, sty: 'sn',
     lay: [[-7, -9], [7, -9], [-12, 2], [12, 2], [0, 0], [-5, 8], [5, 8]]
+  },
+  {
+    // flood: Flood enemies only (see the wave in run.js)
+    id: 'fl', n: 'Quarantine Zone', sub: 'A swamp-choked Forerunner facility overrun by the Flood.', rooms: 5, boss: 'gravemind', bosses: ['gravemind', 'abom'], mix: ['fcomb', 'finf', 'fcarr'], flood: 1,
+    fog: 0x283424, fogN: 12, fogF: 75, sky: [0x1a2418, 0x4a5a3a, 0x20281c], hemi: [0x9ab07a, 0x2a2a18, .85], sun: [0xd8e0a0, .45, -4, 9, 3], trim: 0xb8c860, sty: 'fl',
+    lay: [[-8, -6], [8, -6], [0, 2], [-12, 8], [12, 8], [-6, -14], [7, 13]]
   }
 ];
 
@@ -61,6 +67,32 @@ function speck(g, w, h, n, a) {
 }
 
 const DR = {
+  // Flood swamp mud: dark olive ground with slick patches and pale organic veins
+  mud: (g, w, h) => {
+    g.fillStyle = '#34361f';
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 18; i++) {
+      g.fillStyle = Math.random() < .5 ? 'rgba(20,24,12,.3)' : 'rgba(90,96,50,.18)';
+      g.beginPath();
+      g.ellipse(Math.random() * w, Math.random() * h, R(15, 60), R(10, 40), R(0, 3), 0, 7);
+      g.fill();
+    }
+    g.strokeStyle = 'rgba(200,190,120,.18)';
+    g.lineWidth = 2;
+    for (let i = 0; i < 12; i++) {
+      let x = Math.random() * w;
+      let y = Math.random() * h;
+      g.beginPath();
+      g.moveTo(x, y);
+      for (let j = 0; j < 6; j++) {
+        x += R(-20, 20);
+        y += R(-20, 20);
+        g.lineTo(x, y);
+      }
+      g.stroke();
+    }
+    speck(g, w, h, 2500, .12);
+  },
   // UNSC deck plates
   plate: (g, w, h) => {
     for (let i = 0; i < 2; i++)
@@ -404,6 +436,8 @@ function floorMat(s) {
         ? new THREE.MeshLambertMaterial({ map: ctex('sand', 256, 256, 8, 8, DR.sand) })
         : s === 'sn'
           ? new THREE.MeshLambertMaterial({ map: ctex('frost', 256, 256, 7, 7, DR.frost) })
+          : s === 'fl'
+          ? new THREE.MeshLambertMaterial({ map: ctex('mud', 256, 256, 8, 8, DR.mud) })
           : s === 'bg'
             ? new THREE.MeshLambertMaterial({ map: ctex('grassBG', 256, 256, 44, 44, DR.grass) })
             : new THREE.MeshLambertMaterial({ map: ctex('grass', 256, 256, 12, 12, DR.grass) }));
@@ -812,6 +846,72 @@ function buildLevel(lv, empty) {
         add(B(3, 3.5, 3), ice, x, 1.75, z);
       });
   }
+  else if (lv.sty === 'fl') {
+    // Quarantine Zone: Forerunner walls swallowed by Flood growth (bulbous masses, glowing sacs, tendrils), a murky
+    // swamp of dead trees and dark pools outside, and spores drifting through the green gloom
+    const flesh = mat('flFlesh', () => new THREE.MeshPhongMaterial({ color: 0xa89a5c, emissive: 0x141200, shininess: 25 }));
+    const rotM = mat('flRot', () => new THREE.MeshPhongMaterial({ color: 0x4e5232, shininess: 8 }));
+    const pus = mat('flPus', () => new THREE.MeshPhongMaterial({ color: 0xd8e070, emissive: 0x3a4200, shininess: 60 }));
+    const band = ringBand(1800, 150, 0xa8b890, .25);
+    band.rotation.z = Math.PI / 2;
+    band.position.set(0, 1760, -300);
+    envG.add(band);
+    ground(mat('mudBig', () => new THREE.MeshLambertMaterial({ map: ctex('mudBig', 256, 256, 160, 160, DR.mud) })));
+    hills(30, 100, 260, 30, 80, 0x2e3824);
+    const bark = M(0x3a3326);
+    for (let i = 0; i < 40; i++) {
+      const a = R(0, 6.28);
+      const r = R(A + 5, A + 60);
+      const x = Math.cos(a) * r;
+      const z = Math.sin(a) * r;
+      const h = R(5, 11);
+      add(new THREE.CylinderGeometry(.15, .4, h, 5), bark, x, h / 2, z).rotation.set(R(-.2, .2), 0, R(-.2, .2));
+      for (let j = 0; j < 3; j++)
+        add(new THREE.CylinderGeometry(.04, .1, R(1.5, 3), 4), bark, x + R(-.5, .5), h * R(.5, .9), z + R(-.5, .5)).rotation.set(R(-1, 1), 0, R(-1.2, 1.2));
+    }
+    const swamp = mat('swamp', () => new THREE.MeshPhongMaterial({ color: 0x1e2a1c, shininess: 90, specular: 0x6a7a4a }));
+    [[-45, -20, 18], [40, 30, 22], [10, -55, 20], [-30, 48, 16]].forEach(([x, z, s]) => {
+      add(new THREE.CircleGeometry(s, 24), swamp, x, .03, z).rotation.x = -Math.PI / 2;
+    });
+    walls(5, fnM(4), 7);
+    WL.forEach(wl => {
+      const h = wallH(wl, 5, 7);
+      spots(wl, 3.5).forEach(t => {
+        const s = R(.8, 1.8);
+        onW(wl, t + R(-1, 1), s * .35, new THREE.SphereGeometry(1, 10, 8), flesh, -s * .3).scale.set(s * 1.3, s * .8, s * .7);
+        if (Math.random() < .5)
+          onW(wl, t + R(-1, 1), R(1.5, h - .5), new THREE.SphereGeometry(R(.18, .35), 8, 6), pus, .05);
+        if (Math.random() < .6) {
+          const tube = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(R(-.6, .6), h * .45, .25), new THREE.Vector3(R(-1, 1), h + .3, .1)]), 12, R(.08, .16), 6);
+          onW(wl, t + R(-1, 1), 0, tube, rotM, .05);
+        }
+      });
+    });
+    cornerPts.forEach(([x, z]) => {
+      add(new THREE.CylinderGeometry(.25, 2.2, 18, 4), fnM(4), x, 9, z).rotation.y = Math.PI / 4;
+      add(new THREE.SphereGeometry(2.4, 10, 8), flesh, x, 6, z).scale.set(1.2, 1.6, 1.2);
+      add(new THREE.SphereGeometry(.5, 8, 6), pus, x + 1.6, 7.5, z);
+    });
+    // spores rising through the air
+    particles(900, 0xd8f070, .12, 0, 8, (p, i, dt) => {
+      p[i + 1] += .3 * dt;
+      p[i] += Math.sin(T * .6 + i) * .2 * dt;
+      if (p[i + 1] > 8) {
+        p[i + 1] = 0;
+        p[i] = R(-40, 40);
+        p[i + 2] = R(-40, 40);
+      }
+    });
+    // Cover: Forerunner blocks overgrown with Flood flesh
+    if (!empty)
+      lay.forEach(([x, z]) => {
+        pillars.push({ x, z });
+        add(B(3, 3.5, 3), fnM(1), x, 1.75, z);
+        add(new THREE.SphereGeometry(1, 10, 8), flesh, x + R(-.6, .6), 3.6, z + R(-.6, .6)).scale.set(1.5, .7, 1.4);
+        add(new THREE.SphereGeometry(1, 10, 8), flesh, x + R(-1, 1), .5, z + 1.4).scale.set(1.2, .7, .6);
+        add(new THREE.SphereGeometry(.25, 8, 6), pus, x + R(-1, 1), 3.9, z + R(-1, 1));
+      });
+  }
   else if (lv.sty === 'bg')
     bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pines }); // Blood Gulch (versus), in multiplayer.js
   else if (lv.sty === 'fr') {
@@ -931,6 +1031,7 @@ const OUTDOOR = {
   ob: { amp: .9, n: 8, flat: 3 },
   ds: { amp: 1.2, n: 9, flat: 3 },
   sn: { amp: .6, n: 8, flat: 13 },
+  fl: { amp: .9, n: 8, flat: 3 },
   fr: { amp: 1.7, n: 9, flat: 11 * K + 2, axes: true }
 };
 const smooth01 = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
@@ -1025,6 +1126,17 @@ function scatterProps(lv, lay, add) {
     }, () => stone(0x8a9088, R(.15, .4))],
     ds: [() => stone(0xb0855a, R(.15, .5)), () => stone(0x9c7048, R(.3, .7)), () => tuft(0x8a6a3a, 6, .5, .7), () => tuft(0x7a8a4a, 4, .7, 1.2)],
     sn: [() => stone(0x7f8fa0, R(.12, .3)), () => stone(0x95a3b2, R(.1, .25))],
+    fl: [() => tuft(0x4a5a2a, 5, .5, 1), () => stone(0x4e5232, R(.15, .4)), () => {
+      // a small cluster of Flood pods
+      const grp = new THREE.Group();
+      for (let i = 0; i < 3; i++) {
+        const o = new THREE.Mesh(gcache('ppod', () => new THREE.SphereGeometry(1, 8, 6)), ph(0xc8c080));
+        o.scale.setScalar(R(.12, .22));
+        o.position.set(R(-.25, .25), .1, R(-.25, .25));
+        grp.add(o);
+      }
+      return grp;
+    }],
     ob: [() => stone(0x6a5f55, R(.15, .5)), () => stone(0x7a6e62, R(.3, .6)), () => {
       const o = new THREE.Mesh(gcache('pscrap', () => new THREE.BoxGeometry(1, 1, 1)), ph(0x4a5058));
       o.scale.set(R(.2, .6), R(.05, .15), R(.2, .5));

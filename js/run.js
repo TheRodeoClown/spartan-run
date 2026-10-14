@@ -39,7 +39,7 @@ function newRun(leg, noStart) {
   kills = 0;
   yaw = 0;
   pitch = 0;
-  P = { x: 0, z: A * .64, hp: 40, maxHp: 40, sh: 60, maxSh: 60, shDelay: 3, last: -99, speed: 6, dmg: 8, rate: .09, cd: 0, magMax: 32, ammo: 32, reload: 0, wpn: 'ar', slots: ['ar', null], sa: [32, 0], sr: [W.ar.rs, 0], cur: 0, mb: 0,reloadT: 1.3, nades: 2, nadeMax: 3, nadeMul: 1, mcd: 0, meleeMul: 1, boons: [], done: [], cr: 0, revive: 0, y: 0, vy: 0, thrust: true, tcd: 0, dash: 0, dashDir: 0 };
+  P = { x: 0, z: A * .64, hp: 40, maxHp: 40, sh: 60, maxSh: 60, shDelay: 3, last: -99, speed: 6, dmg: 8, rate: .09, cd: 0, magMax: 32, ammo: 32, reload: 0, wpn: 'ar', slots: ['ar', null], sa: [32, 0], sr: [W.ar.rs, 0], cur: 0, mb: 0,reloadT: 1.3, nades: 2, nadeMax: 3, nadeMul: 1, mcd: 0, meleeMul: 1, boons: [], done: [], cr: 0, revive: 0, y: 0, vy: 0, thrust: true, tcd: 0, dash: 0, dashF: 0, dashS: 0 };
   // Armory upgrades and your starting sidearm are for solo runs only: multiplayer starts everyone equal
   if (!NET.mode) {
     UPS.forEach(x => {
@@ -97,6 +97,18 @@ function nextRoom() {
     for (let i = 0; i < n; i++) {
       const mx = L.mix;
       let t = mx[0];
+      // The Flood: combat forms, packs of three infection forms, and (from room 2) carriers
+      if (L.flood) {
+        const q = Math.random();
+        if (q < .5)
+          spawn('fcomb');
+        else if (q < .82 || lroom < 2)
+          for (let k = 0; k < 3; k++)
+            spawn('finf');
+        else
+          spawn('fcarr');
+        continue;
+      }
       const r = Math.random();
       if (lroom >= 2 && r < .45)
         t = mx[1];
@@ -106,13 +118,21 @@ function nextRoom() {
         t = 'selite';
       if (lroom >= 2 && r > .58 && r <= .68)
         t = 'kgrunt';
+      // Jackal Snipers from room 2; Skimmers from the second mission; Jackal Majors from the third
+      const r2 = Math.random();
+      if (lroom >= 2 && r2 < .1)
+        t = 'jsniper';
+      else if (P.done.length >= 1 && r2 > .9)
+        t = 'skimmer';
+      if (t === 'jackal' && P.done.length >= 2 && Math.random() < .4)
+        t = 'jmajor';
       // Legendary, from the third mission: sometimes a Cloaked Sword Elite
       if (LEGEND && P.done.length >= 2 && lroom >= 2 && Math.random() < .12)
         t = 'celite';
       spawn(t);
     }
   if (lroom === L.rooms)
-    spawn('hunter');
+    spawn(L.flood ? 'fcarr' : 'hunter');
   // a flash where each one appears
   enemies.forEach(e => {
     if (!e.camo)

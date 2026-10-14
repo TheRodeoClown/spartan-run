@@ -11,6 +11,20 @@ const MC = {};
 const gcache = (k, f) => GC[k] || (GC[k] = f());
 const mcache = (k, f) => MC[k] || (MC[k] = f());
 
+// Shared Flood materials: pale flesh, rotting tissue, glowing pustules
+const floodMats = () => ({
+  flesh: mcache('fflesh', () => new THREE.MeshPhongMaterial({ color: 0xb8a864, emissive: 0x1a1600, shininess: 20 })),
+  rot: mcache('frot', () => new THREE.MeshPhongMaterial({ color: 0x5a5a36, shininess: 10 })),
+  pus: mcache('fpus', () => new THREE.MeshPhongMaterial({ color: 0xd8e070, emissive: 0x404800, shininess: 60 }))
+});
+
+// Skimmer wings: a fast flap
+function flapWings(e) {
+  const w = e.g.userData.wings;
+  if (w)
+    w.forEach((p, i) => p.rotation.z = p.userData.s * (.2 + .55 * Math.sin(T * 34 + i * .7)));
+}
+
 function buildEnemy(t) {
   const g = new THREE.Group();
   // The group new parts go into: the model root, or a limb pivot while rig() runs
@@ -78,6 +92,11 @@ function buildEnemy(t) {
   // the suicide Grunt holds two lit plasma grenades.
   const sel = t === 'selite';
   const kam = t === 'kgrunt';
+  // Jackal variants: the Sniper (beam rifle, no shield) and the Major (gold armour, orange shield)
+  const jsn = t === 'jsniper';
+  const jmj = t === 'jmajor';
+  if (jsn || jmj)
+    t = 'jackal';
   if (sel)
     t = 'elite';
   if (kam)
@@ -145,7 +164,7 @@ function buildEnemy(t) {
     const beak = L(0xc9b98a);
     const quill = L(0xb05a3a);
     const dark = Ph(0x2a2a30, 30);
-    const sh = mcache('jsh', () => new THREE.MeshBasicMaterial({ color: 0x6fe0ff, transparent: true, opacity: .35, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const sh = mcache(jmj ? 'jshM' : 'jsh', () => new THREE.MeshBasicMaterial({ color: jmj ? 0xffa040 : 0x6fe0ff, transparent: true, opacity: .35, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
     legs = [-1, 1].map(s => rig(s * .12, .9, -.04, () => {
       limb([[s * .12, .9, -.04], [s * .15, .58, .14], [s * .14, .24, -.1], [s * .14, .05, .06]], .06, skin);
       P3(B(.11, .05, .24), dark, s * .14, .03, .1);
@@ -160,17 +179,29 @@ function buildEnemy(t) {
     P3(Co(.08, .34), beak, 0, 1.64, .52, null, [Math.PI / 2, 0, 0]);
     [-1, 1].forEach(s => ball(glow(0xff5030), s * .09, 1.73, .3, .07));
     [[-.08, .1], [0, .14], [.08, .1], [0, .02]].forEach(([x, o], i) => P3(Co(.03, .32, 5), quill, x, 1.86 - o * .5, -.02 - i * .03, null, [-.7 - o, 0, x * 2]));
-    // Left arm: wrist gauntlet projecting the energy shield
-    limb([[-.2, 1.32, 0], [-.34, 1.12, .12], [-.4, 1.15, .24]], .045, skin);
-    P3(Cy(.07, .07, .14, 8), dark, -.42, 1.17, .26, null, [Math.PI / 2, 0, 0]);
-    P3(Cy(.55, .55, .02, 24), sh, -.5, 1.2, .32, null, [Math.PI / 2, 0, 0]);
-    P3(gcache('jt', () => new THREE.TorusGeometry(.55, .02, 6, 32)), glow(0x9ff0ff), -.5, 1.2, .32);
-    // Right arm: Needler with glowing needles
-    limb([[.2, 1.32, 0], [.32, 1.08, .1], [.34, .98, .28]], .045, skin);
-    const nd = Ph(0xc0408a, 90);
-    P3(B(.09, .12, .36), nd, .34, .95, .4);
-    ball(nd, .34, .93, .22, .12, .14, .12);
-    [-.035, 0, .035].forEach(x => P3(Co(.02, .15, 5), glow(0xff7be0), .34 + x, 1.07, .4 + x * .5, null, [-.3, 0, 0]));
+    if (jsn) {
+      // Sniper: both hands on a long beam rifle with a glowing muzzle and scope
+      limb([[-.2, 1.32, 0], [-.18, 1.12, .2], [.02, 1.2, .42]], .045, skin);
+      limb([[.2, 1.32, 0], [.26, 1.1, .12], [.12, 1.16, .2]], .045, skin);
+      const br = Ph(0x4a3a6a, 90);
+      P3(B(.08, .1, 1.2), br, .06, 1.2, .5);
+      P3(B(.05, .05, .3), br, .06, 1.28, .3);
+      ball(glow(0xff4f8f), .06, 1.2, 1.12, .08);
+      P3(B(.03, .03, .5), glow(0xff8fbf), .06, 1.26, .7);
+    }
+    else {
+      // Left arm: wrist gauntlet projecting the energy shield
+      limb([[-.2, 1.32, 0], [-.34, 1.12, .12], [-.4, 1.15, .24]], .045, skin);
+      P3(Cy(.07, .07, .14, 8), dark, -.42, 1.17, .26, null, [Math.PI / 2, 0, 0]);
+      P3(Cy(.55, .55, .02, 24), sh, -.5, 1.2, .32, null, [Math.PI / 2, 0, 0]);
+      P3(gcache('jt', () => new THREE.TorusGeometry(.55, .02, 6, 32)), glow(jmj ? 0xffc070 : 0x9ff0ff), -.5, 1.2, .32);
+      // Right arm: Needler with glowing needles
+      limb([[.2, 1.32, 0], [.32, 1.08, .1], [.34, .98, .28]], .045, skin);
+      const nd = Ph(0xc0408a, 90);
+      P3(B(.09, .12, .36), nd, .34, .95, .4);
+      ball(nd, .34, .93, .22, .12, .14, .12);
+      [-.035, 0, .035].forEach(x => P3(Co(.02, .15, 5), glow(0xff7be0), .34 + x, 1.07, .4 + x * .5, null, [-.3, 0, 0]));
+    }
   }
   else if (t === 'elite') {
     // Backward knees with armored shins, chest plate, pauldrons, helmet, four mandibles, back power pack
@@ -217,7 +248,7 @@ function buildEnemy(t) {
         f();
     });
     if (sel)
-      swordAt(.58, 1, .3, 1.4);
+      swordAt(.58, 1, .3, .75);
     else {
       // Two-pronged plasma rifle
       const gun = Ph(0x5a6070, 90);
@@ -225,6 +256,107 @@ function buildEnemy(t) {
       ball(glow(0xff7be0), .58, .98, .72, .07);
       P3(B(.04, .12, .06), dark, .58, .9, .4);
     }
+  }
+  else if (t === 'skimmer') {
+    // Skimmer: a flying insectoid with four veined wings, a segmented abdomen, dangling legs and a plasma launcher.
+    // The wings hang from shoulder pivots in g.userData.wings and are flapped by flapWings().
+    mat = armor(0x2f6a64);
+    const shell = Ph(0x1c3d3a, 70);
+    const wingM = mcache('skw', () => new THREE.MeshBasicMaterial({ color: 0x9fffd8, transparent: true, opacity: .35, side: THREE.DoubleSide, depthWrite: false }));
+    ball(mat, 0, 1.25, 0, .42, .38, .62);
+    ball(shell, 0, 1.12, -.48, .32, .3, .7, [-.25, 0, 0]);
+    ball(shell, 0, 1.0, -.86, .2, .18, .38, [-.5, 0, 0]);
+    ball(mat, 0, 1.38, .4, .3, .28, .34);
+    [-1, 1].forEach(s => {
+      ball(glow(0x9fff6a), s * .09, 1.42, .55, .08);
+      P3(Co(.025, .22, 5), shell, s * .08, 1.28, .62, null, [1.8, 0, s * .3]);
+      [.1, -.1].forEach(z => limb([[s * .15, 1.1, z], [s * .32, .82, z + .1], [s * .28, .5, z + .18]], .035, shell));
+    });
+    P3(Cy(.06, .08, .4, 8), Ph(0x3a4a7a, 90), 0, 1.02, .3, null, [Math.PI / 2, 0, 0]);
+    ball(glow(0x7dff9a), 0, 1.02, .52, .09);
+    const wg = gcache('skwg', () => {
+      const s = new THREE.Shape();
+      s.moveTo(0, 0);
+      s.quadraticCurveTo(.5, .25, 1.05, .08);
+      s.quadraticCurveTo(.6, -.12, 0, 0);
+      return new THREE.ShapeGeometry(s, 8);
+    });
+    g.userData.wings = [];
+    [[-1, .12], [1, .12], [-1, -.14], [1, -.14]].forEach(([s, z]) => {
+      const pv = new THREE.Group();
+      pv.position.set(s * .15, 1.42, z);
+      pv.userData.s = s;
+      const w = new THREE.Mesh(wg, wingM);
+      w.scale.set(s, 1, 1);
+      w.rotation.x = -Math.PI / 2;
+      pv.add(w);
+      g.add(pv);
+      g.userData.wings.push(pv);
+    });
+  }
+  else if (t === 'fcomb') {
+    // Flood combat form: a hunched, mutated host with lumpy growths, a long whip arm (it swings) and a club arm
+    mat = armor(0x8a8a52);
+    const F = floodMats();
+    legs = [-1, 1].map(s => rig(s * .18, .95, 0, () => {
+      limb([[s * .18, .95, 0], [s * .24, .55, .14], [s * .2, .08, 0]], .08, F.rot);
+      P3(B(.16, .06, .26), F.rot, s * .2, .04, .06);
+    }));
+    ball(mat, 0, 1.25, .02, .62, .55, .46, [.35, 0, 0]);
+    ball(F.flesh, .1, 1.42, -.12, .42, .4, .4);
+    for (let i = 0; i < 6; i++)
+      ball(F.pus, R(-.25, .25), R(1.1, 1.55), R(-.25, .2), R(.1, .18));
+    limb([[0, 1.45, .15], [0, 1.58, .3]], .07, F.rot);
+    ball(F.flesh, 0, 1.62, .34, .3, .26, .3);
+    ball(glow(0xd0ff60), .06, 1.64, .47, .05);
+    arm = rig(-.3, 1.4, .05, () => limb([[-.3, 1.4, .05], [-.5, 1.15, .25], [-.55, .85, .5], [-.48, .6, .72]], .06, F.flesh));
+    limb([[.3, 1.4, .05], [.45, 1.1, .25], [.5, .95, .45]], .09, F.rot);
+    ball(F.flesh, .52, .92, .52, .26, .24, .26);
+  }
+  else if (t === 'finf') {
+    // Flood infection form: a pale, veined bulb on a cluster of thin tentacle legs
+    mat = armor(0xd8d8a0);
+    const F = floodMats();
+    ball(mat, 0, .8, 0, .5, .44, .5);
+    ball(F.pus, 0, .88, .08, .26, .24, .26);
+    ball(glow(0xd0ff60), 0, .95, .22, .06);
+    for (let i = 0; i < 6; i++) {
+      const a = i / 6 * 6.28;
+      limb([[Math.cos(a) * .1, .65, Math.sin(a) * .1], [Math.cos(a) * .3, .4, Math.sin(a) * .3], [Math.cos(a) * .42, 0, Math.sin(a) * .42]], .03, F.flesh);
+    }
+  }
+  else if (t === 'fcarr') {
+    // Flood carrier form: a swollen, pulsing sac on stubby legs, full of infection forms (g.userData.pulse)
+    mat = armor(0xc8b878);
+    const F = floodMats();
+    legs = [-1, 1].map(s => rig(s * .22, .5, 0, () => limb([[s * .22, .5, 0], [s * .3, .25, .1], [s * .26, .03, 0]], .08, F.rot)));
+    ball(mat, 0, 1.2, 0, 1.1, 1.15, 1.0);
+    for (let i = 0; i < 9; i++)
+      ball(F.pus, R(-.4, .4), R(.8, 1.7), R(-.35, .45), R(.14, .26));
+    limb([[0, 1.72, .1], [0, 1.92, .3]], .07, F.flesh);
+    ball(F.flesh, 0, 1.95, .35, .22);
+    g.userData.pulse = true;
+  }
+  else if (t === 'gravemind') {
+    // Proto-Gravemind: a towering mass of Flood biomass with a gaping, toothed maw and writhing tentacles
+    mat = armor(0x9a8a58);
+    const F = floodMats();
+    ball(mat, 0, 1.2, 0, 1.9, 1.6, 1.7);
+    ball(mat, 0, 2.2, .1, 1.3, 1.2, 1.2);
+    ball(F.rot, 0, 2.15, .62, .72, .44, .28);
+    ball(Ph(0x200a05, 10), 0, 2.15, .72, .56, .3, .12);
+    for (let i = 0; i < 10; i++) {
+      const a = i / 10 * 6.28;
+      P3(Co(.04, .16, 4), Ph(0xe8e0c0, 40), Math.cos(a) * .26, 2.15 + Math.sin(a) * .13, .78, null, [Math.PI / 2 + Math.sin(a) * .6, 0, 0]);
+    }
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * 6.28 + .3;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      limb([[c * .6, 1.6, s * .6], [c * 1.25, 2.0, s * 1.25], [c * 1.55, 2.6, s * 1.55], [c * 1.4, 3.1, s * 1.4]], .13, F.flesh);
+    }
+    for (let i = 0; i < 14; i++)
+      ball(F.pus, R(-.8, .8), R(.6, 2.6), R(-.8, .8), R(.15, .32));
   }
   else {
     // Hunter: hunched armored shell with back spines, exposed orange worm colonies at belly and back,
@@ -505,7 +637,14 @@ function kamiBoom(e) {
     e.dead = true;
     scene.remove(e.g);
   }
-  explode(e.x, (e.y || 0) + 1, e.z, 4.5, 60, 35, 'n', true);
+  // boom: [radius, damage to enemies, damage to you]; brood: infection forms a Flood carrier releases
+  const [r, de, dp] = e.boom || [4.5, 60, 35];
+  explode(e.x, (e.y || 0) + 1, e.z, r, de, dp, 'n', true);
+  if (e.brood && !NET.client)
+    for (let i = 0; i < e.brood; i++) {
+      const a = i / e.brood * 6.28;
+      spawn('finf', clamp(e.x + Math.cos(a) * 1.5, -A + 2, A - 2), clamp(e.z + Math.sin(a) * 1.5, -A + 2, A - 2));
+    }
 }
 
 function flashFx(x, y, z, r, col) {

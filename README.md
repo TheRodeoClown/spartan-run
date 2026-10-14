@@ -44,7 +44,7 @@ How it connects: peer to peer over WebRTC with [PeerJS](https://peerjs.com/). Ev
 
 ## Controls
 
-The full list is under **Controls** in the pause menu (Esc) and in Settings, which also has a **Fullscreen** button. The basics: WASD to move, mouse to look and fire, Space to jump, Shift + A/D to dash, Shift + W to sprint in versus, R to reload, Q for a grenade, F to melee.
+The full list is under **Controls** in the pause menu (Esc) and in Settings, which also has a **Fullscreen** button. The basics: WASD to move, mouse to look and fire, Space to jump, Shift + WASD to thruster-boost in that direction (in versus Shift + W sprints instead of boosting forward), R to reload, Q for a grenade, F to melee.
 
 ## Features
 
@@ -56,6 +56,8 @@ The full list is under **Controls** in the pause menu (Esc) and in Settings, whi
 - Missions are a run of separate rooms: each room has its own cover layout and ground. Clear it and the exit gate on the far wall opens; walk through it to pick a boon, then the next room's enemies warp in a second after you arrive.
 - Nine bosses (Zealot Commander, Hunter Warlord, Forerunner Warden, Bonded Hunters, Blademaster, Shipmaster, Skirmisher Alpha, Grunt Deacon, Ironclad Hunter). Each mission draws its boss from a pool of three, so runs differ.
 - Fourteen legendary boons, including Infinity Magazine, Bubble Shield, Vampire Rounds, Chain Reaction, Active Camo, Overcharged Shields, Grenadier and Spartan Charge.
+- Enemy roster: Grunts (and suicide Grunts), Jackals with needlers, Jackal Snipers (laser-sighted beam rifles) and Jackal Majors, Elites and Sword Elites, flying Skimmers, Hunters (with a shield bash), and the Flood: infection, combat and carrier forms.
+- Quarantine Zone: a Flood-infested swamp facility, with the Proto-Gravemind or the Flood Abomination as its boss.
 - Legendary runs: from the third mission, Cloaked Sword Elites can appear: only a faint shimmer, sword included, they reveal themselves only when they strike or are hit.
 - Weapon variants: from the second mission on, boon screens can offer a special version of a gun you carry (MA40 Shredder, BR55 Recon, M6D Executioner, M90 Breacher, S2 Railgun, Type-25 Storm, M41 Hunter-Killer, Type-33 Hive, Prophet's Bane).
 - Bosses enrage at half health (a single burst can't skip past it) and are invulnerable for 1.5s while they do; in co-op their health scales hard with squad size. Legendary boons can only be taken once per run.

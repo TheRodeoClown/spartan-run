@@ -16,7 +16,10 @@ const BOSSKIT = {
   shipmaster: { moves: ['mortar', 'lunge', 'volley'], sum: ['elite', 'grunt', 'grunt'], col: 0xc890ff },
   skirmisher: { moves: ['snipe', 'volley', 'lunge'], sum: ['jackal', 'jackal', 'kgrunt'], col: 0xff8a4a },
   deacon: { moves: ['mortar', 'nades'], sum: ['kgrunt', 'kgrunt', 'grunt', 'grunt'], col: 0x9fe8ff, every: 12 },
-  ironclad: { moves: ['slam', 'mortar', 'charge'], sum: ['kgrunt', 'jackal'], col: 0x8ff6ff }
+  ironclad: { moves: ['slam', 'mortar', 'charge'], sum: ['kgrunt', 'jackal'], col: 0x8ff6ff },
+  // The Flood: tendrils burst from the ground (rain), spore mortars, slams, and a swarm of infection forms
+  gravemind: { moves: ['rain', 'mortar', 'slam'], sum: ['finf', 'finf', 'finf', 'fcomb'], col: 0xd8e070, every: 12 },
+  abom: { moves: ['charge', 'slam', 'volley'], sum: ['finf', 'finf', 'fcomb'], col: 0xc8d060 }
 };
 let hz = [];
 
@@ -330,8 +333,8 @@ const MOVES = {
     pts.forEach(([x, z], i) => {
       let t = -i * .12;
       let hit = false;
-      const ring = ringAt(x, z, 1.7, 2, 0x40ffe8, 0);
-      const col = gm(new THREE.CylinderGeometry(2, 2, 14, 24, 1, true), 0xbffcff, 0);
+      const ring = ringAt(x, z, 1.7, 2, BOSSKIT[e.t].col, 0);
+      const col = gm(new THREE.CylinderGeometry(2, 2, 14, 24, 1, true), BOSSKIT[e.t].col, 0);
       col.position.set(x, 7, z);
       scene.add(col);
       hz.push({
@@ -386,8 +389,11 @@ const MOVES = {
       });
     }
   },
-  // Skirmisher: a red laser sight tracks you, then locks for a moment and fires. Break line of sight or sidestep.
-  snipe(e) {
+  // Skirmisher (and Jackal Snipers): a red laser sight tracks you, then locks for a moment and fires.
+  // Break line of sight or sidestep. dmg / aim: shot damage and aiming time (defaults 40 / 1.1s).
+  snipe(e, dmg, aim) {
+    dmg = dmg || 40;
+    aim = aim || 1.1;
     const tg = netTarget(e);
     e.busy = 1;
     let t = 0;
@@ -406,7 +412,7 @@ const MOVES = {
         }
         t += dt;
         // Follows you quickly at first, then barely moves just before the shot
-        const k = Math.min(1, dt * (t < .8 ? 5 : 1.2));
+        const k = Math.min(1, dt * (t < aim - .3 ? 5 : 1.2));
         ax += (tg.x - ax) * k;
         az += (tg.z - az) * k;
         const oy = (e.y || 0) + 1.6 * e.sc;
@@ -415,7 +421,7 @@ const MOVES = {
         line.lookAt(ax, ty, az);
         line.scale.set(1, 1, Math.hypot(ax - e.x, ty - oy, az - e.z) || 1);
         e.flash = .05;
-        if (t < 1.1)
+        if (t < aim)
           return true;
         if (!fired) {
           fired = true;
@@ -425,10 +431,10 @@ const MOVES = {
           const o = new THREE.Vector3(e.x, oy, e.z);
           const dir = new THREE.Vector3(ax - e.x, ty - oy, az - e.z).normalize();
           if (Math.hypot(tg.x - ax, tg.z - az) < 1.1 && wallT(o, dir) > Math.hypot(tg.x - e.x, tg.z - e.z) - 1)
-            hitP(tg, 40);
+            hitP(tg, dmg);
         }
-        line.material.opacity = Math.max(0, 1 - (t - 1.1) * 6);
-        if (t < 1.3)
+        line.material.opacity = Math.max(0, 1 - (t - aim) * 6);
+        if (t < aim + .2)
           return true;
         e.busy = 0;
         return false;

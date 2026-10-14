@@ -252,7 +252,7 @@ function titleSettings() {
 // Controls page, reached from the pause menu, the multiplayer menu and Settings. back: the function that redraws
 // the screen you came from.
 const CONTROLS = [['WASD', 'Move'], ['Mouse', 'Look'], ['Left click (hold)', 'Fire'], ['Right click (hold)', 'Zoom / sniper scope'], ['Space', 'Jump'],
-  ['Shift + A / D', 'Thruster dash'], ['Shift + W', 'Sprint (versus)'], ['R', 'Reload'], ['Q', 'Throw grenade'], ['F', 'Melee'],
+  ['Shift + WASD', 'Thruster boost (any direction)'], ['Shift + W', 'Sprint (versus)'], ['R', 'Reload'], ['Q', 'Throw grenade'], ['F', 'Melee'],
   ['Wheel or 1 / 2', 'Swap weapon'], ['1 - 3', 'Pick a boon'], ['Tab (hold)', 'Scoreboard (multiplayer)'], ['Esc or P', 'Pause menu'], ['M / N', 'Mute all / mute music']];
 
 function controlsHTML() {

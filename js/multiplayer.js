@@ -481,11 +481,13 @@ function netWorld() {
   else if (NET.started)
     Object.assign(w, {
       kb: NET.kb, lv: L ? L.id : '', rm: room, lr: lroom, bk: L ? L.boss : '', bN: L ? L.bossN || 1 : 1, bnm: L && L.bn || '', bt: Math.round(bossTotal), out: NET.out,
-      // [id, type, x, z, facing, hp, shield, flags (1 flash, 2 primed, 4 invulnerable, 8 cloaked), sword angle]
+      // [id, type, x, z, facing, hp, shield, flags (1 flash, 2 primed, 4 invulnerable, 8 cloaked, 16/32 shield bash, 64 camo revealed), sword angle, flier height]
       en: enemies.filter(e => !e.dead && !e.net).slice(0, 40).map(e => {
         const a = [e.id, ETK.indexOf(e.t), r1(e.x), r1(e.z), r2(e.g.rotation.y), Math.round(e.hp), Math.round(e.sh), (e.flash > 0 ? 1 : 0) | (e.kf > 0 ? 2 : 0) | (e.inv > T ? 4 : 0) | (e.g.visible ? 0 : 8) | ((e.lean || 0) > 0 ? 16 : (e.lean || 0) < 0 ? 32 : 0) | (e.camoRev > 0 ? 64 : 0)];
-        if (e.sw)
-          a.push(r2(e.sw.rotation.x));
+        // sword angle, then (fliers) height above the ground
+        a.push(e.sw ? r2(e.sw.rotation.x) : 0);
+        if (e.fly)
+          a.push(r1(e.y - groundH(e.x, e.z)));
         return a;
       }),
       sh: shots.slice(0, 40).map(b => [r1(b.m.position.x), r1(b.m.position.y), r1(b.m.position.z), b.m.material.color.getHex()]),
@@ -551,7 +553,7 @@ function netGhosts(w, dt) {
   (Array.isArray(w.en) ? w.en : []).slice(0, 40).forEach(a => {
     if (!Array.isArray(a))
       return;
-    const [id, ti, x, z, ry, hp, sh, fl, swr] = a.map(Number);
+    const [id, ti, x, z, ry, hp, sh, fl, swr, alt] = a.map(Number);
     const t = ETK[ti];
     if (!t || ![id, x, z].every(isFinite))
       return;
@@ -574,6 +576,7 @@ function netGhosts(w, dt) {
     e.sh = sh || 0;
     e.fl = fl | 0;
     e.swr = swr;
+    e.alt = isFinite(alt) ? clamp(alt, 0, 12) : 0;
   });
   Object.keys(NET.ghosts).forEach(id => {
     if (live[id])
@@ -605,7 +608,11 @@ function netGhosts(w, dt) {
     }
     const da = ((e.ry - e.g.rotation.y) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
     e.g.rotation.y += da * Math.min(1, dt * 15);
-    e.y = groundH(e.x, e.z);
+    e.y = groundH(e.x, e.z) + (e.alt || 0);
+    if (e.fly)
+      flapWings(e);
+    if (e.g.userData.pulse)
+      e.g.scale.setScalar(e.sc * (1 + .05 * Math.sin(T * 6 + e.ph)));
     walkAnim(e, dt);
     e.flash -= dt;
     e.mat.emissive.setHex(e.flash > 0 || e.fl & 1 ? 0xffffff : 0);
@@ -1255,7 +1262,7 @@ function vsRespawn() {
   });
   const a = NET.lo.p;
   const b = NET.lo.s;
-  P = { x: best[0], z: best[1], hp: 40, maxHp: 40, sh: 60, maxSh: 60, shDelay: 3, last: -99, speed: 6, dmg: 8, rate: .09, cd: 0, magMax: W[a].mag, ammo: W[a].mag, reload: 0, wpn: a, slots: [a, b], sa: [W[a].mag, W[b].mag], sr: [W[a].rs, W[b].rs], cur: 0, mb: 0, reloadT: 1.3, nades: 2, nadeMax: 4, nadeMul: 1, mcd: 0, meleeMul: 1, boons: [], done: [], cr: P ? P.cr : 0, revive: 0, y: 0, vy: 0, thrust: true, tcd: 0, dash: 0, dashDir: 0 };
+  P = { x: best[0], z: best[1], hp: 40, maxHp: 40, sh: 60, maxSh: 60, shDelay: 3, last: -99, speed: 6, dmg: 8, rate: .09, cd: 0, magMax: W[a].mag, ammo: W[a].mag, reload: 0, wpn: a, slots: [a, b], sa: [W[a].mag, W[b].mag], sr: [W[a].rs, W[b].rs], cur: 0, mb: 0, reloadT: 1.3, nades: 2, nadeMax: 4, nadeMul: 1, mcd: 0, meleeMul: 1, boons: [], done: [], cr: P ? P.cr : 0, revive: 0, y: 0, vy: 0, thrust: true, tcd: 0, dash: 0, dashF: 0, dashS: 0 };
   P.y = groundH(P.x, P.z);
   setGun(a);
   // Face the middle of the map

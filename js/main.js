@@ -27,7 +27,7 @@ function update(dt) {
   const spd = P.speed * (P.adrT > 0 ? 1.35 : 1) * (P.spr ? 1.6 : 1);
   P.x = clamp(P.x + (-sy * f + cy * s) / m * spd * dt, -A + 1, A - 1);
   P.z = clamp(P.z + (-cy * f - sy * s) / m * spd * dt, -A + 1, A - 1);
-  // Thruster dash: sideways burst over 0.18s
+  // Thruster boost: a burst over 0.18s
   // Grenadier (legendary): a grenade back every few seconds
   if (P.nadeRegen) {
     P.nrT = (P.nrT || 0) + dt;
@@ -39,10 +39,11 @@ function update(dt) {
   }
   P.tcd -= dt;
   if (P.dash > 0) {
+    // Thruster boost along the direction it was fired (forward / back / sideways or diagonal)
     P.dash -= dt;
-    const v = P.dashDir * DASH / .18 * dt;
-    P.x = clamp(P.x + cy * v, -A + 1, A - 1);
-    P.z = clamp(P.z - sy * v, -A + 1, A - 1);
+    const v = DASH / .18 * dt;
+    P.x = clamp(P.x + (-sy * P.dashF + cy * P.dashS) * v, -A + 1, A - 1);
+    P.z = clamp(P.z + (-cy * P.dashF - sy * P.dashS) * v, -A + 1, A - 1);
   }
   // Knockback (a Hunter's shield bash): a shove that dies away quickly
   if (P.kbx || P.kbz) {
@@ -166,11 +167,13 @@ function update(dt) {
     const panic = e.panic && e.hp < e.maxhp * .4;
     // Melee enemies (Sword Elites) close in and barely strafe; lunging triples their speed.
     const mv = e.busy ? 0 : panic ? -1.3 : e.kami ? 1 : e.melee ? (d > 1.8 && e.wind <= 0 ? 1 : 0) : d > e.pref + 3 ? 1 : d < e.pref - 3 ? -1 : 0;
-    const st = e.kami || e.busy ? 0 : e.melee ? .15 : .5;
+    const st = e.kami || e.busy ? 0 : e.melee ? .15 : e.fly ? 1 : .5;
     const spd = e.sp * (e.lunge > 0 ? 3.2 : 1);
     e.x = clamp(e.x + (nx * mv - nz * e.dir * st) * spd * dt, -A + 1, A - 1);
     e.z = clamp(e.z + (nz * mv + nx * e.dir * st) * spd * dt, -A + 1, A - 1);
-    pushOut(e, .6 * e.sc);
+    // fliers (Skimmers) pass over cover
+    if (!e.fly)
+      pushOut(e, .6 * e.sc);
     enemies.forEach(o => {
       if (o !== e) {
         const ox = e.x - o.x;
@@ -216,7 +219,12 @@ function update(dt) {
       }
       e.g.rotation.x += ((e.lean || 0) - e.g.rotation.x) * Math.min(1, dt * 14);
     }
-    e.y = groundH(e.x, e.z);
+    e.y = groundH(e.x, e.z) + (e.fly ? 3.4 + Math.sin(T * 1.7 + e.ph) * .8 : 0);
+    if (e.fly)
+      flapWings(e);
+    // Flood carriers pulse
+    if (e.g.userData.pulse)
+      e.g.scale.setScalar(e.sc * (1 + .05 * Math.sin(T * 6 + e.ph)));
     e.g.rotation.y = Math.atan2(dx, dz);
     walkAnim(e, dt);
     if (e.crits)
@@ -245,7 +253,7 @@ function update(dt) {
       }
       if (e.wind > 0) {
         e.wind -= dt;
-        e.sw.rotation.x = .2 - 1.4 * (1 - e.wind / .35);
+        swingPose(e, .2 - 1.4 * (1 - e.wind / .35));
         if (e.wind <= 0) {
           e.swing = .25;
           sfx.sword();
@@ -259,22 +267,31 @@ function update(dt) {
       }
       if (e.swing > 0) {
         e.swing -= dt;
-        e.sw.rotation.x = -1.2 + 1.8 * (1 - Math.max(0, e.swing) / .25);
+        swingPose(e, -1.2 + 1.8 * (1 - Math.max(0, e.swing) / .25));
       }
-      else if (e.wind <= 0)
+      else if (e.wind <= 0 && e.sw)
         e.sw.rotation.x += (.2 - e.sw.rotation.x) * Math.min(1, dt * 8);
     }
     else if (e.kami) {
       // Suicide Grunt: sprint at you, prime both grenades within 2.2m, detonate 0.45s later
-      if (e.kf <= 0 && d < 2.2) {
-        e.kf = .45;
+      // (Flood infection and carrier forms do the same, with their own reach and fuse)
+      if (e.kf <= 0 && d < (e.prime || 2.2)) {
+        e.kf = e.kfuse || .45;
         sfx.beep();
       }
       if (e.kf > 0) {
         e.kf -= dt;
-        e.kg.visible = Math.floor(T * 16) % 2 === 0;
+        if (e.kg)
+          e.kg.visible = Math.floor(T * 16) % 2 === 0;
         if (e.kf <= 0)
           kamiBoom(e);
+      }
+    }
+    // Jackal Sniper: a laser-sighted beam rifle shot (see MOVES.snipe)
+    else if (e.sniper) {
+      if (e.cd <= 0 && !e.busy) {
+        MOVES.snipe(e, e.bd, 1.3);
+        e.cd = e.fr * R(.9, 1.2);
       }
     }
     // Active Camo (legendary): they hold fire at you for 2s after a dash
@@ -426,6 +443,14 @@ function update(dt) {
   }
   if (state === 'play' && !enemies.length && !L.cleared)
     roomClear();
+}
+
+// Melee swing pose: the sword if it has one, otherwise the swinging arm (Flood combat forms)
+function swingPose(e, v) {
+  if (e.sw)
+    e.sw.rotation.x = v;
+  else if (e.arm)
+    e.arm.rotation.x = v - .4;
 }
 
 function roomClear() {

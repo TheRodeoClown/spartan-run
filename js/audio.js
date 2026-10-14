@@ -381,7 +381,7 @@ const raw = {
       osc('square', 900, 350, t, .22, .15, sfxG, ['lowpass', 2500]);
       osc('square', 1100, 420, t + .08, .2, .12, sfxG, ['lowpass', 2500]);
     }
-    else if (k === 'jackal') {
+    else if (k === 'jackal' || k === 'jmajor' || k === 'jsniper' || k === 'skimmer' || k === 'finf') {
       osc('sawtooth', 1400, 500, t, .15, .18, sfxG, ['lowpass', 3000]);
     }
     else if (k === 'elite' || k === 'selite' || k === 'celite' || k === 'blademaster') {

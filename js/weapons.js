@@ -181,8 +181,8 @@ function makeSword() {
   sh.moveTo(0, 0);
   // the two blades curve back in so their points meet in front of the hilt (the blade sits .092 off centre)
   sh.lineTo(.034, 0);
-  sh.bezierCurveTo(.1, .42, .07, 1.36, -.09, 1.95);
-  sh.bezierCurveTo(.012, 1.25, .03, .42, 0, 0);
+  sh.bezierCurveTo(.1, .33, .07, 1.05, -.09, 1.5);
+  sh.bezierCurveTo(.012, .96, .03, .33, 0, 0);
   const geo = new THREE.ShapeGeometry(sh, 16);
   // short rear prong
   const rp = new THREE.Shape();
@@ -544,9 +544,9 @@ function dropMaybe(e) {
       mkDrop(P.slots.includes('sw') ? 'swe' : 'ammo', e.x, e.z);
     return;
   }
-  if (b || Math.random() < ({ grunt: .25, jackal: .2, elite: .35, hunter: 1 }[e.t] || 0))
+  if (b || Math.random() < ({ grunt: .25, jackal: .2, jmajor: .3, jsniper: .2, skimmer: .2, elite: .35, fcomb: .2, hunter: 1 }[e.t] || 0))
     mkDrop('nade', e.x, e.z);
-  if (b || Math.random() < ({ grunt: .5, kgrunt: .3, jackal: .45, elite: .55, hunter: 1 }[e.t] || 0))
+  if (b || Math.random() < ({ grunt: .5, kgrunt: .3, jackal: .45, jmajor: .55, jsniper: .5, skimmer: .4, elite: .55, fcomb: .5, fcarr: .3, finf: .05, hunter: 1 }[e.t] || 0))
     mkDrop('ammo', e.x, e.z);
   if (P.slots.includes('rk') && Math.random() < (b ? 1 : { elite: .06, hunter: .25 }[e.t] || 0))
     mkDrop('rk', e.x, e.z);
@@ -771,15 +771,19 @@ function jump() {
   sfx.jump();
 }
 
-// Thruster: Shift + A/D dashes sideways.
+// Thruster: Shift + a direction (WASD) boosts that way.
 function thrust() {
   if (state !== 'play' || !P.thrust || P.tcd > 0 || P.dash > 0)
     return;
-  const d = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
-  if (!d)
+  // The boost goes the way you're moving: WASD in any combination (in versus, Shift + W is sprint instead)
+  const f = (keys.KeyW && NET.mode !== 'vs' ? 1 : 0) - (keys.KeyS ? 1 : 0);
+  const s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  if (!f && !s)
     return;
+  const m = Math.hypot(f, s);
   P.dash = .18;
-  P.dashDir = d;
+  P.dashF = f / m;
+  P.dashS = s / m;
   P.tcd = 2.5;
   if (P.camo)
     P.camoT = T + 2;
