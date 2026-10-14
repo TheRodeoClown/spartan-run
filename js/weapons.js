@@ -167,21 +167,21 @@ function makeSword() {
   add(new THREE.SphereGeometry(.028, 10, 8), plate, 0, -.012, .16);
   // emitter housing: a wide, shallow armoured shell across the front of the grip
   const shell = add(new THREE.SphereGeometry(.07, 14, 10), dark, 0, 0, -.03);
-  shell.scale.set(2.4, .42, .9);
-  add(new THREE.BoxGeometry(.24, .016, .05), plate, 0, .022, -.03);
+  shell.scale.set(1.5, .42, .9);
+  add(new THREE.BoxGeometry(.15, .016, .05), plate, 0, .022, -.03);
   [-1, 1].forEach(s => {
     // housing arms reaching out to the emitters, the emitters themselves, and their glowing vents
-    add(new THREE.BoxGeometry(.07, .03, .05), dark, s * .13, 0, -.05, 0, s * .5);
-    add(new THREE.SphereGeometry(.024, 10, 8), plate, s * .158, 0, -.07);
-    add(new THREE.BoxGeometry(.05, .008, .016), vent, s * .1, .028, -.03, 0, s * .25);
-    add(new THREE.BoxGeometry(.012, .012, .012), vent, s * .158, .012, -.088);
+    add(new THREE.BoxGeometry(.04, .028, .05), dark, s * .08, 0, -.05, 0, s * .4);
+    add(new THREE.SphereGeometry(.02, 10, 8), plate, s * .095, 0, -.07);
+    add(new THREE.BoxGeometry(.035, .008, .014), vent, s * .06, .026, -.03, 0, s * .25);
+    add(new THREE.BoxGeometry(.01, .01, .01), vent, s * .095, .011, -.086);
   });
   // blade outline for the right-hand blade (x outward, y forward): flares out, then curves in to the point
   const sh = new THREE.Shape();
   sh.moveTo(0, 0);
-  sh.lineTo(.05, 0);
-  sh.bezierCurveTo(.14, .2, .14, .62, .03, 1);
-  sh.bezierCurveTo(.075, .6, .055, .22, 0, 0);
+  sh.lineTo(.034, 0);
+  sh.bezierCurveTo(.095, .28, .09, .86, .018, 1.38);
+  sh.bezierCurveTo(.048, .84, .036, .3, 0, 0);
   const geo = new THREE.ShapeGeometry(sh, 16);
   // short rear prong
   const rp = new THREE.Shape();
@@ -192,14 +192,14 @@ function makeSword() {
   const rgeo = new THREE.ShapeGeometry(rp, 8);
   [-1, 1].forEach(s => {
     const b = new THREE.Group();
-    b.position.set(s * .15, 0, -.085);
+    b.position.set(s * .092, 0, -.085);
     b.rotation.x = -Math.PI / 2;
     b.scale.x = s;
     blades.add(b);
-    [[core, 1, 1], [g1, 1.7, 1.05], [g2, 2.8, 1.1]].forEach(([m, wx, ly]) => {
+    [[core, 1, 1], [g1, 1.5, 1.04], [g2, 2.3, 1.07]].forEach(([m, wx, ly]) => {
       const o = new THREE.Mesh(geo, m);
       o.scale.set(wx, ly, 1);
-      o.position.x = -.025 * (wx - 1);
+      o.position.x = -.017 * (wx - 1);
       b.add(o);
       const r = new THREE.Mesh(rgeo, m);
       r.scale.set(wx, ly, 1);
