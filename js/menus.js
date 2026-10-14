@@ -35,10 +35,33 @@ function showPick(title) {
   ov.style.display = 'flex';
   ov.style.background = '';
   ov.style.justifyContent = '';
-  ov.innerHTML = '<h2>' + ptitle + '</h2><div id="pkc"></div><div class="cards">' + choices.map((c, i) => '<button class="card pk" onclick="pick(' + i + ')"><b>[' + (i + 1) + '] ' + c.n + '</b><small>' + c.d + '</small></button>').join('') + '</div>';
+  ov.innerHTML = '<h2>' + ptitle + '</h2><div id="pkc"></div><div class="cards">' + choices.map((c, i) => '<button class="card pk" onclick="pick(' + i + ')"><b>[' + (i + 1) + '] ' + c.n + '</b><small>' + c.d + '</small>' + boonNote(c) + '</button>').join('') + '</div>';
   pickTick();
 }
 
+// Boons with diminishing returns: show what your earlier picks already give, what this one would make it, and the cap.
+// The boon is tried on a copy of your stats (c.x is the non-weapon part of a weapon legendary).
+const DR_STAT = {
+  dmg: ['Damage', p => soft(p.dmg / 8, 1.8), 1.8],
+  rate: ['Fire rate', p => soft(.09 / p.rate, 1.65), 1.65],
+  nade: ['Grenades', p => soft(p.nadeMul, 2.2), 2.2],
+  melee: ['Melee', p => soft(p.meleeMul, 3), 3],
+  dr: ['Damage taken', p => 1 - (p.dr || 0), .64]
+};
+const DR_BOON = { 'Hardened Rounds': 'dmg', 'Prometheus Rounds': 'dmg', 'Tuned Trigger': 'rate', 'Overclocked Trigger': 'rate', 'Bigger Boom': 'nade', 'Reclaimer Gift': 'nade', 'Hardlight Strike': 'melee', 'Hardlight Overdrive': 'melee', 'Spartan Charge': 'melee', 'Thick Plating': 'dr' };
+
+function boonNote(c) {
+  const k = DR_BOON[c.n];
+  if (!k || !P)
+    return '';
+  const [label, val, cap] = DR_STAT[k];
+  const q = Object.assign({}, P, { slots: P.slots.slice(), sa: P.sa.slice(), sr: P.sr.slice(), boons: P.boons.slice() });
+  (c.x || c.f)(q);
+  const pc = v => (v >= 1 ? '+' : '') + Math.round((v - 1) * 100) + '%';
+  const now = val(P);
+  const next = val(q);
+  return '<small class="drn">' + label + ' now <b>' + pc(now) + '</b> &rarr; <b>' + pc(next) + '</b> (max ' + pc(cap) + ')' + (Math.abs(next - now) < .005 ? ' MAXED' : '') + '</small>';
+}
 function pickTick() {
   const left = pickAt - performance.now();
   const c = $('pkc');
