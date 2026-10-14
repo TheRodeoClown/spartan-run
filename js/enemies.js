@@ -630,6 +630,7 @@ function dmgE(e, d, crit, ty) {
       P.adrT = 3;
     // Legendary kill effects (not for kills the co-op host applies on a guest's behalf)
     if (!NET.applying) {
+      ffReward(e);
       if (P.vamp)
         P.hp = Math.min(P.maxHp, P.hp + P.vamp);
       if (P.mkShield && P.lastMelee > T - .1)

@@ -83,6 +83,11 @@ addEventListener('keydown', e => {
       pause();
     return;
   }
+  // Firefight REQ station: E closes it again
+  if (e.code === 'KeyE' && FF.on && NET.menu && state === 'play') {
+    netResume();
+    return;
+  }
   keys[e.code] = true;
   if (e.code === 'KeyM')
     audio.toggle();
@@ -99,6 +104,8 @@ addEventListener('keydown', e => {
       startReload();
     if (e.code === 'KeyF')
       melee();
+    if (e.code === 'KeyE')
+      ffReq();
     if (e.code === 'Space') {
       jump();
       e.preventDefault();

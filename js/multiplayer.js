@@ -205,11 +205,17 @@ function netTargets() {
   const a = netRemotes();
   if (!NET.down)
     a.push(P);
+  // Firefight defend rounds: the generators are targets too
+  if (FF.on)
+    a.push(...ffTargets());
   return a.length ? a : [P];
 }
 
 // The nearest player, re-picked every half second
 function netTarget(e) {
+  // Firefight: some enemies are sent after a generator
+  if (e.goal && e.goal.hp > 0)
+    return e.goal;
   if (!NET.host || NET.mode !== 'coop')
     return P;
   if (e.tgT > T && e.tgO)
@@ -240,6 +246,11 @@ function knockP(q, vx, vz) {
 }
 
 function hitP(q, d) {
+  if (q && q.gen) {
+    q.hp = Math.max(0, q.hp - d);
+    q.flash = .12;
+    return;
+  }
   if (q === P)
     hurt(d);
   else if (q && q.peer)
@@ -475,7 +486,9 @@ function netHzOut() {
 }
 
 function netWorld() {
-  const w = { md: NET.mode, lg: NET.lg ? 1 : 0, s: NET.phase, ep: NET.ep };
+  const w = { md: NET.mode, lg: NET.lg ? 1 : 0, s: NET.phase, ep: NET.ep, ffm: NET.ffMode ? 1 : 0 };
+  if (FF.on)
+    w.ff = ffState();
   if (NET.mode === 'vs')
     Object.assign(w, { win: NET.win || '', tl: Math.max(0, Math.ceil(NET.mt)), pw: NET.pw.map(q => [q.id, q.k, q.x, q.z]) });
   else if (NET.started)
@@ -526,7 +539,7 @@ function coopHost(dt) {
     startPick();
     return;
   }
-  if (NET.down && !netRemotes().length) {
+  if (NET.down && !netRemotes().length && !FF.on) {
     NET.phase = 'o';
     netOver();
   }
@@ -589,6 +602,7 @@ function netGhosts(w, dt) {
     scene.remove(e.g);
     // You helped kill it: your own credit and drops
     if (['k', 'e', 'n'].some(t => NET.cm['e' + id + t])) {
+      ffReward(e);
       kills++;
       sfx.kill(e.t);
       earn(e.boss ? 0 : 1);
@@ -760,6 +774,21 @@ function coopClient(w, dt) {
       netWaitRoom();
     return;
   }
+  // Warzone Firefight (firefight.js): no rooms or missions, just the rounds on the big map
+  if (w.ff && typeof w.ff === 'object') {
+    NET.started = true;
+    NET.ui = null;
+    ffClient(w.ff);
+    if (state === 'play') {
+      netGhosts(w, dt);
+      netShotsIn(w.sh);
+      netHzIn(w.hz);
+    }
+    if (isFinite(+w.bt) && +w.bt > 0)
+      bossTotal = +w.bt;
+    coopIncoming(w);
+    return;
+  }
   if (!NET.started) {
     NET.started = true;
     NET.ui = null;
@@ -827,6 +856,11 @@ function coopClient(w, dt) {
   }
   if (state === 'wait')
     netWaitMsg();
+  coopIncoming(w);
+}
+
+// What the host's enemies did to me: shield-bash shoves and damage
+function coopIncoming(w) {
   // A Hunter's shield bash shoved me (numbered, so each one applies once)
   const kb = w.kb && typeof w.kb === 'object' ? w.kb[NET.me] : null;
   if (Array.isArray(kb) && isFinite(+kb[0])) {
@@ -888,6 +922,10 @@ function netDown() {
     }
     else
       banner('YOU DIED');
+  }
+  else if (FF.on) {
+    NET.resp = 5;
+    banner('KILLED: REDEPLOYING');
   }
   else
     banner('YOU ARE DOWN');
@@ -1130,7 +1168,7 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
     o2.rotation.y = rnd() * 3;
   });
   // Scattered boulders and pines, kept clear of the bases, outcrops, pickups and spawn points
-  const avoid = [[0, -60, 11], [0, 60, 11], ...VSP.map(([k, x, z]) => [x, z, 3]), ...VSPAWN.map(([x, z]) => [x, z, 3]), ...VS_PW_SPOTS.map(([x, z]) => [x, z, 3]), ...BG_ROCKS.map(([x, z, hw, hd]) => [x, z, Math.max(hw, hd) + 1])];
+  const avoid = [[0, -60, 11], [0, 60, 11], ...VSP.map(([k, x, z]) => [x, z, 3]), ...VSPAWN.map(([x, z]) => [x, z, 3]), ...VS_PW_SPOTS.map(([x, z]) => [x, z, 3]), ...FF_GENS.map(([x, z]) => [x, z, 3]), ...BG_ROCKS.map(([x, z, hw, hd]) => [x, z, Math.max(hw, hd) + 1])];
   let n = 0;
   let tries = 0;
   while (n < 28 && tries++ < 800) {
@@ -1545,6 +1583,8 @@ function netBoard(wait) {
 }
 
 function netRoomText() {
+  if (FF.on)
+    return ffText();
   if (NET.mode === 'vs') {
     let top = 0;
     netParts().forEach(p => top = Math.max(top, netScore(p.id)));
@@ -1595,7 +1635,8 @@ function mpMenu(prefill) {
     + COLS.map(c => '<button aria-label="Colour ' + c + '" onclick="netCol(\'' + c + '\')" style="width:26px;height:26px;margin:2px;border-radius:50%;cursor:pointer;background:' + c + ';border:3px solid ' + (c === NET.col ? '#fff' : 'transparent') + '"></button>').join('') + '</div></div>'
     + '<div class="cards sm"><button class="card" style="text-align:center" onclick="netHost(\'coop\',false)"><b>HOST CO-OP</b><small>Up to 4 Spartans clear the missions together</small></button>'
     + '<button class="card" style="text-align:center;border-color:#c9a227" onclick="netHost(\'coop\',true)"><b style="color:#ffd060">HOST CO-OP LEGENDARY</b><small>Tougher squads, 1.5x credits</small></button>'
-    + '<button class="card" style="text-align:center;border-color:#e5534b" onclick="netHost(\'vs\',false)"><b style="color:#ff8a80">HOST VERSUS</b><small>Free-for-all on Blood Gulch, first to ' + WIN_KILLS + ' kills</small></button></div>'
+    + '<button class="card" style="text-align:center;border-color:#e5534b" onclick="netHost(\'vs\',false)"><b style="color:#ff8a80">HOST VERSUS</b><small>Free-for-all on Blood Gulch, first to ' + WIN_KILLS + ' kills</small></button>'
+    + '<button class="card" style="text-align:center;border-color:#b48cff" onclick="netHost(\'ff\',false)"><b style="color:#d2b8ff">HOST FIREFIGHT</b><small>Warzone Firefight: 5 rounds of objectives and bosses, REQ weapons</small></button></div>'
     + '<div style="color:#99a28f;font-size:13px">JOIN A FRIEND\'S GAME</div>'
     + '<div style="display:flex;gap:8px"><input id="mpc" maxlength="6" placeholder="CODE" value="' + code + '" style="font:inherit;font-size:20px;letter-spacing:.2em;width:140px;text-align:center;text-transform:uppercase;padding:6px;background:#12150f;color:#e6eadf;border:1px solid #3a4533;border-radius:4px" onkeydown="if(event.key===\'Enter\')netJoin(this.value)"><button class="card" style="text-align:center;width:auto;' + (code ? 'border-color:#9bc45a' : '') + '" onclick="netJoin($(\'mpc\').value)"><b>JOIN</b></button></div>'
     + '<button class="card" style="text-align:center;width:auto" onclick="startTitle()">BACK</button>';
@@ -1603,6 +1644,10 @@ function mpMenu(prefill) {
 
 function netReset() {
   netCleanup();
+  FF.on = false;
+  FF.gens = [];
+  FF.station = null;
+  NET.ffMode = 0;
   Object.assign(NET, { mode: null, host: false, client: false, down: 0, menu: 0, started: false, ui: null, me: null, phase: 'lobby', ep: 0, vep: -1, win: '', paid: 0, rd: 0, joinT: 0, joined: 0, hostGone: 0, outSeen: null, kb: {}, kbSeen: null, uiK: '', w: null, next: 'r', modeKnown: 0 });
 }
 
@@ -1630,7 +1675,7 @@ async function withRetry(fn) {
 
 async function netHost(mode, lg) {
   netReset();
-  Object.assign(NET, { mode, host: true, client: false, lg: !!lg, code: newCode(), phase: 'lobby', ep: 1, modeKnown: 1 });
+  Object.assign(NET, { mode: mode === 'ff' ? 'coop' : mode, ffMode: mode === 'ff' ? 1 : 0, host: true, client: false, lg: !!lg, code: newCode(), phase: 'lobby', ep: 1, modeKnown: 1 });
   ov.innerHTML = '<h2>OPENING GAME...</h2>';
   try {
     NET.r = await withRetry(() => p2pHost(NET.code = newCode()));
@@ -1672,7 +1717,7 @@ function netWaitRoom() {
 function netRoomUI() {
   if (NET.ui !== 'room')
     return;
-  const title = !NET.modeKnown ? 'CONNECTING...' : NET.mode === 'vs' ? 'VERSUS: BLOOD GULCH' : 'CO-OP' + (NET.lg ? ' LEGENDARY' : '');
+  const title = !NET.modeKnown ? 'CONNECTING...' : NET.mode === 'vs' ? 'VERSUS: BLOOD GULCH' : NET.ffMode ? 'WARZONE FIREFIGHT' : 'CO-OP' + (NET.lg ? ' LEGENDARY' : '');
   const h = '<h2>' + title + '</h2>'
     + (NET.host ? '<div>Game code <b style="font-size:26px;letter-spacing:.2em;color:#9bc45a">' + NET.code + '</b></div><div class="cards sm"><button class="card" style="text-align:center" onclick="netCopy()"><b id="mpcopy">COPY INVITE LINK</b><small>Friends open it and press Join</small></button></div>' : '')
     + '<div style="color:#99a28f">' + (NET.host ? 'Waiting for players. Start when your squad is in' + (NET.mode === 'vs' ? ' (others can also join mid-match).' : '.') : NET.joined ? 'Waiting for the host to start...' : 'Connecting to the host...') + '</div>' + netBoard() + (NET.mode === 'vs' && NET.modeKnown ? loadoutHTML() : '')
@@ -1708,7 +1753,10 @@ function netStart() {
   NET.phase = 'p';
   if (NET.mode === 'coop') {
     NET.started = true;
-    newRun(NET.lg);
+    if (NET.ffMode)
+      ffStart();
+    else
+      newRun(NET.lg);
   }
   // Versus starts on the next tick (vsTick sees the phase change)
 }
@@ -1849,6 +1897,7 @@ function netTick(dt) {
         NET.mode = hw.md === 'vs' ? 'vs' : 'coop';
         NET.client = NET.mode === 'coop';
         NET.lg = !!hw.lg;
+        NET.ffMode = hw.ffm ? 1 : 0;
       }
     }
     else {
@@ -1871,6 +1920,8 @@ function netTick(dt) {
   }
   if (!NET.r)
     return;
+  if (FF.on)
+    ffTick(dt);
   if (NET.started && P)
     Object.values(NET.rp).forEach(netFxIn);
   netAvatars(dt);
@@ -1881,7 +1932,8 @@ function netTick(dt) {
       netRoomUI();
     }
   }
-  const msg = NET.started && NET.down && state === 'play' ? (NET.mode === 'vs' ? 'RESPAWNING IN ' + Math.max(1, Math.ceil(NET.resp)) + '<br><small>Esc to change your loadout</small>' : 'YOU ARE DOWN<br><small>You redeploy when your squad clears the room</small>') : '';
+  const msg = NET.started && NET.down && state === 'play' ? (NET.mode === 'vs' || FF.on ? 'RESPAWNING IN ' + Math.max(1, Math.ceil(NET.resp)) + (NET.mode === 'vs' ? '<br><small>Esc to change your loadout</small>' : '') : 'YOU ARE DOWN<br><small>You redeploy when your squad clears the room</small>')
+    : FF.on && state === 'play' && !NET.menu && ffNear() ? '<small>PRESS E: REQ STATION</small>' : '';
   nmsg.style.display = msg ? 'block' : 'none';
   if (msg && nmsg.innerHTML !== msg)
     nmsg.innerHTML = msg;

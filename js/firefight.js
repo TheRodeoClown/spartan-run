@@ -1,0 +1,433 @@
+/*
+ * firefight.js: Warzone Firefight, a co-op multiplayer mode (1-4 players) on Blood Gulch.
+ * Classic script (no modules): all files share one global scope, so load order in index.html matters.
+ *
+ * Five timed rounds with escalating objectives: clear the area, defend the generators, eliminate the commanders,
+ * defend the core, and a legendary boss. Dead players respawn at the base after 5s; the team loses if a round's
+ * clock runs out (or both generators fall in a defend round). Kills earn REQ points to spend at the REQ station in
+ * the base (E): weapons, resupply, an overshield, and legendary variants as the REQ level rises each round.
+ *
+ * It rides on co-op multiplayer: the host runs the enemies and the rounds (ffUpdate), and publishes the firefight
+ * state in its world update (w.ff); guests mirror it (ffClient). Enemies, damage and shots sync as in co-op.
+ */
+
+const FF_ROUNDS = [
+  { n: 'CLEAR THE AREA', kind: 'clear', time: 180, squads: 6 },
+  { n: 'DEFEND THE GENERATORS', kind: 'defend', time: 150 },
+  { n: 'ELIMINATE THE COMMANDERS', kind: 'bosses', time: 200 },
+  { n: 'DEFEND THE CORE', kind: 'defend', time: 150 },
+  { n: 'LEGENDARY BOSS', kind: 'boss', time: 240 }
+];
+const FF_BREAK = 20;
+// REQ points per kill
+const FF_PTS = { grunt: 10, kgrunt: 10, jackal: 15, jsniper: 20, jmajor: 25, skimmer: 20, elite: 30, selite: 35, celite: 40, hunter: 60, finf: 2, fcomb: 20, fcarr: 15 };
+// REQ station items: k = weapon (vr: its legendary variant), id = other; lv = REQ level needed
+const FF_REQ = [
+  { k: 'br', n: 'BR55 Battle Rifle', c: 60, lv: 1 }, { k: 'mg', n: 'M6D Magnum', c: 30, lv: 1 }, { k: 'pr', n: 'Type-25 Plasma Rifle', c: 60, lv: 1 },
+  { k: 'nd', n: 'Type-33 Needler', c: 80, lv: 1 }, { k: 'sg', n: 'M90 Shotgun', c: 120, lv: 1 }, { id: 'ammo', n: 'Ammo resupply', c: 30, lv: 1 }, { id: 'nades', n: 'Grenade resupply', c: 40, lv: 1 },
+  { k: 'sn', n: 'S2 Sniper Rifle', c: 200, lv: 2 }, { k: 'sw', n: 'Energy Sword', c: 220, lv: 2 },
+  { k: 'rk', n: 'M41 Rocket Launcher', c: 300, lv: 3 }, { id: 'os', n: 'Overshield (+60 shield)', c: 150, lv: 3 },
+  { k: 'sn', vr: 1, n: 'S2 Railgun (pierces everything)', c: 400, lv: 4 }, { k: 'sw', vr: 1, n: 'Prophet\'s Bane (legendary sword)', c: 420, lv: 4 }, { k: 'rk', vr: 1, n: 'M41 Hunter-Killer (homing rockets)', c: 450, lv: 4 }
+];
+// The map: Blood Gulch, defending the red base
+const FFL = Object.assign({}, BG, { id: 'ffbg', n: 'Firefight: Blood Gulch', ff: 1 });
+const FF_SPAWNS = [[-3, -58.5], [3, -58.5], [-3.5, -62.5], [3.5, -62.5]]; // where players (re)deploy: inside the base, around the REQ station
+const FF_STATION = [0, -61]; // REQ station, inside the base
+const FF_GENS = [[-13, -40], [13, -40]];
+// Enemy drop zones [centre x, centre z, half-width, half-depth], far end first; later rounds also use the flanks
+const FF_ZONES = [[0, 55, 30, 14], [-34, 28, 12, 14], [34, 28, 12, 14], [0, 18, 24, 8]];
+
+const FF = { on: false, round: 0, ph: 'break', t: 0, rl: 1, left: 0, spawnT: 0, gens: [], station: null, kills: 0 };
+
+/* ---------- Setup (everyone) ---------- */
+
+function ffSetup() {
+  FF.on = true;
+  FF.kills = 0;
+  NET.ffMode = 1;
+  clearHz();
+  [enemies, shots, nades, drops, rockets, needles].forEach(a => a.forEach(o => scene.remove(o.g || o.m)));
+  enemies = [];
+  shots = [];
+  nades = [];
+  drops = [];
+  rockets = [];
+  needles = [];
+  decor.forEach(g => scene.remove(g));
+  L = Object.assign({}, FFL);
+  lroom = 1;
+  room = 0;
+  buildLevel(L);
+  // REQ station: a pedestal with a glowing screen and a slowly turning hologram ring
+  const st = new THREE.Group();
+  const gy = groundH(FF_STATION[0], FF_STATION[1]);
+  const metal = new THREE.MeshPhongMaterial({ color: 0x4a5560, shininess: 80 });
+  const box = (w, h, d, m, x, y, z) => {
+    const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    o.position.set(x, y, z);
+    st.add(o);
+    return o;
+  };
+  box(1.4, 1.1, .8, metal, 0, .55, 0);
+  box(1.2, .7, .06, new THREE.MeshBasicMaterial({ color: 0x5ec8f2 }), 0, 1.35, .2).rotation.x = -.35;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(.6, .04, 6, 32), new THREE.MeshBasicMaterial({ color: 0x9fe4ff, transparent: true, opacity: .7 }));
+  ring.position.y = 2.3;
+  st.add(ring);
+  st.position.set(FF_STATION[0], gy, FF_STATION[1]);
+  envG.add(st);
+  FF.station = { g: st, ring };
+  // Generators: a dark base with a glowing core that dims and reddens as it takes damage
+  FF.gens = FF_GENS.map(([x, z], i) => {
+    const g = new THREE.Group();
+    const y = groundH(x, z);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, .6, 8), metal);
+    base.position.y = .3;
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, 2, 12), new THREE.MeshBasicMaterial({ color: 0x5ff0ff }));
+    core.position.y = 1.5;
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(.9, .7, .3, 8), metal);
+    cap.position.y = 2.6;
+    g.add(base, core, cap);
+    g.position.set(x, y, z);
+    envG.add(g);
+    pillars.push({ x, z, hw: .9, hd: .9, h: y + 2.8 });
+    return { gen: true, name: i ? 'B' : 'A', x, y, z, hp: 1000, max: 1000, g, core, flash: 0 };
+  });
+  P.x = FF_SPAWNS[0][0];
+  P.z = FF_SPAWNS[0][1];
+  P.y = groundH(P.x, P.z);
+  yaw = Math.PI;
+  pitch = 0;
+  state = 'play';
+  ov.style.display = 'none';
+  ov.style.background = '';
+  ov.style.justifyContent = '';
+  P.req = P.req || 0;
+  music.set(0);
+  banner('WARZONE FIREFIGHT: HOLD THE RED BASE');
+  lock();
+}
+
+// Host: start the match (the first round begins after a short countdown)
+function ffStart() {
+  newRun(false, true);
+  ffSetup();
+  FF.round = 0;
+  FF.ph = 'break';
+  FF.t = 10;
+  FF.rl = 1;
+}
+
+/* ---------- Rounds (host / solo) ---------- */
+
+// Generators enemies can target and hit: only during a defend round
+function ffTargets() {
+  const R0 = FF_ROUNDS[FF.round - 1];
+  return FF.ph === 'play' && R0 && R0.kind === 'defend' ? ffGensUp() : [];
+}
+
+const ffAlive = () => enemies.filter(e => !e.dead && !e.net).length;
+const ffGensUp = () => FF.gens.filter(g => g.hp > 0);
+const ffCap = () => 10 + 3 * NET.others();
+
+function ffPick() {
+  const r = FF.round;
+  const q = Math.random();
+  if (r >= 4 && q < .08)
+    return 'hunter';
+  if (r >= 2 && q < .16)
+    return 'jsniper';
+  if (r >= 2 && q < .26)
+    return 'skimmer';
+  if (r >= 2 && q < .36)
+    return 'selite';
+  if (q < .5)
+    return r >= 3 ? 'jmajor' : 'jackal';
+  if (q < .62)
+    return 'elite';
+  if (q < .7)
+    return 'kgrunt';
+  return 'grunt';
+}
+
+// A squad drops in somewhere in the far half of the gulch (a flash where each one lands)
+function ffSquad(n) {
+  const zs = FF.round >= 3 ? FF_ZONES : FF_ZONES.slice(0, 3);
+  const [cx, cz, rx, rz] = zs[Math.random() * zs.length | 0];
+  for (let i = 0; i < n; i++) {
+    const x = cx + R(-rx, rx);
+    const z = cz + R(-rz, rz);
+    spawn(ffPick(), x, z);
+    const e = enemies[enemies.length - 1];
+    // In defend rounds about half of them go for a generator
+    if (FF_ROUNDS[FF.round - 1].kind === 'defend' && Math.random() < .5) {
+      const up = ffGensUp();
+      if (up.length)
+        e.goal = up[Math.random() * up.length | 0];
+    }
+    flashFx(x, groundH(x, z) + 1.2, z, 1.6, 0xb48cff);
+  }
+  sfx.room();
+}
+
+function ffBoss(t, frac) {
+  const [cx, cz] = [R(-15, 15), R(30, 50)];
+  spawn(t, cx, cz);
+  const e = enemies[enemies.length - 1];
+  e.hp *= frac;
+  e.maxhp *= frac;
+  e.sh *= frac;
+  e.maxsh *= frac;
+  flashFx(cx, groundH(cx, cz) + 2, cz, 4, 0xffd060);
+  return e;
+}
+
+function ffBeginRound() {
+  FF.round++;
+  const R0 = FF_ROUNDS[FF.round - 1];
+  FF.ph = 'play';
+  FF.t = R0.time;
+  FF.spawnT = 2;
+  FF.left = R0.squads || 0;
+  lroom = FF.round * 2; // enemies get a little tougher each round (see spawn)
+  if (R0.kind === 'defend')
+    FF.gens.forEach(g => g.hp = g.max);
+  if (R0.kind === 'bosses') {
+    const pool = ['zealot', 'skirmisher', 'deacon', 'shipmaster'].sort(() => Math.random() - .5);
+    [pool[0], pool[1]].forEach(t => ffBoss(t, .6));
+  }
+  if (R0.kind === 'boss')
+    ffBoss(['warlord', 'warden', 'blademaster', 'ironclad', 'gravemind'][Math.random() * 5 | 0], 1);
+  bossTotal = enemies.filter(e => e.boss).reduce((s, b) => s + b.maxhp + b.maxsh, 0);
+  music.set(1);
+  banner('ROUND ' + FF.round + ': ' + R0.n);
+}
+
+function ffRoundWon() {
+  // anything left over withdraws
+  enemies.forEach(e => {
+    if (!e.net) {
+      e.dead = true;
+      scene.remove(e.g);
+    }
+  });
+  enemies = enemies.filter(e => !e.dead);
+  clearHz();
+  if (FF.round >= FF_ROUNDS.length) {
+    FF.ph = 'win';
+    ffEnd(true);
+    return;
+  }
+  FF.ph = 'break';
+  FF.t = FF_BREAK;
+  FF.rl = Math.min(4, FF.round + 1);
+  earn(25 * FF.round);
+  P.req += 50;
+  music.set(0);
+  sfx.clear();
+  banner('ROUND ' + FF.round + ' COMPLETE: REQ LEVEL ' + FF.rl);
+}
+
+function ffLose(why) {
+  FF.ph = 'lose';
+  FF.why = why;
+  ffEnd(false, why);
+}
+
+function ffUpdate(dt) {
+  FF.t -= dt;
+  if (FF.ph === 'break') {
+    if (FF.t <= 0)
+      ffBeginRound();
+    return;
+  }
+  if (FF.ph !== 'play')
+    return;
+  const R0 = FF_ROUNDS[FF.round - 1];
+  FF.spawnT -= dt;
+  const alive = ffAlive();
+  if (R0.kind === 'clear') {
+    if (FF.left > 0 && alive < 8 && FF.spawnT <= 0) {
+      ffSquad(4 + NET.others());
+      FF.left--;
+      FF.spawnT = 5;
+    }
+    if (FF.left <= 0 && !alive)
+      return ffRoundWon();
+  }
+  else if (R0.kind === 'defend') {
+    if (alive < ffCap() && FF.spawnT <= 0) {
+      ffSquad(R0.n.includes('CORE') ? 5 : 4);
+      FF.spawnT = R0.n.includes('CORE') ? 5 : 7;
+    }
+    if (!ffGensUp().length)
+      return ffLose('THE GENERATORS WERE DESTROYED');
+    if (FF.t <= 0)
+      return ffRoundWon();
+  }
+  else {
+    // commanders / boss: escorts keep coming until the bosses fall
+    if (alive < ffCap() - 2 && FF.spawnT <= 0) {
+      ffSquad(3);
+      FF.spawnT = 9;
+    }
+    if (!enemies.some(e => e.boss && !e.dead))
+      return ffRoundWon();
+  }
+  if (FF.t <= 0)
+    ffLose('TIME EXPIRED');
+}
+
+/* ---------- Every page ---------- */
+
+// REQ points for a kill (the host's own kills, or a guest's kill credit)
+function ffReward(e) {
+  if (!FF.on)
+    return;
+  P.req = (P.req || 0) + (e.boss ? 200 : FF_PTS[e.t] || 10);
+  FF.kills++;
+}
+
+const ffNear = () => FF.on && Math.hypot(P.x - FF_STATION[0], P.z - FF_STATION[1]) < 3.5;
+
+function ffTick(dt) {
+  if (!FF.on)
+    return;
+  if (FF.station)
+    FF.station.ring.rotation.y += dt;
+  FF.gens.forEach(g => {
+    const k = g.hp / g.max;
+    g.flash -= dt;
+    g.core.material.color.setHex(g.hp <= 0 ? 0x202428 : g.flash > 0 ? 0xffffff : k > .5 ? 0x5ff0ff : k > .25 ? 0xffc040 : 0xff4a3a);
+  });
+  // respawn at the base
+  if (NET.down && state === 'play') {
+    NET.resp -= dt;
+    if (NET.resp <= 0)
+      ffRespawn();
+  }
+}
+
+function ffRespawn() {
+  netRevive();
+  const s = FF_SPAWNS[Math.random() * FF_SPAWNS.length | 0];
+  P.x = s[0];
+  P.z = s[1];
+  P.y = groundH(P.x, P.z);
+  P.vy = 0;
+  yaw = Math.PI;
+  banner('REDEPLOYED');
+}
+
+function ffText() {
+  const R0 = FF_ROUNDS[Math.max(0, FF.round - 1)];
+  const t = Math.max(0, Math.ceil(FF.t));
+  const clock = (t / 60 | 0) + ':' + String(t % 60).padStart(2, '0');
+  const head = FF.ph === 'break' ? (FF.round ? 'BREAK' : 'GET READY') + ' ' + clock : 'ROUND ' + FF.round + '/5: ' + R0.n + ' | ' + clock;
+  const gens = FF.round && R0.kind === 'defend' && FF.ph === 'play' ? ' | GEN ' + FF.gens.map(g => g.name + ' ' + Math.round(100 * g.hp / g.max) + '%').join(' ') : '';
+  return 'FIREFIGHT | ' + head + gens + ' | REQ ' + (P.req || 0) + ' (LV ' + FF.rl + ')';
+}
+
+// REQ station menu (E at the station). The match keeps running while it's open.
+function ffReq() {
+  if (!FF.on || state !== 'play' || NET.down)
+    return;
+  if (!ffNear()) {
+    banner('REQ STATION: INSIDE THE RED BASE');
+    return;
+  }
+  NET.menu = 1;
+  NET.menuAt = performance.now();
+  down = false;
+  document.exitPointerLock && document.exitPointerLock();
+  ffReqDraw();
+}
+
+function ffReqDraw() {
+  ov.style.display = 'flex';
+  ov.style.background = 'rgba(8,10,20,.6)';
+  ov.style.justifyContent = '';
+  ov.innerHTML = '<h2>REQ STATION</h2><div>REQ points <b style="color:#ffd060">' + (P.req || 0) + '</b> | REQ level ' + FF.rl + '</div><div class="cards sm">'
+    + FF_REQ.map((q, i) => {
+      const locked = q.lv > FF.rl;
+      const poor = (P.req || 0) < q.c;
+      return '<button class="card" ' + (locked || poor ? 'disabled ' : '') + 'onclick="ffBuy(' + i + ')"' + (q.vr ? ' style="border-color:#c9a227"' : '') + '><b' + (q.vr ? ' style="color:#ffd060"' : '') + '>' + q.n + '</b><small>' + (locked ? 'REQ LEVEL ' + q.lv : q.c + ' REQ') + '</small></button>';
+    }).join('') + '</div><button class="card" style="text-align:center;width:auto" onclick="netResume()">CLOSE (E)</button>';
+}
+
+function ffBuy(i) {
+  const q = FF_REQ[i];
+  if (!q || q.lv > FF.rl || (P.req || 0) < q.c || NET.down)
+    return;
+  P.req -= q.c;
+  if (q.k) {
+    setW(P, q.k);
+    if (q.vr) {
+      P.vr = P.vr || {};
+      P.vr[q.k] = 1;
+    }
+  }
+  else if (q.id === 'ammo')
+    P.slots.forEach((w, s) => {
+      if (w && w !== 'sw')
+        P.sr[s] = rxOf(w);
+    });
+  else if (q.id === 'nades')
+    P.nades = P.nadeMax;
+  else if (q.id === 'os')
+    P.sh = P.maxSh + 60;
+  sfx.grab();
+  ffReqDraw();
+}
+
+function ffEnd(win, why) {
+  if (state === 'over')
+    return;
+  const bonus = win ? 300 : 50 * Math.max(0, FF.round - 1);
+  const c = (P ? P.cr : 0) + bonus;
+  netBank(bonus);
+  music.set(win ? 2 : -1);
+  if (win)
+    sfx.clear();
+  else
+    sfx.dead();
+  endScreen(win ? '<h2>FIREFIGHT VICTORY</h2>' : '<h2 style="color:#e5534b">DEFEAT</h2>', (win ? 'All 5 rounds cleared' : (why || 'Defeated') + ' in round ' + FF.round) + ' | ' + FF.kills + ' kills | +' + c + ' credits banked');
+}
+
+// Host: the firefight part of the world update
+function ffState() {
+  return { r: FF.round, ph: FF.ph, t: Math.max(0, Math.round(FF.t)), rl: FF.rl, gens: FF.gens.map(g => Math.round(g.hp)), why: FF.why || '' };
+}
+
+// Guest: mirror the host's firefight state
+function ffClient(f) {
+  if (!FF.on) {
+    newRun(false, true);
+    ffSetup();
+  }
+  const r = +f.r || 0;
+  if (r !== FF.round || f.ph !== FF.ph) {
+    if (f.ph === 'play' && r !== FF.round) {
+      music.set(1);
+      banner('ROUND ' + r + ': ' + FF_ROUNDS[clamp(r, 1, 5) - 1].n);
+    }
+    else if (f.ph === 'break' && FF.ph === 'play') {
+      music.set(0);
+      sfx.clear();
+      P.req = (P.req || 0) + 50;
+      banner('ROUND ' + FF.round + ' COMPLETE: REQ LEVEL ' + (+f.rl || 1));
+    }
+  }
+  FF.round = r;
+  FF.ph = String(f.ph || 'break');
+  FF.t = +f.t || 0;
+  FF.rl = clamp(+f.rl || 1, 1, 4);
+  if (Array.isArray(f.gens))
+    FF.gens.forEach((g, i) => {
+      const hp = clamp(+f.gens[i] || 0, 0, g.max);
+      if (hp < g.hp)
+        g.flash = .1;
+      g.hp = hp;
+    });
+  if (FF.ph === 'win' || FF.ph === 'lose')
+    ffEnd(FF.ph === 'win', String(f.why || '').slice(0, 60));
+}

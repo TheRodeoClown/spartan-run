@@ -101,7 +101,9 @@ function update(dt) {
       P.rch = 1;
       sfx.recharge();
     }
-    P.sh = Math.min(P.maxSh, P.sh + P.maxSh / 1.5 * dt * (P.shRate || 1));
+    // (an overshield above the maximum isn't trimmed)
+    if (P.sh < P.maxSh)
+      P.sh = Math.min(P.maxSh, P.sh + P.maxSh / 1.5 * dt * (P.shRate || 1));
   }
   else
     P.rch = 0;
@@ -423,6 +425,11 @@ function update(dt) {
   // Rooms and bosses are decided only by the page that runs the world (solo, or the co-op host)
   if (NET.mode === 'vs' || NET.client)
     return;
+  // Warzone Firefight runs its own rounds (firefight.js)
+  if (L && L.ff) {
+    ffUpdate(dt);
+    return;
+  }
   if (L.wave) {
     L.waveT -= dt;
     if (L.waveT <= 0) {
@@ -522,7 +529,7 @@ function hud() {
   $('clk').style.display = state === 'play' && !locked && !freeLook ? 'block' : 'none';
   if (!P)
     return;
-  $('sh').firstChild.style.width = 100 * P.sh / P.maxSh + '%';
+  $('sh').firstChild.style.width = Math.min(100, 100 * P.sh / P.maxSh) + '%';
   $('hp').firstChild.style.width = 100 * P.hp / P.maxHp + '%';
   $('en').style.display = P.wpn === 'sw' && state === 'play' ? 'block' : 'none';
   $('en').firstChild.style.width = P.ammo + '%';

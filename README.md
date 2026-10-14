@@ -40,6 +40,8 @@ Click **MULTIPLAYER** on the title screen. Set a name and colour, then either:
 - **Sprint:** hold Shift while moving forward. You can't shoot while sprinting.
 - **Winning:** first to 15 kills, or the most kills when the 5-minute clock runs out (a shared lead is a draw). Hold **Tab** for scores.
 
+**Warzone Firefight** (1-4 players): co-op on Blood Gulch, holding the red base through five timed rounds: Clear the Area, Defend the Generators, Eliminate the Commanders, Defend the Core, and a Legendary Boss. Dead players redeploy at the base after 5 seconds; you lose if a round's clock runs out or both generators fall. Kills earn REQ points to spend at the REQ station in the base (press **E**): weapons, ammo and grenade resupply, an overshield, and legendary weapon variants as the REQ level rises each round.
+
 How it connects: peer to peer over WebRTC with [PeerJS](https://peerjs.com/). Every guest connects straight to the host's browser. The free public PeerJS server is only used to find each other by code, so there is no game server to run. Some strict corporate or school networks block direct connections; home networks usually work. If the host closes the game, the match ends.
 
 ## Controls
