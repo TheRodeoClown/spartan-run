@@ -181,8 +181,8 @@ function makeSword() {
   sh.moveTo(0, 0);
   // the two blades curve back in so their points meet in front of the hilt (the blade sits .092 off centre)
   sh.lineTo(.034, 0);
-  sh.bezierCurveTo(.1, .3, .07, .98, -.09, 1.4);
-  sh.bezierCurveTo(.012, .9, .03, .3, 0, 0);
+  sh.bezierCurveTo(.1, .42, .07, 1.36, -.09, 1.95);
+  sh.bezierCurveTo(.012, 1.25, .03, .42, 0, 0);
   const geo = new THREE.ShapeGeometry(sh, 16);
   // short rear prong
   const rp = new THREE.Shape();
