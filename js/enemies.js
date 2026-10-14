@@ -306,17 +306,15 @@ function spawn(t, px, pz) {
     });
   }
   enemies.push({ ...d, t, x, z, id: ++NET.eid, fr: d.fr * DIFF.fr, bs: d.bs * DIFF.bs, g, mat, aura, sw, kg, crits, legs, arm, px: x, pz: z, ph: R(0, 6.28), gs: 0, kf: 0, lcd: R(.3, 1), lunge: 0, wind: 0, swing: 0, hp: d.hp * dm, sh: d.sh * dm, maxhp: d.hp * dm, maxsh: d.sh * dm, boss: !!d.bn, sumT: 8, cd: R(1.2, 2.4), dir: Math.random() < .5 ? 1 : -1, dirT: R(1, 3), flash: 0 });
-  // Active camouflage: the body gets its own see-through materials (the energy sword stays bright: the giveaway)
+  // Active camouflage: body and sword get their own see-through materials (bo: each one's normal opacity)
   if (d.camo) {
     const e = enemies[enemies.length - 1];
-    const skip = new Set([aura]);
-    if (sw)
-      sw.traverse(o => skip.add(o));
     e.camoMats = [];
     g.traverse(o => {
-      if (!o.isMesh || skip.has(o))
+      if (!o.isMesh || o === aura)
         return;
       const m = o.material.clone();
+      m.userData.bo = m.transparent ? m.opacity : 1;
       m.transparent = true;
       m.depthWrite = false;
       if (o.material === mat)

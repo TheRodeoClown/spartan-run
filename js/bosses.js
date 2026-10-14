@@ -456,8 +456,8 @@ const MOVES = {
 
 // Active camo look for cloaked enemies: near-invisible shimmer, or solid while revealed (no shield bubble while hidden)
 function camoLook(e, shown) {
-  const a = shown ? .95 : .08 + .06 * Math.sin(T * 9 + e.ph);
-  e.camoMats.forEach(m => m.opacity = a);
+  const a = .08 + .06 * Math.sin(T * 9 + e.ph);
+  e.camoMats.forEach(m => m.opacity = shown ? m.userData.bo : a);
   if (!shown)
     e.aura.visible = false;
 }

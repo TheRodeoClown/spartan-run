@@ -56,7 +56,7 @@ The full list is under **Controls** in the pause menu (Esc) and in Settings, whi
 - Missions are a run of separate rooms: each room has its own cover layout and ground. Clear it and the exit gate on the far wall opens; walk through it to pick a boon, then the next room's enemies warp in a second after you arrive.
 - Nine bosses (Zealot Commander, Hunter Warlord, Forerunner Warden, Bonded Hunters, Blademaster, Shipmaster, Skirmisher Alpha, Grunt Deacon, Ironclad Hunter). Each mission draws its boss from a pool of three, so runs differ.
 - Fourteen legendary boons, including Infinity Magazine, Bubble Shield, Vampire Rounds, Chain Reaction, Active Camo, Overcharged Shields, Grenadier and Spartan Charge.
-- Legendary runs: from the third mission, Cloaked Sword Elites can appear: nearly invisible apart from their sword, they reveal themselves only when they strike or are hit.
+- Legendary runs: from the third mission, Cloaked Sword Elites can appear: only a faint shimmer, sword included, they reveal themselves only when they strike or are hit.
 - Weapon variants: from the second mission on, boon screens can offer a special version of a gun you carry (MA40 Shredder, BR55 Recon, M6D Executioner, M90 Breacher, S2 Railgun, Type-25 Storm, M41 Hunter-Killer, Type-33 Hive, Prophet's Bane).
 - Bosses enrage at half health (a single burst can't skip past it) and are invulnerable for 1.5s while they do; in co-op their health scales hard with squad size. Legendary boons can only be taken once per run.
 - Outdoor levels have rolling hills (cover, walls and markings stay on level ground) and scattered ground detail.
