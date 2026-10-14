@@ -217,7 +217,7 @@ function buildEnemy(t) {
         f();
     });
     if (sel)
-      swordAt(.58, 1, .3, 2);
+      swordAt(.58, 1, .3, 1.4);
     else {
       // Two-pronged plasma rifle
       const gun = Ph(0x5a6070, 90);
@@ -306,6 +306,25 @@ function spawn(t, px, pz) {
     });
   }
   enemies.push({ ...d, t, x, z, id: ++NET.eid, fr: d.fr * DIFF.fr, bs: d.bs * DIFF.bs, g, mat, aura, sw, kg, crits, legs, arm, px: x, pz: z, ph: R(0, 6.28), gs: 0, kf: 0, lcd: R(.3, 1), lunge: 0, wind: 0, swing: 0, hp: d.hp * dm, sh: d.sh * dm, maxhp: d.hp * dm, maxsh: d.sh * dm, boss: !!d.bn, sumT: 8, cd: R(1.2, 2.4), dir: Math.random() < .5 ? 1 : -1, dirT: R(1, 3), flash: 0 });
+  // Active camouflage: the body gets its own see-through materials (the energy sword stays bright: the giveaway)
+  if (d.camo) {
+    const e = enemies[enemies.length - 1];
+    const skip = new Set([aura]);
+    if (sw)
+      sw.traverse(o => skip.add(o));
+    e.camoMats = [];
+    g.traverse(o => {
+      if (!o.isMesh || skip.has(o))
+        return;
+      const m = o.material.clone();
+      m.transparent = true;
+      m.depthWrite = false;
+      if (o.material === mat)
+        e.mat = m;
+      o.material = m;
+      e.camoMats.push(m);
+    });
+  }
 }
 
 function hurt(d) {

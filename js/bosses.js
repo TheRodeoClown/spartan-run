@@ -454,6 +454,14 @@ const MOVES = {
   }
 };
 
+// Active camo look for cloaked enemies: near-invisible shimmer, or solid while revealed (no shield bubble while hidden)
+function camoLook(e, shown) {
+  const a = shown ? .95 : .08 + .06 * Math.sin(T * 9 + e.ph);
+  e.camoMats.forEach(m => m.opacity = a);
+  if (!shown)
+    e.aura.visible = false;
+}
+
 // Enrage (at half health): faster and more aggressive, and invulnerable for 1.5s inside a gold shell,
 // so a big burst can't skip the phase.
 function enrage(e, msg) {

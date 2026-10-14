@@ -11,6 +11,8 @@ const ET = {
   elite: { hp: 30, sh: 70, sp: 4.5, sc: 1.15, col: 0x7b86f0, fr: 1.9, bs: 21, bd: 8, burst: 3, pref: 12 },
   // Sword Elite: melee only; bd is slash damage, fr the time between slashes
   selite: { model: 'selite', tint: 0x8a1f2a, hp: 30, sh: 70, sp: 5.2, sc: 1.15, col: 0x6fd0ff, fr: 1.5, bs: 0, bd: 30, burst: 0, pref: 0, melee: 1 },
+  // Cloaked Sword Elite (Legendary, later missions): active camo, visible only while attacking or just after being hit
+  celite: { model: 'selite', tint: 0x1c2a40, hp: 30, sh: 80, sp: 5.6, sc: 1.15, col: 0x6fd0ff, fr: 1.4, bs: 0, bd: 32, burst: 0, pref: 0, melee: 1, camo: 1 },
   hunter: { hp: 200, sh: 0, sp: 2.6, sc: 1.7, col: 0x5fbf5f, fr: 2.4, bs: 15, bd: 12, burst: 3, spread: 1, armor: .5, pref: 9 },
   // Bosses: armor = fraction of all incoming damage ignored
   zealot: { model: 'elite', tint: 0xe0c060, bn: 'Zealot Commander', hp: 200, sh: 220, sp: 5.2, sc: 1.8, col: 0xffd060, fr: 1.3, bs: 24, bd: 14, burst: 3, pref: 11, sum: 1, armor: .25 },

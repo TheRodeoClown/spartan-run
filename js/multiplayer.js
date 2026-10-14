@@ -483,7 +483,7 @@ function netWorld() {
       kb: NET.kb, lv: L ? L.id : '', rm: room, lr: lroom, bk: L ? L.boss : '', bN: L ? L.bossN || 1 : 1, bnm: L && L.bn || '', bt: Math.round(bossTotal), out: NET.out,
       // [id, type, x, z, facing, hp, shield, flags (1 flash, 2 primed, 4 invulnerable, 8 cloaked), sword angle]
       en: enemies.filter(e => !e.dead && !e.net).slice(0, 40).map(e => {
-        const a = [e.id, ETK.indexOf(e.t), r1(e.x), r1(e.z), r2(e.g.rotation.y), Math.round(e.hp), Math.round(e.sh), (e.flash > 0 ? 1 : 0) | (e.kf > 0 ? 2 : 0) | (e.inv > T ? 4 : 0) | (e.g.visible ? 0 : 8) | ((e.lean || 0) > 0 ? 16 : (e.lean || 0) < 0 ? 32 : 0)];
+        const a = [e.id, ETK.indexOf(e.t), r1(e.x), r1(e.z), r2(e.g.rotation.y), Math.round(e.hp), Math.round(e.sh), (e.flash > 0 ? 1 : 0) | (e.kf > 0 ? 2 : 0) | (e.inv > T ? 4 : 0) | (e.g.visible ? 0 : 8) | ((e.lean || 0) > 0 ? 16 : (e.lean || 0) < 0 ? 32 : 0) | (e.camoRev > 0 ? 64 : 0)];
         if (e.sw)
           a.push(r2(e.sw.rotation.x));
         return a;
@@ -613,6 +613,8 @@ function netGhosts(w, dt) {
     e.aura.material.color.setHex(e.fl & 4 ? 0xffd040 : 0x78dcff);
     e.aura.material.opacity = e.fl & 4 ? .45 : .1 + .3 * e.sh / (e.maxsh || 1);
     e.g.visible = !(e.fl & 8);
+    if (e.camo)
+      camoLook(e, !!(e.fl & 64) || e.flash > 0);
     e.g.rotation.x += ((e.fl & 16 ? .38 : e.fl & 32 ? -.25 : 0) - e.g.rotation.x) * Math.min(1, dt * 14);
     if (e.kg)
       e.kg.visible = !(e.fl & 2) || Math.floor(T * 16) % 2 === 0;

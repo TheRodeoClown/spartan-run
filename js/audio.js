@@ -384,7 +384,7 @@ const raw = {
     else if (k === 'jackal') {
       osc('sawtooth', 1400, 500, t, .15, .18, sfxG, ['lowpass', 3000]);
     }
-    else if (k === 'elite' || k === 'selite' || k === 'blademaster') {
+    else if (k === 'elite' || k === 'selite' || k === 'celite' || k === 'blademaster') {
       osc('sawtooth', 220, 80, t, .5, .25, sfxG, ['lowpass', 900]);
     }
     else {

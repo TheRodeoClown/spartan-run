@@ -539,7 +539,7 @@ function mkDrop(k, x, z) {
 function dropMaybe(e) {
   const b = e.boss;
   // Sword Elites rarely drop anything: an energy cell if you carry the sword, otherwise an ammo box.
-  if (e.t === 'selite') {
+  if (e.t === 'selite' || e.t === 'celite') {
     if (Math.random() < .2)
       mkDrop(P.slots.includes('sw') ? 'swe' : 'ammo', e.x, e.z);
     return;

@@ -106,13 +106,21 @@ function nextRoom() {
         t = 'selite';
       if (lroom >= 2 && r > .58 && r <= .68)
         t = 'kgrunt';
+      // Legendary, from the third mission: sometimes a Cloaked Sword Elite
+      if (LEGEND && P.done.length >= 2 && lroom >= 2 && Math.random() < .12)
+        t = 'celite';
       spawn(t);
     }
   if (lroom === L.rooms)
     spawn('hunter');
   // a flash where each one appears
-  enemies.forEach(e => flashFx(e.x, groundH(e.x, e.z) + 1.2 * e.sc, e.z, 1.6 * e.sc, ET[e.t].col || 0x7fd8ff));
+  enemies.forEach(e => {
+    if (!e.camo)
+      flashFx(e.x, groundH(e.x, e.z) + 1.2 * e.sc, e.z, 1.6 * e.sc, ET[e.t].col || 0x7fd8ff);
+  });
   sfx.room();
+  if (enemies.some(e => e.camo))
+    banner('WARNING: ACTIVE CAMO DETECTED');
   };
   addGate(lroom <= L.rooms);
   banner(lroom > L.rooms ? 'BOSS: ' + (L.bn || ET[L.boss].bn) : L.n + ' - ROOM ' + lroom + '/' + L.rooms);

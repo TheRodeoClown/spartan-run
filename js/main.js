@@ -227,6 +227,13 @@ function update(dt) {
     e.aura.visible = e.sh > 0 || inv;
     e.aura.material.color.setHex(inv ? 0xffd040 : 0x78dcff);
     e.aura.material.opacity = inv ? .45 : .1 + .3 * e.sh / (e.maxsh || 1);
+    // Cloaked Elites: a faint shimmer, fully visible while winding up or slashing and briefly after a hit
+    if (e.camo) {
+      if (e.flash > 0 || e.wind > 0 || e.swing > 0)
+        e.camoRev = .7;
+      e.camoRev = (e.camoRev || 0) - dt;
+      camoLook(e, e.camoRev > 0);
+    }
     e.cd -= dt;
     if (e.melee) {
       // Sword Elite: lunge in from mid range, raise the sword (0.35s tell), then slash
