@@ -320,7 +320,7 @@ function netRead(r, q) {
   r.ep = n(q.ep, 0);
   r.tx = clamp(n(q.x, r.tx || 0), -200, 200);
   r.tz = clamp(n(q.z, r.tz || 0), -200, 200);
-  r.ty = clamp(n(q.y, 0), 0, 20);
+  r.ty = clamp(n(q.y, 0), -5, 40);
   r.yw = n(q.yw, 0);
   r.hp = n(q.hp, 0);
   r.sh = n(q.sh, 0);
@@ -891,13 +891,59 @@ function netFinish() {
 
 const BG = { id: 'bg', n: 'Blood Gulch', rooms: 0, A: 80, cut: 34, fog: 0xa8c4d8, fogN: 70, fogF: 340, sky: [0x3a78c8, 0xcfe0ea, 0x8a9a78], hemi: [0xdcecff, 0x4f6a3a, .95], sun: [0xfff2d8, .95, 8, 12, 3], trim: 0xffffff, sty: 'bg', lay: [] };
 // Weapon/ammo pickups [kind, x, z] (each player has their own copies; they come back after 25-45s)
-const VSP = [['sn', 0, -61], ['sn', 0, 61], ['rk', 0, 0], ['sg', -44, 0], ['sw', 44, 0], ['pr', -24, -30], ['pr', 24, 30], ['nd', 24, -30], ['nd', -24, 30], ['br', -8, -40], ['br', 8, 40],
-  ['nade', -10, 0], ['nade', 10, 0], ['nade', -46, -46], ['nade', 46, 46], ['ammo', -46, 46], ['ammo', 46, -46], ['ammo', 0, -24], ['ammo', 0, 24]];
-const VSPAWN = [[0, -50], [-12, -61], [12, -61], [0, 50], [-12, 61], [12, 61], [-55, -20], [55, 20], [-55, 20], [55, -20], [-30, 8], [30, -8]];
+const VSP = [['sn', 0, -61], ['sn', 0, 61], ['rk', 0, 0], ['sg', -34, 0], ['sw', 34, 0], ['pr', -24, -30], ['pr', 24, 30], ['nd', 24, -30], ['nd', -24, 30], ['br', -8, -40], ['br', 8, 40],
+  ['nade', -10, 0], ['nade', 10, 0], ['nade', -44, -46], ['nade', 44, 46], ['ammo', -44, 46], ['ammo', 44, -46], ['ammo', 0, -24], ['ammo', 0, 24]];
+const VSPAWN = [[0, -50], [-12, -61], [12, -61], [0, 50], [-12, 61], [12, 61], [-46, -22], [46, 22], [-46, 22], [46, -22], [-30, 8], [30, -8]];
 const PKC = { sn: 0x8fa0b0, rk: 0xff6a3a, sg: 0xc08850, sw: 0x7fe0ff, pr: 0x7dff9a, nd: 0xff5fd0, br: 0x9bc45a, nade: 0x7dff6a, ammo: 0xd8c070 };
 
-// The map (called from buildLevel with its helpers): a grassy box canyon with a creek, cliff walls, two bases with three
-// doorways each, boulders and pines. Cover uses a seeded random so every player gets the same layout.
+// Blood Gulch terrain, after the classic Halo map: a long box canyon with each base on a low rise at either end, rolling
+// hills through the middle, a raised ridge along each side wall for snipers, and a creek winding down the gulch.
+// Heights in metres; groundBG is also the collision ground (see groundH in core.js).
+const BG_HILLS = [ // [x, z, height, radius]
+  [0, 0, 2.2, 8], [-19, -15, 4.2, 10], [19, 15, 4.2, 10], [-32, 24, 3.4, 9], [32, -24, 3.4, 9],
+  [-30, -44, 2.6, 7], [30, 44, 2.6, 7], [-10, 36, 2.8, 7], [10, -36, 2.8, 7], [-40, -6, 2.6, 7], [40, 6, 2.6, 7],
+  [24, -8, 1.8, 6], [-24, 8, 1.8, 6], [-8, -48, 1.6, 6], [8, 48, 1.6, 6]
+];
+const BG_RIDGES = [[-47, -40, -47, 40, 4.5, 6], [47, -40, 47, 40, 4.5, 6]]; // [x1, z1, x2, z2, height, half-width]
+// Side cliffs that make the gulch long and narrow (112m wide, 160m long); they meet the angled corner walls
+const BG_CLIFF_X = 56;
+// Rock outcrops to hide behind (axis-aligned so the colliders match): [x, z, half-width, half-depth, height]
+const BG_ROCKS = [[-14, -26, 4, 1.4, 2.6], [14, 26, 4, 1.4, 2.6], [-38, 10, 1.4, 4.5, 2.8], [38, -10, 1.4, 4.5, 2.8], [6, -12, 3, 1.2, 2.2], [-6, 12, 3, 1.2, 2.2],
+  [-28, -30, 1.3, 3, 2.4], [28, 30, 1.3, 3, 2.4], [-40, 38, 3, 1.4, 2.6], [40, -38, 3, 1.4, 2.6], [-18, 50, 2.5, 1.2, 2.2], [18, -50, 2.5, 1.2, 2.2]];
+const creekX = z => 9 * Math.sin(z * .045) + z * .2;
+const smoothstep = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+
+function groundBG(x, z) {
+  // gentle unevenness everywhere
+  let h = .35 * Math.sin(x * .21) * Math.cos(z * .17) + .25 * Math.sin(x * .07 + z * .11);
+  for (const [hx, hz, hh, r] of BG_HILLS) {
+    const d2 = ((x - hx) ** 2 + (z - hz) ** 2) / (r * r);
+    if (d2 < 6)
+      h += hh * Math.exp(-d2 * 1.5);
+  }
+  for (const [x1, z1, x2, z2, hh, r] of BG_RIDGES) {
+    const dx = x2 - x1;
+    const dz = z2 - z1;
+    const t = clamp(((x - x1) * dx + (z - z1) * dz) / (dx * dx + dz * dz), 0, 1);
+    const d2 = ((x - x1 - dx * t) ** 2 + (z - z1 - dz * t) ** 2) / (r * r);
+    if (d2 < 6)
+      h += hh * Math.exp(-d2 * 1.5);
+  }
+  // the canyon floor curls up into the cliffs and the far ends
+  h += 3 * smoothstep((Math.abs(x) - 44) / 12) + 3 * smoothstep((Math.abs(z) - 66) / 12);
+  // creek bed
+  const dc = Math.abs(x - creekX(z));
+  if (dc < 8 && Math.abs(z) < 76)
+    h -= 1.2 * Math.exp(-dc * dc / 5);
+  // flat low rises under the bases
+  for (const bz of [-60, 60]) {
+    const w = 1 - smoothstep((Math.hypot(x, z - bz) - 11) / 7);
+    h = h * (1 - w) + 1.2 * w;
+  }
+  return h;
+}
+
+// The map (called from buildLevel with its helpers). Cover uses a seeded random so every player gets the same layout.
 function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pines }) {
   let sd = 1234567;
   const rnd = () => (sd = sd * 16807 % 2147483647) / 2147483647;
@@ -911,6 +957,34 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
   ground(M(0x4a6a32));
   hills(36, 175, 330, 30, 60, 0x6d7458);
   pines(46, 92, 160);
+  // Terrain: a displaced grid replaces the flat floor, and becomes the ground everything stands on
+  groundFn = groundBG;
+  floor.visible = false;
+  const tg = new THREE.PlaneGeometry(A * 2, A * 2, 128, 128);
+  tg.rotateX(-Math.PI / 2);
+  const tp = tg.attributes.position;
+  for (let i = 0; i < tp.count; i++)
+    tp.setY(i, groundBG(tp.getX(i), tp.getZ(i)));
+  tg.computeVertexNormals();
+  envG.add(new THREE.Mesh(tg, floorMat('bg')));
+  // Creek: a ribbon of water sitting in the creek bed
+  const wp = [];
+  const wi = [];
+  for (let i = 0; i <= 120; i++) {
+    const z = -76 + i * 152 / 120;
+    const cx = creekX(z);
+    const y = groundBG(cx, z) + .45;
+    wp.push(cx - 1.7, y, z, cx + 1.7, y, z);
+    if (i) {
+      const a = (i - 1) * 2;
+      wi.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+  }
+  const wg = new THREE.BufferGeometry();
+  wg.setAttribute('position', new THREE.Float32BufferAttribute(wp, 3));
+  wg.setIndex(wi);
+  wg.computeVertexNormals();
+  envG.add(new THREE.Mesh(wg, new THREE.MeshPhongMaterial({ color: 0x3f7fa8, shininess: 90, specular: 0x99ccff, transparent: true, opacity: .85, side: THREE.DoubleSide })));
   // Canyon walls with jagged boulders along the rim and at the foot
   walls(12, rockM, 16);
   WL.forEach(wl => {
@@ -921,47 +995,69 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
     });
     spots(wl, 9).forEach(t => {
       const s = R(1.5, 3);
-      onW(wl, t + R(-3, 3), s * .4, new THREE.DodecahedronGeometry(s), rockM, -s * .7).scale.y = .6;
+      onW(wl, t + R(-3, 3), 3 + s * .4, new THREE.DodecahedronGeometry(s), rockM, -s * .7).scale.y = .6;
     });
   });
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(6, 150), new THREE.MeshPhongMaterial({ color: 0x3f7fa8, shininess: 90, specular: 0x99ccff, transparent: true, opacity: .85 }));
-  water.rotation.set(-Math.PI / 2, 0, .35);
-  water.position.y = .03;
-  envG.add(water);
-  // s: -1 red base at -z, +1 blue at +z; doorways face the centre and both sides
+  // Bases on their rises. s: -1 red base at -z, +1 blue at +z; doorways face the centre and both sides
   const base = (zc, s, col) => {
+    const by = 1.2;
     const wm = M(0x6b7178);
     const dk = M(0x3b4046);
     const gl = G(col);
     [[0, zc + s * 5, 7, .3], [-4.5, zc - s * 5, 2.5, .3], [4.5, zc - s * 5, 2.5, .3], [-7, zc - 3.25, .3, 1.75], [-7, zc + 3.25, .3, 1.75], [7, zc - 3.25, .3, 1.75], [7, zc + 3.25, .3, 1.75]]
       .forEach(([x, z, hw, hd]) => {
-        pillars.push({ x, z, hw, hd, h: 5 });
-        add(B(hw * 2, 5, hd * 2), wm, x, 2.5, z);
+        pillars.push({ x, z, hw, hd, h: by + 5 });
+        add(B(hw * 2, 5, hd * 2), wm, x, by + 2.5, z);
       });
-    add(B(15, .6, 11), dk, 0, 5.3, zc);
-    add(B(15.2, .25, .4), gl, 0, 5, zc - s * 5.4);
-    add(B(4, .15, .4), gl, 0, 4.6, zc - s * 5.1);
-    add(B(3, .1, 3), gl, 0, .05, zc).rotation.y = Math.PI / 4;
+    add(B(15.6, 1.6, 11.6), dk, 0, by - .83, zc); // foundation, so the base never floats where the ground dips
+    add(B(15, .6, 11), dk, 0, by + 5.3, zc);
+    add(B(15.2, .25, .4), gl, 0, by + 5, zc - s * 5.4);
+    add(B(4, .15, .4), gl, 0, by + 4.6, zc - s * 5.1);
+    add(B(3, .1, 3), gl, 0, by + .05, zc).rotation.y = Math.PI / 4;
     const pl = new THREE.PointLight(col, .8, 18);
-    pl.position.set(0, 4, zc);
+    pl.position.set(0, by + 4, zc);
     envG.add(pl);
   };
   base(-60, -1, 0xff4a3a);
   base(60, 1, 0x4a9aff);
-  // Boulders and pines, kept clear of the bases, pickups and spawn points
-  const avoid = [[0, -60, 11], [0, 60, 11], ...VSP.map(([k, x, z]) => [x, z, 3]), ...VSPAWN.map(([x, z]) => [x, z, 3])];
+  // The long side cliffs: a solid collider each, faced with big boulders
+  [-1, 1].forEach(s => {
+    pillars.push({ x: s * (BG_CLIFF_X + 1.5), z: 0, hw: 1.5, hd: 58, h: 40 });
+    add(B(5, 16, 118), rockM, s * (BG_CLIFF_X + 3), 8, 0);
+    for (let z = -56; z <= 56; z += 5) {
+      const k = RR(4.5, 7.5);
+      const o = add(new THREE.DodecahedronGeometry(k), rockM, s * (BG_CLIFF_X + k * .55), RR(2, 9), z + RR(-1.5, 1.5));
+      o.rotation.set(rnd() * 3, rnd() * 3, 0);
+      o.scale.y = RR(.9, 1.4);
+      if (rnd() < .6)
+        add(new THREE.DodecahedronGeometry(k * .6), rockD, s * (BG_CLIFF_X + k * .7), RR(12, 16), z + RR(-2, 2)).rotation.set(rnd() * 3, rnd() * 3, 0);
+    }
+  });
+  // Rock outcrops: a big faceted rock with a smaller one leaning on it
+  BG_ROCKS.forEach(([x, z, hw, hd, h]) => {
+    const g0 = Math.min(groundBG(x - hw, z - hd), groundBG(x + hw, z + hd), groundBG(x - hw, z + hd), groundBG(x + hw, z - hd));
+    pillars.push({ x, z, hw, hd, h: g0 + h });
+    const o = add(new THREE.DodecahedronGeometry(1), rockM, x, g0 + h * .35, z);
+    o.scale.set(hw * 1.15, h * .75, hd * 1.15);
+    const o2 = add(new THREE.DodecahedronGeometry(1), rockD, x + hw * .4, g0 + h * .75, z - hd * .3);
+    o2.scale.set(hw * .55, h * .45, hd * .6);
+    o2.rotation.y = rnd() * 3;
+  });
+  // Scattered boulders and pines, kept clear of the bases, outcrops, pickups and spawn points
+  const avoid = [[0, -60, 11], [0, 60, 11], ...VSP.map(([k, x, z]) => [x, z, 3]), ...VSPAWN.map(([x, z]) => [x, z, 3]), ...BG_ROCKS.map(([x, z, hw, hd]) => [x, z, Math.max(hw, hd) + 1])];
   let n = 0;
   let tries = 0;
-  while (n < 18 && tries++ < 500) {
-    const x = RR(-70, 70);
-    const z = RR(-70, 70);
-    const s = RR(1.4, 3.2);
-    if (Math.abs(x) + Math.abs(z) > 100 || avoid.some(([ax, az, r]) => Math.hypot(x - ax, z - az) < r + s + 2))
+  while (n < 28 && tries++ < 800) {
+    const x = RR(-50, 50);
+    const z = RR(-74, 74);
+    const s = RR(1.2, 3);
+    if (Math.abs(x) + Math.abs(z) > 100 || avoid.some(([ax, az, r]) => Math.hypot(x - ax, z - az) < r + s + 1.5))
       continue;
     n++;
-    pillars.push({ x, z, hw: s * .75, hd: s * .75, h: s * 1.3 });
-    const o = add(new THREE.DodecahedronGeometry(s), rockM, x, s * .45, z);
-    o.scale.y = .75;
+    const g = groundBG(x, z);
+    pillars.push({ x, z, hw: s * .75, hd: s * .75, h: g + s * 1.2 });
+    const o = add(new THREE.DodecahedronGeometry(s), rockM, x, g + s * .3, z);
+    o.scale.y = .8;
     o.rotation.y = rnd() * 3;
     avoid.push([x, z, s]);
   }
@@ -969,17 +1065,18 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
   tries = 0;
   const tk = M(0x4a3626);
   const lf = new THREE.MeshPhongMaterial({ color: 0x2e5a2a, flatShading: true, shininess: 4 });
-  while (n < 12 && tries++ < 500) {
-    const x = RR(-68, 68);
-    const z = RR(-48, 48);
+  while (n < 16 && tries++ < 800) {
+    const x = RR(-50, 50);
+    const z = RR(-50, 50);
     const s = RR(1, 1.5);
     if (avoid.some(([ax, az, r]) => Math.hypot(x - ax, z - az) < r + 3))
       continue;
     n++;
-    pillars.push({ x, z, hw: .45 * s, hd: .45 * s, h: 9 });
-    add(new THREE.CylinderGeometry(.25 * s, .35 * s, 3 * s, 7), tk, x, 1.5 * s, z);
+    const g = groundBG(x, z);
+    pillars.push({ x, z, hw: .45 * s, hd: .45 * s, h: g + 9 });
+    add(new THREE.CylinderGeometry(.25 * s, .35 * s, 3 * s, 7), tk, x, g + 1.5 * s, z);
     for (let j = 0; j < 3; j++)
-      add(new THREE.ConeGeometry((2.2 - j * .55) * s, 2.8 * s, 8), lf, x, (3 + j * 1.5) * s, z);
+      add(new THREE.ConeGeometry((2.2 - j * .55) * s, 2.8 * s, 8), lf, x, g + (3 + j * 1.5) * s, z);
     avoid.push([x, z, 2]);
   }
 }
@@ -998,9 +1095,10 @@ function vsPickupsBuild() {
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(.06, .06, 6, 6, 1, true), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: .25, depthWrite: false }));
     beam.position.y = 2.5;
     g.add(beam);
-    g.position.set(x, .8, z);
+    const gy = groundH(x, z);
+    g.position.set(x, gy + .8, z);
     scene.add(g);
-    return { k, x, z, m: g, t: 0 };
+    return { k, x, z, gy, m: g, t: 0 };
   });
 }
 
@@ -1013,7 +1111,7 @@ function vsPickups(dt) {
     }
     p.m.visible = true;
     p.m.rotation.y += dt * 1.5;
-    p.m.position.y = .8 + Math.sin(T * 2 + p.x) * .1;
+    p.m.position.y = p.gy + .8 + Math.sin(T * 2 + p.x) * .1;
     if (NET.down || Math.hypot(P.x - p.x, P.z - p.z) > 1.5)
       return;
     let ok = false;
@@ -1070,6 +1168,7 @@ function vsRespawn() {
     }
   });
   P = { x: best[0], z: best[1], hp: 40, maxHp: 40, sh: 60, maxSh: 60, shDelay: 3, last: -99, speed: 6, dmg: 8, rate: .09, cd: 0, magMax: 32, ammo: 32, reload: 0, wpn: 'ar', slots: ['ar', 'mg'], sa: [32, W.mg.mag], sr: [W.ar.rs, W.mg.rs], cur: 0, mb: 0, reloadT: 1.3, nades: 2, nadeMax: 4, nadeMul: 1, mcd: 0, meleeMul: 1, boons: [], done: [], cr: P ? P.cr : 0, revive: 0, y: 0, vy: 0, thrust: true, tcd: 0, dash: 0, dashDir: 0 };
+  P.y = groundH(P.x, P.z);
   setGun('ar');
   // Face the middle of the map
   yaw = Math.atan2(best[0], best[1]);

@@ -34,15 +34,20 @@ function update(dt) {
     P.z = clamp(P.z - sy * v, -A + 1, A - 1);
   }
   pushOut(P, .5);
-  // Jump: P.y is height above the floor
+  // Jump and gravity: P.y is the height of your feet; on hilly ground they follow the terrain
   P.vy -= 20 * dt;
   P.y += P.vy * dt;
-  if (P.y <= 0) {
+  const gy = groundH(P.x, P.z);
+  // Stay on the ground when walking downhill instead of skipping off it
+  if (P.y <= gy || (P.gnd && P.vy <= 0 && P.y - gy < .6)) {
     if (P.vy < -6)
       sfx.land();
-    P.y = 0;
+    P.y = gy;
     P.vy = 0;
+    P.gnd = 1;
   }
+  else
+    P.gnd = 0;
   cam.position.set(P.x, 1.6 + P.y, P.z);
   cam.rotation.set(pitch, yaw, 0);
   P.cd -= dt;
@@ -234,7 +239,7 @@ function update(dt) {
         hitP(q, b.dmg);
       }
     });
-    if (outArena(p) || p.y < 0 || inPillar(p, 0))
+    if (outArena(p) || p.y < groundH(p.x, p.z) || inPillar(p, 0))
       b.life = 0;
     if (b.life <= 0)
       scene.remove(b.m);
@@ -244,8 +249,9 @@ function update(dt) {
     n.v.y -= 18 * dt;
     const p = n.m.position;
     p.addScaledVector(n.v, dt);
-    if (p.y < .15) {
-      p.y = .15;
+    const gy = groundH(p.x, p.z) + .15;
+    if (p.y < gy) {
+      p.y = gy;
       n.v.y *= -.4;
       n.v.x *= .7;
       n.v.z *= .7;
@@ -285,7 +291,7 @@ function update(dt) {
     n.fuse -= dt;
     // Sticky Grenades boon: latch onto the first enemy touched and ride along
     if (P.sticky && !n.st) {
-      const e = enemies.find(e => !e.dead && Math.hypot(e.x - p.x, 1.1 * e.sc - p.y, e.z - p.z) < .9 * e.sc);
+      const e = enemies.find(e => !e.dead && Math.hypot(e.x - p.x, 1.1 * e.sc + (e.y || 0) - p.y, e.z - p.z) < .9 * e.sc);
       if (e) {
         n.st = e;
         n.ox = p.x - e.x;
@@ -301,7 +307,7 @@ function update(dt) {
       const rad = 6 * Math.sqrt(nadeM());
       const dm = 70 * nadeM();
       enemies.forEach(e => {
-        const d = Math.hypot(e.x - p.x, e.z - p.z, e.sc - p.y);
+        const d = Math.hypot(e.x - p.x, e.z - p.z, e.sc + (e.y || 0) - p.y);
         if (d < rad)
           dmgE(e, dm * (1 - d / rad * .5), false, 'k');
       });

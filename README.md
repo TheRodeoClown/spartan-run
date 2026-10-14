@@ -24,7 +24,7 @@ Click **MULTIPLAYER** on the title screen. Set a name and colour, then either:
 
 **Co-op** (2-4 players): the host's game runs the missions and enemies. Everyone picks their own boons; the next room starts when the whole squad has picked. Downed players come back in the next room. If everyone goes down, the run ends.
 
-**Versus** (2-4 players): free-for-all slayer on **Blood Gulch**, a large canyon with two bases, a creek and weapon pickups. Everyone starts with the AR and Magnum. First to 15 kills wins. Hold **Tab** for scores.
+**Versus** (2-4 players): free-for-all slayer on **Blood Gulch**, modelled on the classic Halo map: a long box canyon between two bases, with rolling hills, sniper ridges along the cliffs, a winding creek, rock outcrops and trees to hide behind, and weapon pickups. Hills block line of sight and shots. Everyone starts with the AR and Magnum. First to 15 kills wins. Hold **Tab** for scores.
 
 How it connects: peer to peer over WebRTC with [PeerJS](https://peerjs.com/). Every guest connects straight to the host's browser. The free public PeerJS server is only used to find each other by code, so there is no game server to run. Some strict corporate or school networks block direct connections; home networks usually work. If the host closes the game, the match ends.
 

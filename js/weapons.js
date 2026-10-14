@@ -325,7 +325,7 @@ function updNeedles(dt) {
       if (e.dead)
         return;
       const dx = e.x - p.x;
-      const dy = 1.1 * e.sc - p.y;
+      const dy = 1.1 * e.sc + (e.y || 0) - p.y;
       const dz = e.z - p.z;
       const d = Math.hypot(dx, dy, dz);
       if (d < 14 && (dx * n.v.x + dy * n.v.y + dz * n.v.z) / (d * sp) > .85 && d < bd) {
@@ -334,14 +334,14 @@ function updNeedles(dt) {
       }
     });
     if (be)
-      n.v.lerp(new THREE.Vector3(be.x - p.x, 1.1 * be.sc - p.y, be.z - p.z).normalize().multiplyScalar(sp), Math.min(1, dt * 4));
+      n.v.lerp(new THREE.Vector3(be.x - p.x, 1.1 * be.sc + (be.y || 0) - p.y, be.z - p.z).normalize().multiplyScalar(sp), Math.min(1, dt * 4));
     p.addScaledVector(n.v, dt);
     n.m.lookAt(p.clone().add(n.v));
     n.life -= dt;
     for (const e of enemies) {
       if (e.dead)
         continue;
-      if (Math.hypot(e.x - p.x, 1.1 * e.sc - p.y, e.z - p.z) < .8 * e.sc) {
+      if (Math.hypot(e.x - p.x, 1.1 * e.sc + (e.y || 0) - p.y, e.z - p.z) < .8 * e.sc) {
         dmgE(e, n.dmg, false, 'e');
         hitT = .08;
         hitCol = '#ff8ae0';
@@ -358,7 +358,7 @@ function updNeedles(dt) {
         break;
       }
     }
-    if (!n.hooked && (n.life <= 0 || p.y < .05 || outArena(p) || inPillar(p, 0))) {
+    if (!n.hooked && (n.life <= 0 || p.y < groundH(p.x, p.z) + .05 || outArena(p) || inPillar(p, 0))) {
       n.life = -1;
       scene.remove(n.m);
     }
@@ -473,7 +473,7 @@ function updDrops(dt) {
 // ty: damage type dealt to enemies (see DMGT); foe: set off by an enemy, so on the co-op host it also hits the other players
 function explode(x, y, z, rad, dm, selfD, ty, foe) {
   enemies.forEach(e => {
-    const d = Math.hypot(e.x - x, e.z - z, e.sc - y);
+    const d = Math.hypot(e.x - x, e.z - z, e.sc + (e.y || 0) - y);
     if (d < rad)
       dmgE(e, dm * (1 - d / rad * .5), false, ty);
   });
@@ -494,7 +494,7 @@ function updRockets(dt) {
     const p = r.m.position;
     p.addScaledVector(r.v, dt);
     r.life -= dt;
-    if (r.life <= 0 || p.y < .1 || outArena(p) || inPillar(p, 0) || enemies.some(e => !e.dead && Math.hypot(e.x - p.x, e.sc * 1.1 - p.y, e.z - p.z) < .9 * e.sc)) {
+    if (r.life <= 0 || p.y < groundH(p.x, p.z) + .1 || outArena(p) || inPillar(p, 0) || enemies.some(e => !e.dead && Math.hypot(e.x - p.x, e.sc * 1.1 + (e.y || 0) - p.y, e.z - p.z) < .9 * e.sc)) {
       r.life = -1;
       explode(p.x, p.y, p.z, 6 * Math.sqrt(nadeM()), W.rk.dmg * dmgMul(), 20, 'k');
       scene.remove(r.m);
@@ -533,7 +533,8 @@ function fire() {
         if (e.dead)
           return;
         const dx = e.x - o.x;
-        const dy = 1.1 * e.sc - o.y;
+        // e.y: standing height (players on the versus map's hills)
+        const dy = 1.1 * e.sc + (e.y || 0) - o.y;
         const dz = e.z - o.z;
         const t = dx * d.x + dy * d.y + dz * d.z;
         if (t > 0 && dx * dx + dy * dy + dz * dz - t * t < (.8 * e.sc) ** 2)
@@ -546,7 +547,7 @@ function fire() {
         end = hits[0].t;
       hits.slice(0, w.pierce ? 2 : 1).forEach(h => {
         if (h.t < wt) {
-          const head = o.y + d.y * h.t > 1.5 * h.e.sc;
+          const head = o.y + d.y * h.t > 1.5 * h.e.sc + (h.e.y || 0);
           const cp = critHit(h.e, o, d);
           dmgE(h.e, w.dmg * (cp ? CRIT_MUL : head ? w.hs * (P.hsMul || 1) : 1), !!cp, w.ty || 'k');
           hitT = .12;
@@ -597,7 +598,7 @@ function throwNade() {
 const DASH = 5.5;
 
 function jump() {
-  if (state !== 'play' || P.y > 0)
+  if (state !== 'play' || P.y > groundH(P.x, P.z) + .05)
     return;
   P.vy = 7;
   sfx.jump();

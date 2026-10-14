@@ -51,6 +51,10 @@ let CUT = Math.round(9 * K * 10) / 10;
 let OCT = IN + CUT;
 const outArena = p => Math.abs(p.x) > A || Math.abs(p.z) > A || Math.abs(p.x) + Math.abs(p.z) > OCT;
 
+// Ground height: flat (0) in missions; the versus map installs a terrain function (see bgBuild)
+let groundFn = null;
+const groundH = (x, z) => groundFn ? groundFn(x, z) : 0;
+
 // Resize the arena (each level sets it when it's built).
 function setArena(a, cut) {
   if (a === A && cut === CUT)

@@ -483,7 +483,7 @@ function fwd() {
 function wallT(o, d) {
   const tx = d.x > 0 ? (A - o.x) / d.x : d.x < 0 ? (-A - o.x) / d.x : 1e9;
   const tz = d.z > 0 ? (A - o.z) / d.z : d.z < 0 ? (-A - o.z) / d.z : 1e9;
-  let t = Math.min(tx, tz, d.y < 0 ? -o.y / d.y : 1e9);
+  let t = Math.min(tx, tz, !groundFn && d.y < 0 ? -o.y / d.y : 1e9);
   pillars.forEach(b => {
     t = Math.min(t, rayBox(o.x, o.z, d.x, d.z, b));
   });
@@ -497,5 +497,12 @@ function wallT(o, d) {
           t = Math.min(t, tt);
       }
     }
+  // Hilly ground (versus map): step along the ray until it dips into a hill
+  if (groundFn)
+    for (let s = .5; s < Math.min(t, 160); s += .6)
+      if (o.y + d.y * s < groundFn(o.x + d.x * s, o.z + d.z * s)) {
+        t = s;
+        break;
+      }
   return t;
 }

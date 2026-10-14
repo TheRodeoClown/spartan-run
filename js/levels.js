@@ -416,6 +416,8 @@ let envTick = null;
 function buildLevel(lv, empty) {
   // Missions use the standard 30m octagon; the versus map sets its own size
   setArena(lv.A || 30, lv.cut || Math.round(9 * K * 10) / 10);
+  groundFn = null;
+  floor.visible = true;
   while (envG.children.length)
     envG.remove(envG.children[0]);
   pillars.length = 0;
