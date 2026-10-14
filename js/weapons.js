@@ -493,7 +493,7 @@ function updNeedles(dt) {
         break;
       }
     }
-    if (!n.hooked && (n.life <= 0 || p.y < groundH(p.x, p.z) + .05 || outArena(p) || inPillar(p, 0))) {
+    if (!n.hooked && (n.life <= 0 || p.y < floorH(p.x, p.z, p.y - .7) + .05 || outArena(p) || inPillar(p, 0))) {
       n.life = -1;
       scene.remove(n.m);
     }
@@ -652,7 +652,7 @@ function updRockets(dt) {
     }
     p.addScaledVector(r.v, dt);
     r.life -= dt;
-    if (r.life <= 0 || p.y < groundH(p.x, p.z) + .1 || outArena(p) || inPillar(p, 0) || enemies.some(e => !e.dead && Math.hypot(e.x - p.x, e.sc * 1.1 + (e.y || 0) - p.y, e.z - p.z) < .9 * e.sc)) {
+    if (r.life <= 0 || p.y < floorH(p.x, p.z, p.y - .7) + .1 || outArena(p) || inPillar(p, 0) || enemies.some(e => !e.dead && Math.hypot(e.x - p.x, e.sc * 1.1 + (e.y || 0) - p.y, e.z - p.z) < .9 * e.sc)) {
       r.life = -1;
       explode(p.x, p.y, p.z, 6 * Math.sqrt(nadeM()) * (r.home ? 1.3 : 1), W.rk.dmg * dmgMul(), 20, 'k');
       scene.remove(r.m);
@@ -765,7 +765,7 @@ function throwNade() {
 const DASH = 5.5;
 
 function jump() {
-  if (state !== 'play' || P.y > groundH(P.x, P.z) + .05)
+  if (state !== 'play' || P.y > floorH(P.x, P.z, P.y) + .05)
     return;
   P.vy = 7;
   sfx.jump();

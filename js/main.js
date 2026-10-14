@@ -25,6 +25,8 @@ function update(dt) {
   // Sprint (versus): hold Shift while moving forward; firing or zooming stops it, and you can't shoot while sprinting
   P.spr = NET.mode === 'vs' && !frz && f > 0 && (keys.ShiftLeft || keys.ShiftRight) && !down && !zoomOn;
   const spd = P.speed * (P.adrT > 0 ? 1.35 : 1) * (P.spr ? 1.6 : 1);
+  const ox = P.x;
+  const oz = P.z;
   P.x = clamp(P.x + (-sy * f + cy * s) / m * spd * dt, -A + 1, A - 1);
   P.z = clamp(P.z + (-cy * f - sy * s) / m * spd * dt, -A + 1, A - 1);
   // Thruster boost: a burst over 0.18s
@@ -56,6 +58,24 @@ function update(dt) {
       P.kbx = P.kbz = 0;
   }
   pushOut(P, .5);
+  // On hilly ground you can't walk up anything steeper than about 50 degrees (cliffs, the sides of a mesa): slide along
+  // it instead. Stairs and decks don't count.
+  if (groundFn && P.gnd) {
+    const steep = (x, z) => {
+      const g = groundH(x, z);
+      return g - P.y > Math.max(.04, Math.hypot(x - ox, z - oz) * 1.2) && floorH(x, z, P.y) <= g + .01;
+    };
+    if (steep(P.x, P.z)) {
+      if (!steep(P.x, oz))
+        P.z = oz;
+      else if (!steep(ox, P.z))
+        P.x = ox;
+      else {
+        P.x = ox;
+        P.z = oz;
+      }
+    }
+  }
   // Exit gate: once it's open, walk into it to move on (in co-op the host takes everyone through)
   if (gate && gate.open && state === 'play') {
     gate.field.material.opacity = .3 + .2 * Math.sin(T * 5);
@@ -72,7 +92,7 @@ function update(dt) {
   // Jump and gravity: P.y is the height of your feet; on hilly ground they follow the terrain
   P.vy -= 20 * dt;
   P.y += P.vy * dt;
-  const gy = groundH(P.x, P.z);
+  const gy = floorH(P.x, P.z, P.y);
   // Stay on the ground when walking downhill instead of skipping off it
   if (P.y <= gy || (P.gnd && P.vy <= 0 && P.y - gy < .6)) {
     if (P.vy < -6)
@@ -221,7 +241,9 @@ function update(dt) {
       }
       e.g.rotation.x += ((e.lean || 0) - e.g.rotation.x) * Math.min(1, dt * 14);
     }
-    e.y = groundH(e.x, e.z) + (e.fly ? 3.4 + Math.sin(T * 1.7 + e.ph) * .8 : 0);
+    // e.fl: the floor it walks on (the ground, or a deck it climbed onto)
+    e.fl = floorH(e.x, e.z, e.fl == null ? -99 : e.fl);
+    e.y = e.fl + (e.fly ? 3.4 + Math.sin(T * 1.7 + e.ph) * .8 : 0);
     if (e.fly)
       flapWings(e);
     // Flood carriers pulse
@@ -338,7 +360,7 @@ function update(dt) {
         hitP(q, b.dmg);
       }
     });
-    if (outArena(p) || p.y < groundH(p.x, p.z) || inPillar(p, 0))
+    if (outArena(p) || p.y < floorH(p.x, p.z, p.y - .7) || inPillar(p, 0))
       b.life = 0;
     if (b.life <= 0)
       scene.remove(b.m);
@@ -348,7 +370,7 @@ function update(dt) {
     n.v.y -= 18 * dt;
     const p = n.m.position;
     p.addScaledVector(n.v, dt);
-    const gy = groundH(p.x, p.z) + .15;
+    const gy = floorH(p.x, p.z, p.y - .5) + .15;
     if (p.y < gy) {
       p.y = gy;
       n.v.y *= -.4;

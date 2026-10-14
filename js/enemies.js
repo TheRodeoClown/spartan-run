@@ -684,7 +684,8 @@ function wallT(o, d) {
   const tz = d.z > 0 ? (A - o.z) / d.z : d.z < 0 ? (-A - o.z) / d.z : 1e9;
   let t = Math.min(tx, tz, !groundFn && d.y < 0 ? -o.y / d.y : 1e9);
   pillars.forEach(b => {
-    t = Math.min(t, rayBox(o.x, o.z, d.x, d.z, b));
+    if (!b.nb)
+      t = Math.min(t, rayBox(o.x, o.z, d.x, d.z, b, o.y, d.y));
   });
   // Angled corner walls (the plane sx*x + sz*z = OCT for each corner)
   for (const sx of [-1, 1])

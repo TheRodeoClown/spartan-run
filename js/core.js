@@ -49,13 +49,37 @@ scene.add(envG);
 let IN = A - .5;
 let CUT = Math.round(9 * K * 10) / 10;
 let OCT = IN + CUT;
-const outArena = p => Math.abs(p.x) > A || Math.abs(p.z) > A || Math.abs(p.x) + Math.abs(p.z) > OCT;
+// Natural map edge (Arc Facility): edgeFn(angle) = how far from the centre you can go in that direction; null = the octagon
+let edgeFn = null;
+const outArena = p => edgeFn ? Math.hypot(p.x, p.z) > edgeFn(Math.atan2(p.z, p.x)) : Math.abs(p.x) > A || Math.abs(p.z) > A || Math.abs(p.x) + Math.abs(p.z) > OCT;
 
 // Ground height: flat (0) in missions; the versus map installs a terrain function (see bgBuild)
 let groundFn = null;
 // true while the title scene (title.js) is showing instead of a level
 let titleScene = false;
 const groundH = (x, z) => groundFn ? groundFn(x, z) : 0;
+
+// Walkable surfaces above the ground (rooftops, stairs, catwalks, platforms, container tops): boxes {x, z, hw, hd}
+// whose top runs from h0 at the low edge to h1 at the high edge along ax ('x' or 'z'); flat when h0 = h1.
+const decks = [];
+// How high you can step up without jumping
+const STEP = .7;
+function deckTop(d, x, z) {
+  const u = d.ax === 'z' ? (z - d.z) / d.hd : (x - d.x) / d.hw;
+  return d.h0 + (d.h1 - d.h0) * (u + 1) / 2;
+}
+// The floor under a body at (x, z) with its feet at y: the ground, or the highest deck it can stand or step onto
+// (so you walk under a catwalk, but onto a stair)
+function floorH(x, z, y) {
+  let g = groundH(x, z);
+  for (const d of decks)
+    if (Math.abs(x - d.x) <= d.hw && Math.abs(z - d.z) <= d.hd) {
+      const t = deckTop(d, x, z);
+      if (t > g && t <= y + STEP)
+        g = t;
+    }
+  return g;
+}
 
 // Resize the arena (each level sets it when it's built).
 function setArena(a, cut) {
@@ -69,12 +93,18 @@ function setArena(a, cut) {
   floor.geometry = new THREE.PlaneGeometry(a * 2, a * 2);
 }
 
-// Colliders are boxes: half-sizes hw/hd (default 1.5, the 3x3 cover blocks) and height h (default 3.5).
-const inPillar = (p, m) => pillars.some(q => Math.abs(p.x - q.x) < (q.hw || 1.5) + m && Math.abs(p.z - q.z) < (q.hd || 1.5) + m && p.y < (q.h || 3.5));
+// Colliders are boxes: half-sizes hw/hd (default 1.5, the 3x3 cover blocks) and height h (default 3.5). Boxes marked v
+// are solid only between y0 (default: the ground) and h: you can stand on top, walk under a raised one, and shoot
+// over them. nb (rails): they stop bodies but not shots.
+const inPillar = (p, m) => pillars.some(q => !q.nb && Math.abs(p.x - q.x) < (q.hw || 1.5) + m && Math.abs(p.z - q.z) < (q.hd || 1.5) + m && p.y < (q.h || 3.5) && !(q.y0 != null && p.y < q.y0));
+// Is a body with its feet at y clear of a v box (on top of it, or under it)?
+const overBox = (b, y) => b.v && (y > b.h - STEP || (b.y0 != null && y + 1.8 < b.y0));
 
 // Keep a body of radius r out of cover pillars and the angled corner walls.
 function pushOut(o, r) {
   pillars.forEach(b => {
+    if (overBox(b, o.y || 0))
+      return;
     const hw = b.hw || 1.5;
     const hd = b.hd || 1.5;
     const cx = clamp(o.x, b.x - hw, b.x + hw);
@@ -98,6 +128,15 @@ function pushOut(o, r) {
       }
     }
   });
+  if (edgeFn) {
+    const d = Math.hypot(o.x, o.z);
+    const lim = edgeFn(Math.atan2(o.z, o.x)) - r;
+    if (d > lim) {
+      o.x *= lim / d;
+      o.z *= lim / d;
+    }
+    return;
+  }
   const s = Math.abs(o.x) + Math.abs(o.z);
   const lim = OCT - r * 1.42;
   if (s > lim) {
@@ -107,10 +146,16 @@ function pushOut(o, r) {
   }
 }
 
-function rayBox(ox, oz, dx, dz, b) {
+function rayBox(ox, oz, dx, dz, b, oy, dy) {
   let t0 = 0;
   let t1 = 1e9;
-  for (const [o, d, c, hh] of [[ox, dx, b.x, b.hw || 1.5], [oz, dz, b.z, b.hd || 1.5]]) {
+  const sl = [[ox, dx, b.x, b.hw || 1.5], [oz, dz, b.z, b.hd || 1.5]];
+  // v boxes have a top (and maybe a bottom): shots pass over and under them
+  if (b.v && oy != null) {
+    const y0 = b.y0 != null ? b.y0 : -50;
+    sl.push([oy, dy, (y0 + b.h) / 2, (b.h - y0) / 2]);
+  }
+  for (const [o, d, c, hh] of sl) {
     if (Math.abs(d) < 1e-6) {
       if (Math.abs(o - c) > hh)
         return 1e9;

@@ -29,20 +29,23 @@ const FF_REQ = [
   { k: 'rk', n: 'M41 Rocket Launcher', c: 300, lv: 3 }, { id: 'os', n: 'Overshield (+60 shield)', c: 150, lv: 3 },
   { k: 'sn', vr: 1, n: 'S2 Railgun (pierces everything)', c: 400, lv: 4 }, { k: 'sw', vr: 1, n: 'Prophet\'s Bane (legendary sword)', c: 420, lv: 4 }, { k: 'rk', vr: 1, n: 'M41 Hunter-Killer (homing rockets)', c: 450, lv: 4 }
 ];
-// The map: Arc Facility (arcmap.js), defending building 01 at the south end
-const FF_SPAWNS = [[-3, -58.5], [3, -58.5], [-3.5, -62.5], [3.5, -62.5]]; // where players (re)deploy: inside building 01, around the REQ station
-const FF_STATION = [0, -61]; // REQ station, inside the base
-const FF_GENS = [[-10, -38], [10, -38]];
-// Enemy drop zones [centre x, centre z, half-width, half-depth], far end first; later rounds also use the flanks
-const FF_ZONES = [[0, 54, 20, 7], [-40, 34, 9, 10], [42, 36, 8, 8], [-4, 18, 18, 6]];
+// The map: Arc Facility (arcmap.js), defending building 01 in the south half, with a generator on each flank
+const FF_SPAWNS = [[-4, -44], [4, -44], [-4, -48.5], [4, -48.5]]; // where players (re)deploy: inside building 01, around the REQ station
+const FF_STATION = [0, -47]; // REQ station, inside the base
+const FF_GENS = [[-27, -38], [27, -38]];
+// Enemy drop zones all round the map (behind the base too): [centre x, centre z, name]. Each squad picks one away
+// from the players.
+const FF_ZONES = [[0, 80, 'NORTH'], [60, 36, 'NORTH-EAST'], [74, 8, 'EAST'], [56, -34, 'SOUTH-EAST'], [6, -84, 'SOUTH'], [-60, -40, 'SOUTH-WEST'], [-52, 18, 'WEST (THE MESA)'], [-40, 72, 'NORTH-WEST']];
 
-const FF = { on: false, round: 0, ph: 'break', t: 0, rl: 1, left: 0, spawnT: 0, gens: [], station: null, kills: 0 };
+const FF = { on: false, round: 0, ph: 'break', t: 0, rl: 1, left: 0, spawnT: 0, gens: [], station: null, kills: 0, sq: 0, zn: '', lastZ: -1, annT: -99 };
 
 /* ---------- Setup (everyone) ---------- */
 
 function ffSetup() {
   FF.on = true;
   FF.kills = 0;
+  FF.sq = 0;
+  FF.annT = -99;
   NET.ffMode = 1;
   clearHz();
   [enemies, shots, nades, drops, rockets, needles].forEach(a => a.forEach(o => scene.remove(o.g || o.m)));
@@ -148,13 +151,44 @@ function ffPick() {
   return 'grunt';
 }
 
-// A squad drops in somewhere in the far half of the gulch (a flash where each one lands)
+// A drop zone at least 35m from every player (and not the last one used, if there's a choice)
+function ffZone() {
+  const ps = (NET.host ? netRemotes() : []).concat([P]);
+  const far = FF_ZONES.map((z, i) => i).filter(i => ps.every(p => Math.hypot(p.x - FF_ZONES[i][0], p.z - FF_ZONES[i][1]) > 35));
+  const pool = far.length > 1 ? far.filter(i => i !== FF.lastZ) : far.length ? far : FF_ZONES.map((z, i) => i);
+  const i = pool[Math.random() * pool.length | 0];
+  FF.lastZ = i;
+  return FF_ZONES[i];
+}
+
+// A clear spot near (cx, cz): inside the map, not in anything solid
+function ffSpot(cx, cz, r) {
+  for (let k = 0; k < 30; k++) {
+    const x = cx + R(-r, r);
+    const z = cz + R(-r, r);
+    const p = { x, y: groundH(x, z) + .1, z };
+    if (!outArena(p) && !inPillar(p, 1.2) && Math.hypot(x, z) < arcLimit(Math.atan2(z, x)) - 2)
+      return [x, z];
+  }
+  return [cx, cz];
+}
+
+// Tell everyone where the enemy is coming from (not more than every 8s)
+function ffAnnounce(name) {
+  FF.sq++;
+  FF.zn = name;
+  if (T - FF.annT > 8) {
+    FF.annT = T;
+    banner('ENEMIES INBOUND: ' + name);
+  }
+}
+
+// A squad drops in at one of the zones round the map (a flash where each one lands)
 function ffSquad(n) {
-  const zs = FF.round >= 3 ? FF_ZONES : FF_ZONES.slice(0, 3);
-  const [cx, cz, rx, rz] = zs[Math.random() * zs.length | 0];
+  const [cx, cz, name] = ffZone();
+  ffAnnounce(name);
   for (let i = 0; i < n; i++) {
-    const x = cx + R(-rx, rx);
-    const z = cz + R(-rz, rz);
+    const [x, z] = ffSpot(cx, cz, 7);
     spawn(ffPick(), x, z);
     const e = enemies[enemies.length - 1];
     // In defend rounds about half of them go for a generator
@@ -169,7 +203,8 @@ function ffSquad(n) {
 }
 
 function ffBoss(t, frac) {
-  const [cx, cz] = [R(-15, 15), R(30, 50)];
+  const zn = ffZone();
+  const [cx, cz] = ffSpot(zn[0], zn[1], 5);
   spawn(t, cx, cz);
   const e = enemies[enemies.length - 1];
   e.hp *= frac;
@@ -185,8 +220,9 @@ function ffBeginRound() {
   const R0 = FF_ROUNDS[FF.round - 1];
   FF.ph = 'play';
   FF.t = R0.time;
-  FF.spawnT = 2;
+  FF.spawnT = 3.5;
   FF.left = R0.squads || 0;
+  FF.annT = T;
   lroom = FF.round * 2; // enemies get a little tougher each round (see spawn)
   if (R0.kind === 'defend')
     FF.gens.forEach(g => g.hp = g.max);
@@ -221,9 +257,20 @@ function ffRoundWon() {
   FF.rl = Math.min(4, FF.round + 1);
   earn(25 * FF.round);
   P.req += 50;
+  ffHeal();
   music.set(0);
   sfx.clear();
   banner('ROUND ' + FF.round + ' COMPLETE: REQ LEVEL ' + FF.rl);
+}
+
+// Between rounds: everyone back to full health and shields (anyone down redeploys)
+function ffHeal() {
+  if (NET.down)
+    ffRespawn();
+  else {
+    P.hp = P.maxHp;
+    P.sh = Math.max(P.sh, P.maxSh);
+  }
 }
 
 function ffLose(why) {
@@ -306,8 +353,11 @@ function ffTick(dt) {
   }
 }
 
+// Redeploy at the base with full health, shields and ammo (and at least two grenades)
 function ffRespawn() {
   netRevive();
+  refillAmmo();
+  P.nades = Math.max(P.nades, Math.min(2, P.nadeMax));
   const s = FF_SPAWNS[Math.random() * FF_SPAWNS.length | 0];
   P.x = s[0];
   P.z = s[1];
@@ -394,7 +444,7 @@ function ffEnd(win, why) {
 
 // Host: the firefight part of the world update
 function ffState() {
-  return { r: FF.round, ph: FF.ph, t: Math.max(0, Math.round(FF.t)), rl: FF.rl, gens: FF.gens.map(g => Math.round(g.hp)), why: FF.why || '' };
+  return { r: FF.round, ph: FF.ph, t: Math.max(0, Math.round(FF.t)), rl: FF.rl, gens: FF.gens.map(g => Math.round(g.hp)), why: FF.why || '', sq: FF.sq, zn: FF.zn };
 }
 
 // Guest: mirror the host's firefight state
@@ -413,7 +463,16 @@ function ffClient(f) {
       music.set(0);
       sfx.clear();
       P.req = (P.req || 0) + 50;
+      ffHeal();
       banner('ROUND ' + FF.round + ' COMPLETE: REQ LEVEL ' + (+f.rl || 1));
+    }
+  }
+  // where the latest squad dropped in
+  if (+f.sq > FF.sq && f.ph === 'play') {
+    FF.sq = +f.sq;
+    if (T - FF.annT > 8 && f.zn) {
+      FF.annT = T;
+      banner('ENEMIES INBOUND: ' + String(f.zn).slice(0, 24));
     }
   }
   FF.round = r;

@@ -12,6 +12,8 @@ function buildTitle() {
   while (envG.children.length)
     envG.remove(envG.children[0]);
   pillars.length = 0;
+  decks.length = 0;
+  edgeFn = null;
   groundFn = null;
   gate = null;
   floor.visible = false;
