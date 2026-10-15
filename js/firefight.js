@@ -13,9 +13,9 @@
 
 const FF_ROUNDS = [
   { n: 'CLEAR THE AREA', kind: 'clear', time: 180, squads: 6 },
-  { n: 'DEFEND THE GENERATORS', kind: 'defend', time: 150 },
+  { n: 'DEFEND THE GENERATORS', kind: 'defend', time: 150, gens: [0, 1] },
   { n: 'ELIMINATE THE COMMANDERS', kind: 'bosses', time: 200 },
-  { n: 'DEFEND THE CORE', kind: 'defend', time: 150 },
+  { n: 'DEFEND THE CORE', kind: 'defend', time: 150, gens: [2] },
   { n: 'LEGENDARY BOSS', kind: 'boss', time: 240 }
 ];
 const FF_BREAK = 20;
@@ -33,10 +33,13 @@ const FF_REQ = [
 const FF_SPAWNS = [[-4, -44], [4, -44], [-4, -48.5], [4, -48.5]]; // where players (re)deploy: inside building 01, around the REQ station
 // REQ stations: inside the base, in the hangar, inside building 02, by the container yard and at the comms array
 const FF_STATIONS = [[0, -47], [-51, -15], [58, -6], [4, 47], [34, -49]];
-const FF_GENS = [[-27, -38], [27, -38]];
-// Enemy drop zones all round the map (behind the base too): [centre x, centre z, name]. Each squad picks one away
-// from the players. Names follow the compass (compass.js): north is +z, east is -x.
-const FF_ZONES = [[0, 80, 'NORTH'], [60, 36, 'NORTH-WEST'], [74, 8, 'WEST'], [56, -34, 'SOUTH-WEST'], [6, -84, 'SOUTH'], [-60, -40, 'SOUTH-EAST'], [-52, 18, 'EAST (THE MESA)'], [-40, 72, 'NORTH-EAST']];
+// Objectives, spread out so the fights cover the whole map: [x, z, name, health]. Round 2 defends the two generators
+// out in the south (A by the landing pad, B by the refinery); round 4 the core, up in the north by the flooded rig.
+const FF_GENS = [[32, -112, 'A', 1000], [-28, -110, 'B', 1000], [14, 32, 'C', 1600]];
+// Enemy drop zones all round the base: [centre x, centre z, name]. Each squad picks one away from the players. Names
+// follow the compass (compass.js), seen from the base: north is +z, east is -x.
+const FF_ZONES = [[0, 78, 'NORTH'], [-40, 70, 'NORTH-EAST'], [60, 30, 'NORTH-WEST'], [-52, 18, 'THE MESA'], [-64, -40, 'EAST'], [70, -36, 'WEST'],
+  [-56, -128, 'SOUTH-EAST'], [58, -96, 'SOUTH-WEST'], [12, -158, 'SOUTH'], [-32, -142, 'THE SOUTH MESA']];
 
 const FF = { on: false, round: 0, ph: 'break', t: 0, rl: 1, left: 0, spawnT: 0, gens: [], stations: [], kills: 0, sq: 0, zn: '', zi: -1, znAt: 0, lastZ: -1, annT: -99 };
 
@@ -85,7 +88,7 @@ function ffSetup() {
     return { g: st, ring };
   });
   // Generators: a dark base with a glowing core that dims and reddens as it takes damage
-  FF.gens = FF_GENS.map(([x, z], i) => {
+  FF.gens = FF_GENS.map(([x, z, name, max]) => {
     const g = new THREE.Group();
     const y = groundH(x, z);
     const base = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, .6, 8), metal);
@@ -102,7 +105,7 @@ function ffSetup() {
     g.position.set(x, y, z);
     envG.add(g);
     pillars.push({ x, z, hw: .9, hd: .9, h: y + 2.8 });
-    return { gen: true, name: i ? 'B' : 'A', x, y, z, hp: 1000, max: 1000, g, core, beam, flash: 0, pv: 1000, hitAt: -99 };
+    return { gen: true, name, x, y, z, hp: max, max, g, core, beam, flash: 0, pv: max, hitAt: -99 };
   });
   P.x = FF_SPAWNS[0][0];
   P.z = FF_SPAWNS[0][1];
@@ -138,7 +141,12 @@ function ffTargets() {
 }
 
 const ffAlive = () => enemies.filter(e => !e.dead && !e.net).length;
-const ffGensUp = () => FF.gens.filter(g => g.hp > 0);
+// The objectives of round r (none outside defend rounds), and those still standing this round
+const ffActive = r => {
+  const R0 = FF_ROUNDS[r - 1];
+  return R0 && R0.gens ? R0.gens.map(i => FF.gens[i]).filter(Boolean) : [];
+};
+const ffGensUp = () => ffActive(FF.round).filter(g => g.hp > 0);
 const ffCap = () => 10 + 3 * NET.others();
 
 function ffPick() {
@@ -237,7 +245,7 @@ function ffBeginRound() {
   FF.annT = T;
   lroom = FF.round * 2; // enemies get a little tougher each round (see spawn)
   if (R0.kind === 'defend')
-    FF.gens.forEach(g => g.hp = g.max);
+    ffActive(FF.round).forEach(g => g.hp = g.pv = g.max);
   if (R0.kind === 'bosses') {
     const pool = ['zealot', 'skirmisher', 'deacon', 'shipmaster'].sort(() => Math.random() - .5);
     [pool[0], pool[1]].forEach(t => ffBoss(t, .6));
@@ -318,7 +326,7 @@ function ffUpdate(dt) {
       FF.spawnT = R0.n.includes('CORE') ? 5 : 7;
     }
     if (!ffGensUp().length)
-      return ffLose('THE GENERATORS WERE DESTROYED');
+      return ffLose(R0.gens.length > 1 ? 'THE GENERATORS WERE DESTROYED' : 'THE CORE WAS DESTROYED');
     if (FF.t <= 0)
       return ffRoundWon();
   }
@@ -360,7 +368,7 @@ function ffTick(dt) {
       g.hitAt = T;
     g.pv = g.hp;
     const hot = T - g.hitAt < 1.5;
-    g.beam.visible = !!obj && g.hp > 0;
+    g.beam.visible = !!obj && g.hp > 0 && ffActive(obj === 'next' ? FF.round + 1 : FF.round).includes(g);
     g.beam.material.color.setHex(hot && Math.floor(T * 6) % 2 ? 0xff4a3a : 0x5ff0ff);
     g.beam.material.opacity = obj === 'next' ? .08 : .16;
     g.core.material.color.setHex(g.hp <= 0 ? 0x202428 : g.flash > 0 ? 0xffffff : k > .5 ? 0x5ff0ff : k > .25 ? 0xffc040 : 0xff4a3a);
@@ -403,7 +411,7 @@ function ffText() {
   const t = Math.max(0, Math.ceil(FF.t));
   const clock = (t / 60 | 0) + ':' + String(t % 60).padStart(2, '0');
   const head = FF.ph === 'break' ? (FF.round ? 'BREAK' : 'GET READY') + ' ' + clock : 'ROUND ' + FF.round + '/5: ' + R0.n + ' | ' + clock;
-  const gens = FF.round && R0.kind === 'defend' && FF.ph === 'play' ? ' | GEN ' + FF.gens.map(g => g.name + ' ' + Math.round(100 * g.hp / g.max) + '%').join(' ') : '';
+  const gens = FF.round && R0.kind === 'defend' && FF.ph === 'play' ? ' | ' + ffActive(FF.round).map(g => (g.name === 'C' ? 'CORE' : 'GEN ' + g.name) + ' ' + Math.round(100 * g.hp / g.max) + '%').join(' ') : '';
   return 'FIREFIGHT | ' + head + gens + ' | REQ ' + (P.req || 0) + ' (LV ' + FF.rl + ')';
 }
 

@@ -64,15 +64,21 @@ const groundH = (x, z) => groundFn ? groundFn(x, z) : 0;
 // stand on the smooth formula while seeing its flat-faceted mesh: sunk into the ground in hollows and at the foot of
 // slopes. Build the mesh's heights from the returned function too.
 function meshGround(fn, half, n) {
-  const s = half * 2 / n;
-  const n1 = n + 1;
-  const hs = new Float32Array(n1 * n1);
-  for (let j = 0; j <= n; j++)
-    for (let i = 0; i <= n; i++)
-      hs[j * n1 + i] = fn(-half + i * s, -half + j * s);
+  return meshGroundRect(fn, 0, 0, half, half, n, n);
+}
+// The same for a rectangle centred on (cx, cz): half-sizes hx, hz, nx by nz cells (a PlaneGeometry(2 * hx, 2 * hz,
+// nx, nz) laid flat and moved to the centre)
+function meshGroundRect(fn, cx, cz, hx, hz, nx, nz) {
+  const sx = hx * 2 / nx;
+  const sz = hz * 2 / nz;
+  const n1 = nx + 1;
+  const hs = new Float32Array(n1 * (nz + 1));
+  for (let j = 0; j <= nz; j++)
+    for (let i = 0; i <= nx; i++)
+      hs[j * n1 + i] = fn(cx - hx + i * sx, cz - hz + j * sz);
   return (x, z) => {
-    const fx = clamp((x + half) / s, 0, n - 1e-6);
-    const fz = clamp((z + half) / s, 0, n - 1e-6);
+    const fx = clamp((x - cx + hx) / sx, 0, nx - 1e-6);
+    const fz = clamp((z - cz + hz) / sz, 0, nz - 1e-6);
     const i = fx | 0;
     const j = fz | 0;
     const u = fx - i;

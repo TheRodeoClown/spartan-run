@@ -136,7 +136,7 @@ function waypointList() {
     return out;
   const obj = ffObjective();
   if (obj)
-    FF.gens.forEach(g => {
+    ffActive(obj === 'next' ? FF.round + 1 : FF.round).forEach(g => {
       const dead = g.hp <= 0;
       const hot = !dead && T - g.hitAt < 1.5;
       out.push({ x: g.x, y: g.y + 3.4, z: g.z, mark: g.name, label: dead ? 'LOST' : hot ? 'UNDER ATTACK' : obj === 'next' ? 'DEFEND NEXT' : 'DEFEND', col: dead ? '#8a9096' : hot && Math.floor(T * 6) % 2 ? '#ff5a4a' : '#5ff0ff', hp: dead ? null : g.hp / g.max });

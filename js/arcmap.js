@@ -4,30 +4,46 @@
  *
  * The quarry floor curls up into cliffs at an irregular edge (arcEdge), and rock ridges, a mesa and the excavation pit
  * break it into lanes. Directions follow the compass (compass.js): north is +z, east is -x. The team base (building 01)
- * sits in the south half with a generator on each flank. Around it: a comms array (south-west), a fuel depot
- * (south-east), a hangar and the mesa (east), a Covenant outpost (north-east), a container yard and the drill rig in its
- * flooded pit (middle), a watchtower joined to a silo by a skybridge (north), and building 02 (west). Most of it can be climbed: stairs, rooftops, catwalks, tank tops, containers and lookouts are
+ * sits near the middle of the oval. North of it: a hangar and the mesa (east), a Covenant outpost (north-east), a
+ * container yard and the drill rig in its flooded pit, a watchtower joined to a silo by a skybridge (north), and
+ * building 02 (west). Around and behind it: a comms array (south-west), a fuel depot (south-east), then the far south:
+ * a landing pad with a control tower, the refinery and its smokestacks, a crashed dropship and the south mesa. Most of it can be climbed: stairs, rooftops, catwalks, tank tops, containers and lookouts are
  * walkable decks (see decks / floorH in core.js); colliders are boxes in `pillars`. Moving parts (radar dishes, drill,
  * crane, sweeping floodlights, beacons, steam, dust) run in envTick.
  */
 
-const ARC = { id: 'arc', n: 'Arc Facility', rooms: 0, A: 112, cut: 80, fog: 0x3c4652, fogN: 70, fogF: 300, sky: [0x26303e, 0x6a7482, 0x30343a], hemi: [0xc0ccdc, 0x3a3630, .95], sun: [0xffe2c4, .8, -6, 10, 4], trim: 0xffa040, sty: 'arc', lay: [] };
+const ARC = { id: 'arc', n: 'Arc Facility', rooms: 0, A: 200, cut: 160, fog: 0x3c4652, fogN: 80, fogF: 340, sky: [0x26303e, 0x6a7482, 0x30343a], hemi: [0xc0ccdc, 0x3a3630, .95], sun: [0xffe2c4, .8, -6, 10, 4], trim: 0xffa040, sty: 'arc', lay: [] };
 
-// How far the quarry floor runs from the centre in direction a (radians, atan2(z, x)): longer north-south, wobbling
+// The quarry is a wobbly oval, longer north-south, centred near the team base (so there's as much map behind the base
+// as in front of it): half-width ARC_AX, half-length ARC_AZ, centre (0, ARC_CZ).
+const ARC_CZ = -34;
+const ARC_AX = 92;
+const ARC_AZ = 138;
+// How far the quarry floor runs from the origin in direction a (radians, atan2(z, x)): where that ray leaves the oval,
+// with a wobble so the edge never looks regular
 function arcEdge(a) {
-  return Math.min(106, 96 - 8 * Math.cos(2 * a) + 6 * Math.sin(3 * a + .7) + 4 * Math.sin(5 * a + 2.1) + 2.5 * Math.sin(9 * a + .4));
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  const p = c * c / (ARC_AX * ARC_AX) + s * s / (ARC_AZ * ARC_AZ);
+  const q = -2 * ARC_CZ * s / (ARC_AZ * ARC_AZ);
+  const k = ARC_CZ * ARC_CZ / (ARC_AZ * ARC_AZ) - 1;
+  const r = (-q + Math.sqrt(q * q - 4 * p * k)) / (2 * p);
+  return r * (1 + .06 * Math.sin(3 * a + .7) + .04 * Math.sin(5 * a + 2.1) + .025 * Math.sin(9 * a + .4));
 }
 // How far you can go: short of the edge, where the cliffs start to climb behind a line of boulders
 const arcLimit = a => arcEdge(a) - 10;
 // [x, z, height, radius] mounds and knolls across the floor
-const ARC_MOUNDS = [[30, -18, 4, 9], [-20, -20, 1.4, 7], [20, 6, 1.2, 6], [-14, 30, 1.6, 8], [48, 24, 1.8, 8], [-26, 72, 1.5, 7], [14, -76, 1.8, 8], [-20, -78, 1.6, 8], [62, -28, 1.5, 6], [70, 30, 1.6, 7]];
+const ARC_MOUNDS = [[30, -18, 4, 9], [-20, -20, 1.4, 7], [20, 6, 1.2, 6], [-14, 30, 1.6, 8], [48, 24, 1.8, 8], [-26, 72, 1.5, 7], [14, -76, 1.8, 8], [-20, -78, 1.6, 8], [62, -28, 1.5, 6], [70, 30, 1.6, 7],
+  [14, -146, 1.6, 8], [-62, -128, 1.8, 8], [56, -150, 1.5, 7], [36, -94, 1.4, 6], [-16, -164, 1.4, 7]];
 // level ground under buildings: [centre x, centre z, half-width, half-depth]
-const ARC_PADS = [[0, -42, 18, 14], [55, -6, 11, 12], [34, -60, 18, 13], [-38, -56, 15, 12], [-52, -18, 10, 17], [24, 58, 26, 8], [-44, 54, 9, 13], [-6, 40, 15, 9]];
+const ARC_PADS = [[0, -42, 18, 14], [55, -6, 11, 12], [34, -60, 18, 13], [-38, -56, 15, 12], [-52, -18, 10, 17], [24, 58, 26, 8], [-44, 54, 9, 13], [-6, 40, 15, 9],
+  [42, -128, 13, 13], [-42, -114, 12, 10], [6, -124, 6, 9]];
 // rock ridges: [ax, az, bx, bz, height at a, height at b, half-width of the top, width of the slopes]
-// (gentle slopes you can walk up; the last one is the steep-sided path up the mesa)
-const ARC_RIDGES = [[-36, -6, -20, -16, 3, 3, 2, 5], [24, 26, 42, 14, 3.2, 2.6, 2, 5], [-24, 62, -10, 70, 2.6, 2.6, 2, 5], [0, -76, 12, -70, 2.5, 2.5, 2, 5], [-40, 20, -24, 30, 9, 0, 2.5, 3.5]];
-// the mesa (east): [x, z, radius of the top, height]; its sides are too steep to walk up
-const ARC_MESA = [-52, 18, 12, 9];
+// (gentle slopes you can walk up; the last two are the steep-sided paths up the mesas)
+const ARC_RIDGES = [[-36, -6, -20, -16, 3, 3, 2, 5], [24, 26, 42, 14, 3.2, 2.6, 2, 5], [-24, 62, -10, 70, 2.6, 2.6, 2, 5], [0, -76, 12, -70, 2.5, 2.5, 2, 5],
+  [-12, -100, 8, -106, 2.8, 2.6, 2, 5], [24, -152, 44, -160, 3, 3, 2, 5], [-40, 20, -24, 30, 9, 0, 2.5, 3.5], [-22, -139, -6, -130, 8, 0, 2.5, 3.5]];
+// the mesas: [x, z, radius of the top, height, direction of the path up (radians)]; their sides are too steep to walk up
+const ARC_MESAS = [[-52, 18, 12, 9, .4], [-32, -142, 10, 8, .3]];
 
 function arcRidge(x, z, [ax, az, bx, bz, ha, hb, w, f]) {
   const dx = bx - ax;
@@ -49,7 +65,9 @@ function groundArc(x, z) {
     h *= smooth01(d / 6);
   }
   // the mesa and the ridges
-  let rk = ARC_MESA[3] * smooth01((ARC_MESA[2] + 5 - Math.hypot(x - ARC_MESA[0], z - ARC_MESA[1])) / 5);
+  let rk = 0;
+  for (const [mx, mz, mr, mh] of ARC_MESAS)
+    rk = Math.max(rk, mh * smooth01((mr + 5 - Math.hypot(x - mx, z - mz)) / 5));
   for (const r of ARC_RIDGES)
     rk = Math.max(rk, arcRidge(x, z, r));
   h += rk;
@@ -401,14 +419,16 @@ function arcBuild({ add, G, B, hills, ground }) {
   envG.add(band);
   ground(mat('gravelBig', () => new THREE.MeshLambertMaterial({ map: ctex('gravelBig', 256, 256, 160, 160, DR.gravel) })), -8);
   // far mountains: far enough out (and narrow enough) that none reaches inside the cliffs
-  hills(40, 260, 420, 50, 110, 0x3c3e42);
+  hills(44, 300, 460, 50, 120, 0x3c3e42);
 
   // Terrain mesh: gravel on the floor, darker rock where it's steep (cliffs, the mesa's sides)
-  groundFn = meshGround(groundArc, A, 150);
+  // the mesh covers the oval and its cliffs: x -120..120, z -196..128 (cells about 1.5m)
+  groundFn = meshGroundRect(groundArc, 0, ARC_CZ, 120, 162, 163, 220);
   edgeFn = arcLimit;
   floor.visible = false;
-  const tg = new THREE.PlaneGeometry(A * 2, A * 2, 150, 150);
+  const tg = new THREE.PlaneGeometry(240, 324, 163, 220);
   tg.rotateX(-Math.PI / 2);
+  tg.translate(0, 0, ARC_CZ);
   const tp = tg.attributes.position;
   const colr = [];
   for (let i = 0; i < tp.count; i++) {
@@ -425,7 +445,7 @@ function arcBuild({ add, G, B, hills, ground }) {
   }
   tg.setAttribute('color', new THREE.Float32BufferAttribute(colr, 3));
   tg.computeVertexNormals();
-  envG.add(new THREE.Mesh(tg, mat('arcGround', () => new THREE.MeshLambertMaterial({ map: ctex('gravel', 256, 256, 30, 30, DR.gravel), vertexColors: true }))));
+  envG.add(new THREE.Mesh(tg, mat('arcGround', () => new THREE.MeshLambertMaterial({ map: ctex('gravel', 256, 256, 32, 43, DR.gravel), vertexColors: true }))));
 
   // ---- The flooded excavation pit: knee deep at the deepest (wading slows you: see waterFn in core.js) ----
   let pitLow = 99;
@@ -460,19 +480,21 @@ function arcBuild({ add, G, B, hills, ground }) {
     a += s * 1.15 / e;
   }
 
-  // ---- The mesa (east): boulders round its rim, cover on top; the ridge on its east side is the way up ----
-  const [mx, mz, mr, mh] = ARC_MESA;
-  for (let a = 0; a < 6.283; a += .36) {
-    if (Math.abs(Math.atan2(Math.sin(a - .4), Math.cos(a - .4))) < .45)
-      continue;
-    const r = mr + RR(1.5, 3.5);
-    const x = mx + Math.cos(a) * r;
-    const z = mz + Math.sin(a) * r;
-    const s = RR(2, 3.6);
-    put(new THREE.DodecahedronGeometry(s), rnd() < .5 ? rockM : rockD, x, groundH(x, z), z, RR(-.3, .3), rnd() * 3, 0, 1, RR(1, 1.5), 1);
-  }
-  [[-56, 12, 1.6], [-48, 24, 1.4], [-58, 22, 1.2]].forEach(([x, z, s]) => rock(x, z, s));
+  // ---- The mesas (east, and south behind the base): boulders round the rim, cover on top; a ridge is the way up ----
+  ARC_MESAS.forEach(([mx, mz, mr, mh, ra]) => {
+    for (let a = 0; a < 6.283; a += .36) {
+      if (Math.abs(Math.atan2(Math.sin(a - ra), Math.cos(a - ra))) < .45)
+        continue;
+      const r = mr + RR(1.5, 3.5);
+      const x = mx + Math.cos(a) * r;
+      const z = mz + Math.sin(a) * r;
+      const s = RR(2, 3.6);
+      put(new THREE.DodecahedronGeometry(s), rnd() < .5 ? rockM : rockD, x, groundH(x, z), z, RR(-.3, .3), rnd() * 3, 0, 1, RR(1, 1.5), 1);
+    }
+  });
+  [[-56, 12, 1.6], [-48, 24, 1.4], [-58, 22, 1.2], [-36, -146, 1.5], [-28, -148, 1.2]].forEach(([x, z, s]) => rock(x, z, s));
   barrier(-50, 14, 'z');
+  barrier(-34, -137, 'x');
 
   // ---- Building 01: the team base. Doors north, west and east; the REQ station inside; stairs up the back to a
   // walkable roof with a parapet round it ----
@@ -779,6 +801,87 @@ function arcBuild({ add, G, B, hills, ground }) {
     }
   });
 
+  // ---- The south, behind the base: a landing pad with a control tower, the refinery, a crashed dropship ----
+  {
+    // landing pad: a raised deck with stairs up from the north and the east, markings and blinking landing lights
+    const x = 42;
+    const z = -128;
+    const h = groundH(x, z) + 3;
+    solid(x, z, 9, 9, 3, conc);
+    add(B(18.2, .2, 18.2), dark, x, h - .05, z);
+    const yel = G(0xd8a828);
+    add(new THREE.RingGeometry(5, 5.5, 40), yel, x, h + .06, z).rotation.x = -Math.PI / 2;
+    [[-1.6, 0, .5, 4], [1.6, 0, .5, 4], [0, 0, 2.7, .5]].forEach(([ox, oz, w, d]) => add(B(w, .02, d), yel, x + ox, h + .07, z + oz));
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => beacon(x + sx * 8.6, h + .2, z + sz * 8.6, 0x4af0ff));
+    stairs('z', x, -111, -119, 3, groundH(x, -111), h);
+    stairs('x', z, 25, 33, 3, groundH(25, z), h);
+    lookout(24, -112, 3, 3, 10, '+z', 14);
+    put(B(5.8, 2.4, 5.8), mat('arcGlass', () => new THREE.MeshBasicMaterial({ color: 0x8fd0ff, transparent: true, opacity: .25 })), 24, 11.2 + groundH(24, -112), -112);
+    put(B(6.6, .3, 6.6), dark, 24, 12.6 + groundH(24, -112), -112);
+    addPerch([[42, -109.5], [42, -119.5]], [[38, -128], [46, -132]]);
+  }
+  {
+    // refinery: a block with a walkable roof (stairs along the north side) and two smokestacks behind it
+    const x = -42;
+    const z = -112;
+    const g = groundH(x, z);
+    const top = g + 7;
+    solid(x, z, 8, 6, 7, panel);
+    add(B(16.2, .3, 12.2), dark, x, top - .1, z);
+    add(B(.1, .35, 10), hazard, x + 8.06, g + 4.5, z).rotation.y = Math.PI / 2;
+    stairs('x', -104.5, -24, -38, 3, groundH(-24, -104.5), top);
+    // a walkway along the north side at roof height, past the top of the stairs
+    slab(-44, -104.5, 6, 1.5, top, grate, .3);
+    posts(-44, -104.5, 6, 1.5, top - .3);
+    rail(-44, -103, 6, .05, top);
+    rail(-50, -104.5, .05, 1.5, top);
+    rail(x, -118, 8, .05, top);
+    rail(-50, z, .05, 6, top);
+    rail(-34, -114, .05, 4, top);
+    [-46, -38].forEach(sx => {
+      const sg = groundH(sx, -121.5);
+      col(sx, -121.5, 1.3, 1.3, sg + 26);
+      add(new THREE.CylinderGeometry(1.2, 1.6, 26, 14), steel, sx, sg + 13, -121.5);
+      [8, 16, 23].forEach(y => add(new THREE.CylinderGeometry(1.5 - y * .012, 1.5 - y * .012, .5, 14), orange, sx, sg + y, -121.5));
+      beacon(sx, sg + 26.5, -121.5);
+      vents.push([sx, sg + 26.2, -121.5]);
+    });
+    addPerch([[-22.5, -104.5], [-37, -104.5], [-37, -107]], [[-44, -110], [-38, -115]]);
+  }
+  {
+    // a crashed dropship: hull, wings and tail as cover; crates to climb onto the hull
+    const x = 6;
+    const z = -124;
+    const g = groundH(x, z);
+    const hullM = mat('arcHull', () => new THREE.MeshPhongMaterial({ color: 0x55603e, shininess: 30 }));
+    solid(x, z, 2.2, 7, 2.6, null, null, false);
+    put(B(4.4, 2.8, 14), hullM, x, g + 1.3, z, 0, 0, .06);
+    put(new THREE.ConeGeometry(2.3, 3.4, 4), hullM, x, g + 1.4, z + 8.6, Math.PI / 2, Math.PI / 4, 0, 1, 1, .7);
+    put(B(13, .3, 3.2), hullM, x + .3, g + 1.6, z - 1, 0, 0, -.12);
+    put(B(.3, 3.2, 2.4), hullM, x, g + 3.6, z - 6.2, .2, 0, 0);
+    put(B(3, .2, 4), dark, x + 3.2, g + .1, z + 3, 0, .4, 0);
+    col(x - 4.5, z - 1, 2.2, 1.4, g + 1.9);
+    vents.push([x + 1, g + 2.8, z + 3]);
+    crate(8.7, -120, 2);
+    crate(9.7, -120.2, 1);
+  }
+  // cargo, cover and lights across the south
+  [[12, -98, 'x', 0x8a2a24, 0], [-18, -120, 'z', 0x2f5a8a, 0xb05a28], [30, -146, 'x', 0x7a7e82, 0], [58, -110, 'z', 0x5a6a3a, 0], [-6, -150, 'x', 0xb05a28, 0]].forEach(a => container(...a));
+  [[12, -96.3, 2], [12.2, -95.3, 1], [30, -144.3, 2], [30.2, -143.3, 1], [56.35, -110, 2], [55.35, -110.2, 1], [-6, -148.3, 2], [-5.8, -147.3, 1]].forEach(([x, z, n]) => crate(x, z, n, n * .3));
+  [[0, -108, 'x'], [30, -116, 'z'], [-24, -130, 'x'], [14, -138, 'x'], [-40, -96, 'z'], [46, -100, 'x'], [0, -160, 'x']].forEach(([x, z, ax]) => barrier(x, z, ax));
+  [[-14, -110], [30, -104], [-52, -132], [20, -156], [56, -122]].forEach(([x, z]) => flood(x, z));
+  [[-26, -100], [60, -122], [-62, -110], [10, -160], [44, -162], [-44, -160]].forEach(([cx, cz]) => {
+    const n = 2 + (rnd() * 3 | 0);
+    for (let i = 0; i < n; i++) {
+      const x = cx + RR(-3, 3);
+      const z = cz + RR(-3, 3);
+      const s = RR(1.4, 3);
+      if (free(x, z, s * .7 + .3))
+        rock(x, z, s);
+    }
+  });
+  addPerch([[-5, -129], [-22, -139], [-26, -140]], [[-32, -138], [-27, -143]]);
+
   // ---- Cargo, barriers, crates and barrels across the floor; floodlights ----
   [[-6, -20, 'x', 0xb05a28, 0x2f5a8a], [12, -12, 'z', 0x2f5a8a, 0], [-22, 0, 'z', 0x7a7e82, 0x8a2a24], [22, 2, 'x', 0x8a2a24, 0], [36, 4, 'z', 0x7a7e82, 0],
     [-30, -24, 'x', 0x8a2a24, 0xb05a28], [44, 36, 'x', 0xb05a28, 0], [-34, 40, 'x', 0x2f5a8a, 0], [16, -24, 'z', 0x5a6a3a, 0], [-10, -66, 'x', 0x2f5a8a, 0],
@@ -787,11 +890,11 @@ function arcBuild({ add, G, B, hills, ground }) {
   // crate steps up the single containers
   [[13.7, -12, 2], [14.7, -12.2, 1], [22, 3.7, 2], [22.2, 4.7, 1], [37.7, 4, 2], [38.7, 4.2, 1], [44, 37.7, 2], [44.2, 38.7, 1], [-34, 41.7, 2], [-33.8, 42.7, 1],
     [-10, -64.3, 2], [-9.8, -63.3, 1], [57.7, 14, 2], [58.7, 14.2, 1], [-18.3, -36, 2], [-17.3, -36.2, 1]].forEach(([x, z, n]) => crate(x, z, n, n * .3));
-  [[-20, 52, 'x'], [16, 46, 'x'], [40, 8, 'z'], [6, 30, 'x'], [-4, 62, 'x'], [46, -30, 'z'], [-52, -40, 'x'], [62, -20, 'x'], [-14, -64, 'x'], [24, -72, 'x'], [-60, 0, 'z'], [70, 12, 'z'], [0, 84, 'x']]
+  [[-20, 52, 'x'], [16, 46, 'x'], [40, 8, 'z'], [6, 30, 'x'], [-4, 62, 'x'], [46, -30, 'z'], [-52, -40, 'x'], [62, -20, 'x'], [-14, -64, 'x'], [24, -72, 'x'], [-60, 0, 'z'], [70, 12, 'z'], [6, 74, 'x']]
     .forEach(([x, z, ax]) => barrier(x, z, ax));
-  for (let i = 0; i < 60; i++) {
-    const x = RR(-70, 80);
-    const z = RR(-90, 88);
+  for (let i = 0; i < 90; i++) {
+    const x = RR(-80, 80);
+    const z = RR(-165, 88);
     if (!free(x, z, 1.5))
       continue;
     if (rnd() < .5)
@@ -833,7 +936,7 @@ function arcBuild({ add, G, B, hills, ground }) {
   for (let i = 0; i < 900; i++) {
     dp[i * 3] = R(-90, 90);
     dp[i * 3 + 1] = R(.5, 12);
-    dp[i * 3 + 2] = R(-95, 95);
+    dp[i * 3 + 2] = R(-170, 100);
   }
   dgeo.setAttribute('position', new THREE.BufferAttribute(dp, 3));
   envG.add(new THREE.Points(dgeo, new THREE.PointsMaterial({ color: 0xb8b0a0, size: .1, transparent: true, opacity: .6, depthWrite: false })));
