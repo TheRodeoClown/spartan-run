@@ -94,11 +94,15 @@ function ffSetup() {
     core.position.y = 1.5;
     const cap = new THREE.Mesh(new THREE.CylinderGeometry(.9, .7, .3, 8), metal);
     cap.position.y = 2.6;
-    g.add(base, core, cap);
+    // a tall light beam that marks it from anywhere on the map while it's an objective
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, 40, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x5ff0ff, transparent: true, opacity: .16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    beam.position.y = 22;
+    beam.visible = false;
+    g.add(base, core, cap, beam);
     g.position.set(x, y, z);
     envG.add(g);
     pillars.push({ x, z, hw: .9, hd: .9, h: y + 2.8 });
-    return { gen: true, name: i ? 'B' : 'A', x, y, z, hp: 1000, max: 1000, g, core, flash: 0 };
+    return { gen: true, name: i ? 'B' : 'A', x, y, z, hp: 1000, max: 1000, g, core, beam, flash: 0, pv: 1000, hitAt: -99 };
   });
   P.x = FF_SPAWNS[0][0];
   P.z = FF_SPAWNS[0][1];
@@ -347,9 +351,18 @@ function ffTick(dt) {
   if (!FF.on)
     return;
   FF.stations.forEach(s => s.ring.rotation.y += dt);
+  const obj = ffObjective();
   FF.gens.forEach(g => {
     const k = g.hp / g.max;
     g.flash -= dt;
+    // damage seen this frame (host or guest): it's under attack
+    if (g.hp < g.pv)
+      g.hitAt = T;
+    g.pv = g.hp;
+    const hot = T - g.hitAt < 1.5;
+    g.beam.visible = !!obj && g.hp > 0;
+    g.beam.material.color.setHex(hot && Math.floor(T * 6) % 2 ? 0xff4a3a : 0x5ff0ff);
+    g.beam.material.opacity = obj === 'next' ? .08 : .16;
     g.core.material.color.setHex(g.hp <= 0 ? 0x202428 : g.flash > 0 ? 0xffffff : k > .5 ? 0x5ff0ff : k > .25 ? 0xffc040 : 0xff4a3a);
   });
   // respawn at the base
@@ -361,6 +374,17 @@ function ffTick(dt) {
 }
 
 // Redeploy at the base with full health, shields and ammo (and at least two grenades)
+// Are the generators the objective? 'now' in a defend round, 'next' in the break before one, otherwise null
+function ffObjective() {
+  if (!FF.on)
+    return null;
+  const R0 = FF_ROUNDS[FF.round - 1];
+  if (FF.ph === 'play' && R0 && R0.kind === 'defend')
+    return 'now';
+  const N = FF_ROUNDS[FF.round];
+  return FF.ph === 'break' && N && N.kind === 'defend' ? 'next' : null;
+}
+
 function ffRespawn() {
   netRevive();
   refillAmmo();

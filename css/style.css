@@ -79,3 +79,13 @@ canvas{width:100%;height:100%;display:block}
 #wrap:fullscreen{width:100vw;height:100vh;aspect-ratio:auto;border:0;border-radius:0;margin:0}
 /* Boon cards: progress toward a diminishing-returns cap */
 .card small.drn{margin-top:8px;padding-top:6px;border-top:1px solid #2f372a;color:#9fdcff;font-size:12px}.card small.drn b{color:#e6f6ff}
+
+/* Objective waypoints (compass.js) */
+#wpts{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.wp{position:absolute;transform:translate(-50%,-100%);display:none;text-align:center;font:600 10px monospace;letter-spacing:1px;text-shadow:0 0 4px #000,0 0 2px #000;white-space:nowrap}
+.wp b{display:block;width:18px;height:18px;margin:0 auto 5px;border:2px solid currentColor;transform:rotate(45deg);background:rgba(8,12,18,.45);box-shadow:0 0 6px currentColor}
+.wp b span{display:block;transform:rotate(-45deg);font-size:12px;line-height:18px}
+.wp em{display:block;font-style:normal}
+.wp i{display:block;width:44px;height:3px;margin:2px auto;background:rgba(0,0,0,.55);border:1px solid rgba(0,0,0,.6)}
+.wp i u{display:block;height:100%;background:currentColor}
+.wp small{display:block;font-size:9px;opacity:.85}

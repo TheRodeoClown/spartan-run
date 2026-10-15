@@ -434,7 +434,7 @@ function arcBuild({ add, G, B, hills, ground }) {
       pitLow = Math.min(pitLow, groundH(6 + Math.cos(a) * r, 12 + Math.sin(a) * r));
   const pool = pitLow + .42;
   waterFn = (x, z) => (x - 6) ** 2 + (z - 12) ** 2 < 15 * 15 && groundH(x, z) < pool ? pool : null;
-  const pw = add(new THREE.CircleGeometry(15, 48), mat('arcWater', () => new THREE.MeshPhongMaterial({ color: 0x1e4a58, emissive: 0x061a20, shininess: 120, specular: 0x9ac8e0, transparent: true, opacity: .72 })), 6, pool, 12);
+  const pw = add(new THREE.CircleGeometry(15, 48), mat('arcWater', () => new THREE.MeshPhongMaterial({ color: 0x3c4248, emissive: 0x121518, shininess: 110, specular: 0xa8b0b8, transparent: true, opacity: .84 })), 6, pool, 12);
   pw.rotation.x = -Math.PI / 2;
 
   // ---- The quarry walls: boulders along the foot of the cliffs, bigger ones up the cliffs, rock spires beyond ----
@@ -847,7 +847,7 @@ function arcBuild({ add, G, B, hills, ground }) {
     crane.rotation.y = Math.sin(T * .12) * 1.1;
     ring.material.opacity = .25 + .2 * Math.sin(T * 3);
     // the pond shimmers
-    pw.material.emissive.setHSL(.54, .55, .05 + .015 * Math.sin(T * 1.3));
+    pw.material.emissive.setHSL(.58, .08, .09 + .02 * Math.sin(T * 1.3));
     pw.material.opacity = .7 + .04 * Math.sin(T * .9);
     for (let i = 0; i < steamN; i++) {
       const v = vents[i % vents.length];

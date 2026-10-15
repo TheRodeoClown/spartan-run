@@ -582,6 +582,7 @@ function hud() {
   $('vig').style.opacity = vig;
   $('cross').style.borderColor = hitT > 0 ? hitCol : 'rgba(155,196,90,.8)';
   compass();
+  waypoints();
 }
 // Weapon panel (bottom right): name and damage type, magazine count and reserve, a row of rounds that empties as you
 // fire (it refills during a reload), your other weapon underneath; grenades and thruster on the left.

@@ -119,3 +119,78 @@ function compass() {
   g.fill();
   g.fillRect(cx - .75, 2, 1.5, 6);
 }
+
+/* ---------- Objective waypoints ---------- */
+// Markers over what to guard (Firefight generators: letter, health, distance; red "UNDER ATTACK" when hit, grey when
+// lost; "DEFEND NEXT" in the break before a defend round) and what to kill (commanders and bosses). Drawn over the
+// view and through walls; off-screen ones stick to the edge of the screen.
+const wpBox = document.createElement('div');
+wpBox.id = 'wpts';
+$('hud').appendChild(wpBox);
+const wpEls = [];
+const _wp = new THREE.Vector3();
+
+function waypointList() {
+  const out = [];
+  if (!FF.on)
+    return out;
+  const obj = ffObjective();
+  if (obj)
+    FF.gens.forEach(g => {
+      const dead = g.hp <= 0;
+      const hot = !dead && T - g.hitAt < 1.5;
+      out.push({ x: g.x, y: g.y + 3.4, z: g.z, mark: g.name, label: dead ? 'LOST' : hot ? 'UNDER ATTACK' : obj === 'next' ? 'DEFEND NEXT' : 'DEFEND', col: dead ? '#8a9096' : hot && Math.floor(T * 6) % 2 ? '#ff5a4a' : '#5ff0ff', hp: dead ? null : g.hp / g.max });
+    });
+  const R0 = FF_ROUNDS[FF.round - 1];
+  if (FF.ph === 'play' && R0 && (R0.kind === 'bosses' || R0.kind === 'boss'))
+    enemies.forEach(e => {
+      if (e.boss && !e.dead && !e.camo)
+        out.push({ x: e.x, y: (e.y || 0) + 2.6 * e.sc, z: e.z, mark: '!', label: 'KILL', col: '#ffa040', hp: (Math.max(0, e.hp) + e.sh) / ((e.maxhp + e.maxsh) || 1) });
+    });
+  return out;
+}
+
+function waypoints() {
+  const list = state === 'play' && P ? waypointList() : [];
+  const W2 = wpBox.clientWidth;
+  const H2 = wpBox.clientHeight;
+  list.forEach((m, i) => {
+    let el = wpEls[i];
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'wp';
+      el.innerHTML = '<b><span></span></b><em></em><i><u></u></i><small></small>';
+      wpBox.appendChild(el);
+      wpEls[i] = el;
+    }
+    el.style.display = 'block';
+    _wp.set(m.x, m.y, m.z).project(cam);
+    let sx = _wp.x;
+    let sy = _wp.y;
+    const behind = _wp.z > 1;
+    if (behind) {
+      sx = -sx;
+      sy = -sy;
+    }
+    // keep it on screen; behind you it rides the bottom edge on the side to turn toward
+    let px = (sx * .5 + .5) * W2;
+    let py = (-sy * .5 + .5) * H2;
+    const edge = behind || px < 30 || px > W2 - 30 || py < 60 || py > H2 - 40;
+    if (behind)
+      py = H2 - 40;
+    px = clamp(px, 30, W2 - 30);
+    py = clamp(py, 60, H2 - 40);
+    el.style.left = px + 'px';
+    el.style.top = py + 'px';
+    el.style.color = m.col;
+    el.style.opacity = edge ? .75 : 1;
+    el.firstChild.firstChild.textContent = m.mark;
+    el.children[1].textContent = m.label;
+    el.children[2].style.display = m.hp == null ? 'none' : 'block';
+    if (m.hp != null)
+      el.children[2].firstChild.style.width = Math.round(100 * m.hp) + '%';
+    el.children[3].textContent = Math.round(Math.hypot(m.x - P.x, m.z - P.z)) + 'm';
+  });
+  for (let i = list.length; i < wpEls.length; i++)
+    wpEls[i].style.display = 'none';
+}
