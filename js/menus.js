@@ -35,7 +35,7 @@ function showPick(title) {
   ov.style.display = 'flex';
   ov.style.background = '';
   ov.style.justifyContent = '';
-  ov.innerHTML = '<h2>' + ptitle + '</h2><div id="pkc"></div><div class="cards">' + choices.map((c, i) => '<button class="card pk" onclick="pick(' + i + ')"><b>[' + (i + 1) + '] ' + c.n + '</b><small>' + c.d + '</small>' + boonNote(c) + '</button>').join('') + '</div>';
+  ov.innerHTML = '<h2>' + ptitle + '</h2><div id="pkc"></div><div class="cards">' + choices.map((c, i) => '<button class="card pk rar-' + (c.r || 'c') + '" onclick="pick(' + i + ')"><span class="rar">' + RARITY[c.r || 'c'].n + '</span><b>[' + (i + 1) + '] ' + c.n + '</b><small>' + c.d + '</small>' + boonNote(c) + '</button>').join('') + '</div>';
   pickTick();
 }
 

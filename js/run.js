@@ -74,6 +74,9 @@ function nextRoom() {
   NET.menu = 0;
   if (NET.down)
     netRevive();
+  // every new room starts at full health and shields
+  P.hp = P.maxHp;
+  P.sh = Math.max(P.sh, P.maxSh);
   ov.style.display = 'none';
   ov.style.background = '';
   ov.style.justifyContent = '';

@@ -712,6 +712,8 @@ function dmgE(e, d, crit, ty) {
       ffReward(e);
       if (P.vamp)
         P.hp = Math.min(P.maxHp, P.hp + P.vamp);
+      if (P.siphon)
+        P.sh = Math.min(P.maxSh, P.sh + P.siphon);
       if (P.mkShield && P.lastMelee > T - .1)
         P.sh = P.maxSh;
       if (P.chain && !e.kami && Math.random() < P.chain)

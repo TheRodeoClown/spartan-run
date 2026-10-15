@@ -102,6 +102,7 @@ const LEG = [
     }
   }
 ];
+LEG.forEach(b => b.r = 'l');
 
 function earn(n) {
   P.cr += Math.round(n * DIFF.cr);

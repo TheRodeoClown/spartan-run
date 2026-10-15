@@ -12,10 +12,14 @@ const W = {
   sn: { n: 'S2 AM Sniper Rifle', dmg: 80, rate: 1, mag: 4, rt: 2.4, sp: .0005, pel: 1, hs: 3, mbs: .2, kick: .04, pierce: 1 },
   pr: { n: 'Type-25 Plasma Rifle', dmg: 6, rate: .07, mag: 60, rt: 1.6, sp: .02, pel: 1, hs: 1.2, mbs: 1.5, kick: .002, ty: 'e', col: 0x7dff9a },
   rk: { n: 'M41 Rocket Launcher', dmg: 100, rate: 1.1, mag: 2, rt: 2.6, rocket: 1, mbs: .1, kick: .035 },
-  nd: { n: 'Type-33 Needler', dmg: 4, rate: .11, mag: 24, rt: 1.5, sp: .03, pel: 1, hs: 1, mbs: 1, kick: .003, needle: 1, ty: 'e', col: 0xff5fd0 }
+  nd: { n: 'Type-33 Needler', dmg: 4, rate: .11, mag: 24, rt: 1.5, sp: .03, pel: 1, hs: 1, mbs: 1, kick: .003, needle: 1, ty: 'e', col: 0xff5fd0 },
+  // Type-51 Carbine: hits leave a stacking radiation burn (rad; see radiate / burnTick)
+  cb: { n: 'Type-51 Carbine', dmg: 15, rate: .22, mag: 18, rt: 1.6, sp: .003, pel: 1, hs: 2.4, mbs: .6, kick: .007, col: 0x7dff6a, rad: 1 },
+  // Spartan Laser: hold to charge, then a beam through everything in a line (charge, beam; see playerMove)
+  sl: { n: 'Spartan Laser', dmg: 240, rate: 1.1, mag: 5, rt: 2.8, sp: 0, pel: 1, hs: 1, mbs: .2, kick: .05, pierce: 99, charge: .8, beam: 1, ty: 'e', col: 0xff3a2a }
 };
 // Reserve ammo per weapon: [starting reserve, max reserve]. Rockets are scarce.
-const RES = { ar: [96, 224], br: [72, 180], mg: [36, 72], sg: [16, 40], sn: [8, 20], pr: [120, 240], rk: [2, 6], nd: [48, 120], sw: [0, 0] };
+const RES = { ar: [96, 224], br: [72, 180], mg: [36, 72], sg: [16, 40], sn: [8, 20], pr: [120, 240], rk: [2, 6], nd: [48, 120], sw: [0, 0], cb: [54, 126], sl: [5, 10] };
 Object.keys(RES).forEach(k => {
   W[k].rs = RES[k][0];
   W[k].rx = RES[k][1];
@@ -38,7 +42,8 @@ let lw = 0;
 // Player scaling has diminishing returns so late-run builds can't melt everything: weapon damage tops out
 // near x1.8, fire rate near +65%, melee near x3 (the sword's x3 is on top), grenades near x2.2.
 const soft = (m, cap) => m <= 1 ? m : 1 + (cap - 1) * (1 - Math.exp(-(m - 1) / (cap - 1)));
-const dmgMul = () => soft(P.dmg / 8, 1.8);
+// (Last Stand: +50% while you're below 30% health)
+const dmgMul = () => soft(P.dmg / 8, 1.8) * (P.lastStand && P.hp < P.maxHp * .3 ? 1.5 : 1);
 const nadeM = () => soft(P.nadeMul, 2.2);
 const meleeM = () => soft(P.meleeMul, 3);
 
@@ -87,6 +92,60 @@ function arc(e, dmg) {
   const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x9ff8ff }));
   scene.add(l);
   tracers.push({ m: l, life: .12 });
+}
+
+// Type-51 Carbine: radiation that keeps hurting for 3s after a hit, stacking up to 4 hits (burnTick deals it)
+function radiate(e) {
+  e.burn = e.burn || { dps: 0, t: 0, acc: 0 };
+  e.burn.dps = Math.min(12, e.burn.dps + 3);
+  e.burn.t = 3;
+}
+
+function burnTick(dt) {
+  enemies.forEach(e => {
+    const b = e.burn;
+    if (!b || e.dead)
+      return;
+    b.t -= dt;
+    b.acc += dt;
+    if (b.acc >= .5) {
+      b.acc = 0;
+      dmgE(e, b.dps * .5 * dmgMul(), false, 'k');
+      flashFx(e.x, (e.y || 0) + 1.2 * e.sc, e.z, .4 * e.sc, 0x7dff6a);
+    }
+    if (b.t <= 0)
+      e.burn = null;
+  });
+}
+
+// Ricochet Rounds: the round glances off into the nearest other enemy within 8m
+function ricochet(e, dmg) {
+  let b = null;
+  let bd = 8;
+  enemies.forEach(o => {
+    if (o === e || o.dead)
+      return;
+    const d = Math.hypot(o.x - e.x, o.z - e.z);
+    if (d < bd) {
+      bd = d;
+      b = o;
+    }
+  });
+  if (!b)
+    return;
+  dmgE(b, dmg, false, 'k');
+  const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(e.x, (e.y || 0) + 1.1 * e.sc, e.z), new THREE.Vector3(b.x, (b.y || 0) + 1.1 * b.sc, b.z)]), new THREE.LineBasicMaterial({ color: 0xffd060 }));
+  scene.add(l);
+  tracers.push({ m: l, life: .1 });
+}
+
+// Spartan Laser beam: a red-hot core inside a wide glow, from the muzzle to where it stops
+function laserBeam(a, b) {
+  const d = b.clone().sub(a);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, d.length(), 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xff5a3a, transparent: true, opacity: .75, blending: THREE.AdditiveBlending, depthWrite: false }));
+  m.position.copy(a).addScaledVector(d, .5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+  return m;
 }
 
 function recalcMag() {
@@ -687,6 +746,10 @@ function fire() {
             explode(h.e.x, (h.e.y || 0) + 1, h.e.z, 3.5, 45 * dmgMul(), 0, 'k');
           if (hasVar('pr'))
             arc(h.e, w.dmg * .5);
+          if (w.rad)
+            radiate(h.e);
+          if (P.rico && Math.random() < P.rico)
+            ricochet(h.e, w.dmg * .6);
           if (cp) {
             if (i === 0)
               sfx.crit();
@@ -698,9 +761,9 @@ function fire() {
       });
       const s = o.clone().addScaledVector(right, .25).addScaledVector(d, .6);
       s.y -= .2;
-      const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([s, o.clone().addScaledVector(d, end)]), new THREE.LineBasicMaterial({ color: w.col || 0xffe9a0 }));
+      const l = w.beam ? laserBeam(s, o.clone().addScaledVector(d, end)) : new THREE.Line(new THREE.BufferGeometry().setFromPoints([s, o.clone().addScaledVector(d, end)]), new THREE.LineBasicMaterial({ color: w.col || 0xffe9a0 }));
       scene.add(l);
-      tracers.push({ m: l, life: .05 });
+      tracers.push({ m: l, life: w.beam ? .3 : .05 });
       // Other players see the first tracer of each shot
       if (i === 0)
         netFx('fx', [s.x, s.y, s.z, o.x + d.x * end, o.y + d.y * end, o.z + d.z * end, w.col || 0xffe9a0]);
@@ -752,7 +815,7 @@ function thrust() {
   P.dash = .18;
   P.dashF = f / m;
   P.dashS = s / m;
-  P.tcd = 2.5;
+  P.tcd = 2.5 * (P.tcdMul || 1);
   if (P.camo)
     P.camoT = T + 2;
   sfx.dash();

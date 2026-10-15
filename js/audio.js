@@ -212,6 +212,17 @@ const raw = {
       osc('sine', 2000 * p, 900, t, .08, .12);
       noise(t, .05, .2, 'highpass', 5000);
     }
+    else if (k === 'cb') {
+      osc('square', 1100 * p, 260, t, .08, .18, sfxG, ['lowpass', 4000]);
+      noise(t, .1, .45, 'bandpass', 2200 * p, 400, 1);
+    }
+    else if (k === 'sl') {
+      osc('sawtooth', 420, 60, t, .7, .4, sfxG, ['lowpass', 2500]);
+      osc('sine', 1600, 140, t, .5, .3);
+      noise(t, .4, .5, 'bandpass', 900, 200, .8);
+    }
+    else if (k === 'slc')
+      osc('sine', 300, 1800, t, .8, .18);
     else {
       noise(t, .5, .4, 'lowpass', 1500, 200, .5);
       osc('sine', 70, 30, t, .4, .8);

@@ -216,6 +216,7 @@ function update(dt) {
       e.cd = e.fr * R(.8, 1.2);
     }
   });
+  burnTick(dt);
   enemies = enemies.filter(e => !e.dead);
   updHz(dt);
   shots.forEach(b => {
@@ -367,17 +368,50 @@ function roomClear() {
   openGate();
 }
 
-// The boon offer after a room: one weapon boon on odd rooms; never a weapon you hold, a one-off you have, or a maxed boon
+// A card's rarity: common most often, legendary rarely; the odds shift toward the rarer ones with each mission cleared
+function rollRarity() {
+  const d = P.done.length;
+  const w = { c: Math.max(15, 50 - 8 * d), u: 28, r: 14 + 3 * d, e: 6 + 2 * d, l: 1.5 + d };
+  let x = Math.random() * Object.values(w).reduce((a, b) => a + b, 0);
+  for (const k of Object.keys(w)) {
+    x -= w[k];
+    if (x <= 0)
+      return k;
+  }
+  return 'c';
+}
+
+// One card from the pool: of the rolled rarity if there's one left, otherwise the nearest rarity below, then above
+function drawBoon(pool, used) {
+  const order = ['c', 'u', 'r', 'e', 'l'];
+  const i = order.indexOf(rollRarity());
+  const tries = order.slice(0, i + 1).reverse().concat(order.slice(i + 1));
+  for (const k of tries) {
+    const c = pool.filter(b => b.r === k && !used.includes(b));
+    if (c.length)
+      return c[Math.random() * c.length | 0];
+  }
+  return null;
+}
+
+// The boon offer after a room: one weapon boon on odd rooms; never a weapon you hold, a one-off you have, or a maxed
+// boon. Each card rolls a rarity; legendary boons you don't have yet can turn up too.
 function makeChoices() {
-  const pool = BOONS.filter(b => !(b.w && P.slots.includes(b.w)) && !(b.th && P.thrust) && !(b.once && P.boons.includes(b.n)) && !(b.mx && b.mx(P))).sort(() => Math.random() - .5);
+  const pool = BOONS.filter(b => !(b.w && P.slots.includes(b.w)) && !(b.th && P.thrust) && !(b.once && P.boons.includes(b.n)) && !(b.mx && b.mx(P)))
+    .concat(LEG.filter(b => !P.boons.includes(b.n) && !(b.w && P.slots.includes(b.w))));
   const wp = pool.filter(b => b.w);
   const ot = pool.filter(b => !b.w);
-  choices = (room % 2 ? [wp[0], ot[0], ot[1]] : pool.slice(0, 3)).filter(Boolean);
+  choices = [];
+  (room % 2 ? [wp, ot, ot] : [pool, pool, pool]).forEach(pl => {
+    const c = drawBoon(pl, choices);
+    if (c)
+      choices.push(c);
+  });
   // From the second mission on, sometimes swap the last card for a variant of a gun you carry
   const vars = P.done.length >= 1 ? P.slots.filter(k => k && VARIANTS[k] && !(P.vr && P.vr[k])) : [];
   if (vars.length && choices.length && Math.random() < .5) {
     const k = vars[Math.random() * vars.length | 0];
-    choices[choices.length - 1] = { n: VARIANTS[k].n, d: 'VARIANT of your ' + W[k].n + ': ' + VARIANTS[k].d, f: p => {
+    choices[choices.length - 1] = { r: 'e', n: VARIANTS[k].n, d: 'VARIANT of your ' + W[k].n + ': ' + VARIANTS[k].d, f: p => {
       p.vr = p.vr || {};
       p.vr[k] = 1;
     } };
@@ -553,6 +587,23 @@ function playerMove(dt, frz, f, s, m, sy, cy) {
       }
     }
   }
+  else if (W[P.wpn].charge) {
+    // Spartan Laser: hold fire to charge; it fires itself when full, and letting go early cancels
+    if (down && P.cd <= 0 && P.reload <= 0 && P.ammo > 0) {
+      if (!P.chg)
+        sfx.shot('slc');
+      P.chg = (P.chg || 0) + dt;
+      if (P.chg >= W[P.wpn].charge) {
+        P.chg = 0;
+        fire();
+      }
+    }
+    else {
+      P.chg = 0;
+      if (down && P.ammo <= 0 && P.reload <= 0 && P.sr[P.cur] > 0)
+        startReload();
+    }
+  }
   else if (down && P.cd <= 0 && P.reload <= 0) {
     if (P.ammo > 0) {
       fire();
@@ -640,6 +691,8 @@ function hudWeapon() {
     mag = 'EMPTY';
   else if (sw && P.ammo < swingCost())
     mag = 'DEPLETED';
+  else if (w.charge && P.chg > 0)
+    mag = 'CHARGING';
   hudSet('amag', 'text', String(mag) + (sw && typeof mag === 'number' ? '%' : ''));
   hudSet('ares', 'text', sw || reloading || typeof mag !== 'number' ? '' : '/ ' + res);
   hudSet('wammo', 'cls', reloading ? 'rl' : typeof mag !== 'number' || fill <= .25 ? 'low' : '');
@@ -651,7 +704,7 @@ function hudWeapon() {
   const o = P.slots[1 - P.cur];
   hudSet('wsec', 'text', o ? (2 - P.cur) + '   ' + wName(o).toUpperCase() + (o === 'sw' ? '' : '   ' + ((P.sa[1 - P.cur] || 0) + P.sr[1 - P.cur])) : '');
   hudSet('gnade', 'html', '<b>GRENADES</b>' + '<i class="on"></i>'.repeat(Math.max(0, P.nades)) + '<i></i>'.repeat(Math.max(0, P.nadeMax - P.nades)));
-  hudSet('gthr', 'html', P.thrust ? '<b>THRUSTER</b><span><i style="width:' + Math.round(100 * (1 - Math.max(0, P.tcd) / 2.5)) + '%"></i></span>' : '');
+  hudSet('gthr', 'html', P.thrust ? '<b>THRUSTER</b><span><i style="width:' + Math.round(100 * (1 - Math.max(0, P.tcd) / (2.5 * (P.tcdMul || 1)))) + '%"></i></span>' : '');
 }
 let last = performance.now();
 

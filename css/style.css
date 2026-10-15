@@ -92,3 +92,12 @@ canvas{width:100%;height:100%;display:block}
 /* What E would do here (vehicles, REQ stations) */
 #prompt{position:absolute;left:50%;top:62%;transform:translateX(-50%);font:600 14px monospace;letter-spacing:1px;color:#e6eadf;text-shadow:0 0 6px #000,0 0 2px #000;pointer-events:none;white-space:nowrap}
 #prompt:empty{display:none}
+
+/* Boon rarities (pick screen) */
+.card .rar{display:block;font-size:10px;font-weight:700;letter-spacing:2px;margin-bottom:5px}
+.card.rar-c{border-color:#59614f}.card.rar-c .rar{color:#b8c0b0}
+.card.rar-u{border-color:#3f8a3f}.card.rar-u .rar{color:#6fd36f}
+.card.rar-r{border-color:#2f6fb8;box-shadow:0 0 8px rgba(70,150,255,.25)}.card.rar-r .rar{color:#5ab0ff}
+.card.rar-e{border-color:#8a4ad0;box-shadow:0 0 12px rgba(170,100,255,.4);background:linear-gradient(#211a2c,#1b2017)}.card.rar-e .rar{color:#c486ff}
+.card.rar-l{border-color:#d09a28;box-shadow:0 0 16px rgba(255,175,45,.5);background:linear-gradient(#2c2412,#1b2017)}.card.rar-l .rar{color:#ffc040}
+.card.pk:hover{filter:brightness(1.18)}

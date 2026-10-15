@@ -241,6 +241,49 @@ function buildGun(k) {
     right(0, -.15, .05);
     left(0, -.14, -.24);
   }
+  else if (k === 'cb') {
+    // Type-51 Carbine: a long, angular Covenant rifle in dark green-grey with a glowing radioactive cell, a long
+    // barrel under a finned top spine, and a curved stock
+    const hull = gPh(0x3a4a3c, 90, 0xa0c0a8);
+    const hullD = gPh(0x1e2620, 60, 0x70907a);
+    const gl = gmat('cbGlow', () => new THREE.MeshBasicMaterial({ color: 0x7dff6a }));
+    ud.glows = [gl];
+    bx(.07, .085, .44, hull, 0, 0, -.1);
+    bx(.05, .05, .5, hullD, 0, -.035, -.16);
+    cy(.016, .016, .2, hullD, 0, .005, -.44, Z);
+    cy(.026, .02, .04, hull, 0, .005, -.55, Z, 0, 0, 6);
+    bx(.02, .05, .38, hull, 0, .065, -.12);
+    [0, 1, 2].forEach(i => bx(.012, .03, .06, hullD, 0, .1, -.26 + i * .1, .3));
+    bx(.03, .05, .1, gl, .038, .0, -.02);
+    bx(.074, .006, .3, gl, 0, .044, -.16);
+    bx(.04, .1, .05, hullD, 0, -.08, .04, .28);
+    bx(.06, .08, .14, hull, 0, -.02, .18, -.15);
+    sp(.03, gl, 0, .005, -.58);
+    right(0, -.095, .04);
+    left(-.005, -.07, -.24);
+  }
+  else if (k === 'sl') {
+    // Spartan Laser: a big boxy UNSC weapon in pale grey with a wide front lens that glows as it charges, a battery
+    // pack on the side, a top sight and two handles
+    const pale = gPh(0x9aa0a6, 60, 0xd0d4d8);
+    const gl = gmat('slGlow', () => new THREE.MeshBasicMaterial({ color: 0xff3a2a }));
+    ud.glows = [gl];
+    bx(.12, .13, .62, pale, 0, .02, -.16);
+    bx(.124, .03, .5, dark, 0, -.035, -.18);
+    bx(.13, .015, .1, amber, 0, .09, -.3);
+    cy(.06, .06, .06, dark, 0, .02, -.48, Z, 0, 0, 18);
+    cy(.048, .048, .005, gl, 0, .02, -.512, Z, 0, 0, 18);
+    [-1, 1].forEach(s => bx(.012, .1, .04, black, s * .05, .02, -.49));
+    bx(.05, .09, .2, dark, -.085, .0, -.12);
+    [0, 1, 2].forEach(i => bx(.052, .008, .02, gl, -.087, .03 - i * .025, -.04));
+    cy(.02, .02, .12, dark, 0, .11, -.12, Z);
+    cy(.018, .018, .004, gGlow(0xff6a5a), 0, .11, -.181, Z);
+    bx(.042, .11, .05, black, 0, -.1, .05, .2);
+    bx(.04, .1, .045, black, 0, -.1, -.28, -.1);
+    bx(.1, .1, .12, pale, 0, .02, .19);
+    right(0, -.14, .05);
+    left(0, -.13, -.28);
+  }
   else if (k === 'nd') {
     // Type-33 Needler: a bulbous magenta shell with a row of glowing pink crystals along the top (they run out as
     // you fire), a glowing core window, and a grip underneath
@@ -296,7 +339,7 @@ function gunTick() {
     ud.cr.forEach((m, i) => m.visible = i < n);
   }
   if (ud.glows) {
-    const hot = P.cd > 0 && P.cd > wst().rate * .5;
+    const hot = (P.cd > 0 && P.cd > wst().rate * .5) || (P.chg > 0 && Math.random() < .3 + P.chg);
     ud.glows.forEach(m => {
       m.userData.base = m.userData.base || m.color.getHex();
       m.color.setHex(m.userData.base);

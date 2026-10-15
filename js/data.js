@@ -150,8 +150,36 @@ const BOONS = [
   },
   {
     w: 'sw', n: 'Energy Sword', d: 'WEAPON: click to slash, lunges at enemies in front of you', f: p => setW(p, 'sw')
+  },
+  {
+    w: 'cb', r: 'r', n: 'Type-51 Carbine', d: 'WEAPON: precise semi-auto, headshots x2.4; hits leave a stacking radiation burn', f: p => setW(p, 'cb')
+  },
+  {
+    w: 'sl', r: 'e', n: 'Spartan Laser', d: 'WEAPON: hold fire to charge (0.8s), then a beam that cuts through every enemy in a line', f: p => setW(p, 'sl')
+  },
+  {
+    once: 1, r: 'u', n: 'Shield Siphon', d: 'Kills restore 15 shield', f: p => p.siphon = 15
+  },
+  {
+    mx: p => (p.tcdMul || 1) <= .4, r: 'c', n: 'Thruster Overclock', d: 'Thruster recharges 30% faster', f: p => p.tcdMul = (p.tcdMul || 1) * .7
+  },
+  {
+    once: 1, r: 'r', n: 'Last Stand', d: '+50% damage while you are below 30% health', f: p => p.lastStand = 1
+  },
+  {
+    once: 1, r: 'e', n: 'Ricochet Rounds', d: '25% of your hits ricochet into another enemy within 8m for 60% damage', f: p => p.rico = .25
   }
 ];
+// Rarity of each boon (r): common, uncommon, rare, epic; legendary boons are the LEG list (meta.js). Each card in a boon
+// offer rolls a rarity first (see makeChoices), so the rarer ones turn up less often, and more often later in a run.
+const RARITY = { c: { n: 'COMMON', w: 50 }, u: { n: 'UNCOMMON', w: 28 }, r: { n: 'RARE', w: 14 }, e: { n: 'EPIC', w: 6 }, l: { n: 'LEGENDARY', w: 2 } };
+const BOON_R = {
+  'Overshield Capacitor': 'c', 'Quick Recharge': 'c', 'Extended Mag': 'c', 'Grenade Bandolier': 'c', 'Medkit': 'c', 'Fast Hands': 'c', 'Deep Pockets': 'c', 'M6D Magnum': 'c',
+  'Hardened Rounds': 'u', 'Tuned Trigger': 'u', 'Bigger Boom': 'u', 'Hardlight Strike': 'u', 'Scavenger': 'u', 'Steady Aim': 'u', 'BR55 Battle Rifle': 'u', 'M90 Shotgun': 'u', 'Type-25 Plasma Rifle': 'u',
+  'Headhunter': 'r', 'Sticky Grenades': 'r', 'Adrenaline': 'r', 'Thick Plating': 'r', 'S2 AM Sniper Rifle': 'r', 'Type-33 Needler': 'r',
+  'EMP Discharge': 'e', 'M41 Rocket Launcher': 'e', 'Energy Sword': 'e'
+};
+BOONS.forEach(b => b.r = b.r || BOON_R[b.n] || 'c');
 let state = 'title';
 let P;
 let enemies = [];
