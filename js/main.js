@@ -543,6 +543,12 @@ function playerMove(dt, frz, f, s, m, sy, cy) {
   cam.rotation.set(pitch, yaw, 0);
   P.cd -= dt;
   P.mcd -= dt;
+  // recoil settles back once you stop firing (your own mouse moves aren't undone)
+  if (P.kk > 0 && T - (P.lastShot || 0) > .07) {
+    const r = Math.min(P.kk, (P.kk * 9 + .15) * dt);
+    pitch = clamp(pitch - r, -1.4, 1.4);
+    P.kk -= r;
+  }
   if (P.reload > 0) {
     P.reload -= dt;
     if (P.reload <= 0) {
@@ -650,7 +656,10 @@ function hud() {
   }
   $('room').textContent = NET.mode ? netRoomText() : (L ? (LEGEND ? 'LEGENDARY | ' : '') + L.n + ' | ' + (lroom > L.rooms ? 'BOSS' : 'Room ' + lroom + '/' + L.rooms) : '') + '  Kills ' + kills;
   $('vig').style.opacity = vig;
-  $('cross').style.borderColor = hitT > 0 ? hitCol : 'rgba(155,196,90,.8)';
+  // the reticle: hit marker colour, red over an enemy in range, otherwise green
+  const onT = aimOnTarget();
+  $('cross').style.borderColor = hitT > 0 ? hitCol : onT ? '#ff4a3a' : 'rgba(155,196,90,.8)';
+  $('cross').classList.toggle('on', onT);
   compass();
   waypoints();
 }

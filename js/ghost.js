@@ -250,12 +250,9 @@ function vehShoot() {
   enemies.forEach(e => {
     if (e.dead)
       return;
-    const dx = e.x - o.x;
-    const dy = 1.1 * e.sc + (e.y || 0) - o.y;
-    const dz = e.z - o.z;
-    const t = dx * d.x + dy * d.y + dz * d.z;
-    if (t > 0 && t < bt && dx * dx + dy * dy + dz * dz - t * t < (.8 * e.sc) ** 2) {
-      bt = t;
+    const b = bodyRay(e, o, d);
+    if (b.t > 0 && b.t < bt && b.off < bodyR(e) + .15) {
+      bt = b.t;
       best = e;
     }
   });

@@ -56,6 +56,7 @@ The full list is under **Controls** in the pause menu (Esc) and in Settings, whi
 - Three themed levels (UNSC outpost, Covenant cruiser, Forerunner ring), each with rooms of waves and a boss.
 - Boons come in five rarities (common, uncommon, rare, epic, legendary): each card rolls one, rarer ones turn up more often later in a run, and legendaries can appear on any boon screen as well as after a boss. Highlights include the Type-51 Carbine (hits leave a stacking radiation burn), the Spartan Laser (hold to charge a beam that cuts through a whole line), Ricochet Rounds, Shield Siphon, Last Stand and Thruster Overclock.
 - You start every room at full health and shields.
+- Aiming: enemies are hit anywhere on their bodies (feet to head), near-misses get a little bullet magnetism, the reticle turns red over an enemy in your weapon's range, and recoil settles back after you stop firing.
 - Roguelite loop: boon after every room, a legendary boon after each boss, then mission select. Enemies scale with each level cleared.
 - Missions are a run of separate rooms: each room has its own cover layout and ground. Clear it and the exit gate on the far wall opens; walk through it to pick a boon, then the next room's enemies warp in a second after you arrive.
 - Nine bosses (Zealot Commander, Hunter Warlord, Forerunner Warden, Bonded Hunters, Blademaster, Shipmaster, Skirmisher Alpha, Grunt Deacon, Ironclad Hunter). Each mission draws its boss from a pool of three, so runs differ.

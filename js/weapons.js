@@ -148,6 +148,51 @@ function laserBeam(a, b) {
   return m;
 }
 
+/* ---------- Aiming ---------- */
+// Each body is a capsule from its feet to the top of its head (wider for Hunters and Ghosts), so a shot hits whenever
+// the crosshair is on the model. bodyRay: how far along the ray (o, d: unit) it passes closest to the body, and how far
+// off it passes.
+const bodyR = e => (e.veh ? 1.1 : e.t === 'hunter' || ET[e.t] && ET[e.t].model === 'hunter' ? .62 : .42) * e.sc;
+function bodyRay(e, o, d) {
+  const y0 = (e.y || 0) + .2 * e.sc;
+  const y1 = (e.y || 0) + (e.veh ? 1.5 : 1.85) * e.sc;
+  const hh = d.x * d.x + d.z * d.z;
+  if (hh > 1e-6) {
+    // nearest approach to the body's centreline, if that's between its feet and head
+    const t = ((e.x - o.x) * d.x + (e.z - o.z) * d.z) / hh;
+    const y = o.y + d.y * t;
+    if (y >= y0 && y <= y1)
+      return { t, off: Math.hypot(o.x + d.x * t - e.x, o.z + d.z * t - e.z) };
+  }
+  // otherwise, nearest approach to the end it's past (above the head or below the feet)
+  const cy = o.y + d.y * (((e.x - o.x) * d.x + (e.z - o.z) * d.z) / (hh || 1)) > y1 ? y1 : y0;
+  const t = (e.x - o.x) * d.x + (cy - o.y) * d.y + (e.z - o.z) * d.z;
+  return { t, off: Math.hypot(o.x + d.x * t - e.x, o.y + d.y * t - cy, o.z + d.z * t - e.z) };
+}
+// Bullet magnetism (like Halo's aim assist): a shot that just misses the edge of a body still connects, a little more
+// at range. Not for shotgun pellets.
+const magnet = (w, t) => w.pel > 1 ? 0 : .1 + .005 * Math.min(t, 60);
+// How far each weapon is effective (the reticle turns red on an enemy within it)
+const AIM_RNG = { ar: 40, br: 65, mg: 45, sg: 12, sn: 130, pr: 30, rk: 60, nd: 25, cb: 70, sl: 110, sw: 5 };
+
+// Is the crosshair on an enemy in range (and not behind a wall)? For the red reticle.
+function aimOnTarget() {
+  if (!P || state !== 'play')
+    return false;
+  const o = cam.position;
+  const d = fwd();
+  const rng = P.veh ? 60 : P.hog === 3 ? 70 : AIM_RNG[P.wpn] || 40;
+  let bt = 1e9;
+  enemies.forEach(e => {
+    if (e.dead || e.camo)
+      return;
+    const b = bodyRay(e, o, d);
+    if (b.t > 0 && b.t < rng && b.t < bt && b.off < bodyR(e))
+      bt = b.t;
+  });
+  return bt < 1e9 && bt < wallT(o, d);
+}
+
 function recalcMag() {
   const w = W[P.wpn];
   P.magMax = Math.max(1, Math.round(w.mag + (P.mb || 0) * w.mbs));
@@ -696,7 +741,10 @@ function fire() {
   if (!(P.infMag && Math.random() < P.infMag))
     P.ammo--;
   P.cd = w.rate;
+  // recoil kicks the view up, then settles back (see playerMove)
   pitch += w.kick;
+  P.kk = (P.kk || 0) + w.kick;
+  P.lastShot = T;
   gun.position.z = -.46;
   sfx.shot(P.wpn);
   if (w.rocket) {
@@ -719,13 +767,10 @@ function fire() {
       enemies.forEach(e => {
         if (e.dead)
           return;
-        const dx = e.x - o.x;
         // e.y: standing height (players on the versus map's hills)
-        const dy = 1.1 * e.sc + (e.y || 0) - o.y;
-        const dz = e.z - o.z;
-        const t = dx * d.x + dy * d.y + dz * d.z;
-        if (t > 0 && dx * dx + dy * dy + dz * dz - t * t < (.8 * e.sc) ** 2)
-          hits.push({ e, t });
+        const b = bodyRay(e, o, d);
+        if (b.t > 0 && b.off < bodyR(e) + magnet(w, b.t))
+          hits.push({ e, t: b.t });
       });
       hits.sort((a, b) => a.t - b.t);
       const wt = wallT(o, d);
