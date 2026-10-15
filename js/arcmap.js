@@ -41,8 +41,9 @@ function groundArc(x, z) {
   let h = .25 * Math.sin(x * .19 + 1) * Math.cos(z * .23) + .15 * Math.sin(x * .41 - z * .37);
   for (const [mx, mz, mh, r] of ARC_MOUNDS)
     h += mh * Math.exp(-((x - mx) ** 2 + (z - mz) ** 2) / (r * r));
-  // the excavation pit
-  h -= 2 * Math.exp(-((x - 6) ** 2 + (z - 12) ** 2) / 120);
+  // the excavation pit: a wide, shallow basin with a smooth floor 0.5m down (flooded knee deep: see arcBuild)
+  const pw = smooth01((15 - Math.hypot(x - 6, z - 12)) / 6);
+  h = h * (1 - pw) - .5 * pw;
   for (const [px, pz, hw, hd] of ARC_PADS) {
     const d = Math.max(Math.abs(x - px) - hw, Math.abs(z - pz) - hd);
     h *= smooth01(d / 6);
@@ -398,7 +399,7 @@ function arcBuild({ add, G, B, hills, ground }) {
   band.rotation.z = Math.PI / 2;
   band.position.set(-400, 1760, -900);
   envG.add(band);
-  ground(mat('gravelBig', () => new THREE.MeshLambertMaterial({ map: ctex('gravelBig', 256, 256, 160, 160, DR.gravel) })));
+  ground(mat('gravelBig', () => new THREE.MeshLambertMaterial({ map: ctex('gravelBig', 256, 256, 160, 160, DR.gravel) })), -8);
   // far mountains: far enough out (and narrow enough) that none reaches inside the cliffs
   hills(40, 260, 420, 50, 110, 0x3c3e42);
 
@@ -431,9 +432,9 @@ function arcBuild({ add, G, B, hills, ground }) {
   for (let a = 0; a < 6.28; a += .5)
     for (let r = 0; r < 4; r += 1)
       pitLow = Math.min(pitLow, groundH(6 + Math.cos(a) * r, 12 + Math.sin(a) * r));
-  const pool = pitLow + .45;
-  waterFn = (x, z) => (x - 6) ** 2 + (z - 12) ** 2 < 324 && groundH(x, z) < pool ? pool : null;
-  const pw = add(new THREE.CircleGeometry(16, 40), mat('arcWater', () => new THREE.MeshPhongMaterial({ color: 0x3e5a62, shininess: 100, specular: 0x9ab8c8, transparent: true, opacity: .82 })), 6, pool, 12);
+  const pool = pitLow + .42;
+  waterFn = (x, z) => (x - 6) ** 2 + (z - 12) ** 2 < 15 * 15 && groundH(x, z) < pool ? pool : null;
+  const pw = add(new THREE.CircleGeometry(15, 48), mat('arcWater', () => new THREE.MeshPhongMaterial({ color: 0x1e4a58, emissive: 0x061a20, shininess: 120, specular: 0x9ac8e0, transparent: true, opacity: .72 })), 6, pool, 12);
   pw.rotation.x = -Math.PI / 2;
 
   // ---- The quarry walls: boulders along the foot of the cliffs, bigger ones up the cliffs, rock spires beyond ----
@@ -718,7 +719,7 @@ function arcBuild({ add, G, B, hills, ground }) {
   cl.position.set(cx, cg + 7, cz);
   envG.add(cl);
 
-  // ---- The excavation pit: the drill rig with a scaffold deck round it ----
+  // ---- The flooded excavation basin: the drill rig with a scaffold deck round it ----
   const dx = 6;
   const dz = 12;
   const dg = groundH(dx, dz);
@@ -845,6 +846,9 @@ function arcBuild({ add, G, B, hills, ground }) {
     sweeps.forEach(([h, ph, base]) => h.rotation.y = base + Math.sin(T * .35 + ph) * .9);
     crane.rotation.y = Math.sin(T * .12) * 1.1;
     ring.material.opacity = .25 + .2 * Math.sin(T * 3);
+    // the pond shimmers
+    pw.material.emissive.setHSL(.54, .55, .05 + .015 * Math.sin(T * 1.3));
+    pw.material.opacity = .7 + .04 * Math.sin(T * .9);
     for (let i = 0; i < steamN; i++) {
       const v = vents[i % vents.length];
       sl[i] += dt * .35;

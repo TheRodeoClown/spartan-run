@@ -540,8 +540,10 @@ function buildLevel(lv, empty) {
       add(new THREE.ConeGeometry(w, h, 5 + (Math.random() * 4 | 0)), m, Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r).rotation.y = R(0, 3);
     }
   };
-  const ground = m => {
-    add(new THREE.CircleGeometry(900, 48), m, 0, -.05, 0).rotation.x = -Math.PI / 2;
+  // The far ground, out to the horizon. Maps whose terrain dips below 0 (a creek bed, a flooded basin) put it lower,
+  // or it would cover those hollows and hide whatever is in them.
+  const ground = (m, y) => {
+    add(new THREE.CircleGeometry(900, 48), m, 0, y == null ? -.05 : y, 0).rotation.x = -Math.PI / 2;
   };
   const decals = c => {
     [8 * K, 14 * K].forEach(r => {

@@ -1083,7 +1083,7 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
   band.rotation.z = Math.PI / 2;
   band.position.set(0, 1760, 0);
   envG.add(band);
-  ground(M(0x4a6a32));
+  ground(M(0x4a6a32), -8);
   hills(36, 175, 330, 30, 60, 0x6d7458);
   pines(46, 92, 160);
   // Terrain: a displaced grid replaces the flat floor, and becomes the ground everything stands on
