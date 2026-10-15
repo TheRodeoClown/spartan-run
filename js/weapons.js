@@ -379,8 +379,14 @@ function setGun(k) {
 
 setGun('ar');
 
-// Looking through the sniper scope: the gun model is hidden and the scope overlay shown.
-const scoped = () => P && state === 'play' && zoomOn && P.wpn === 'sn' && cam.fov < 40;
+// Looking through a scope (the S2 sniper's 5x, or the BR55's 2x like Halo's): the gun model is hidden and the scope
+// overlay shown. The BR's reticle (a ring, four ticks and a dot) is added to the overlay here.
+const scoped = () => P && state === 'play' && zoomOn && (P.wpn === 'sn' && cam.fov < 40 || P.wpn === 'br' && cam.fov < 50);
+['tl', 'tr', 'tt', 'tb', 'td'].forEach(c => {
+  const i = document.createElement('i');
+  i.className = c;
+  document.getElementById('scope').appendChild(i);
+});
 
 function animGun(dt) {
   gun.visible = state !== 'title' && !scoped() && !(P && (P.veh || P.hog === 1 || P.hog === 3));

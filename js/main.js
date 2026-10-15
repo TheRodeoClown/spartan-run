@@ -422,7 +422,7 @@ function tick(dt) {
   animGun(dt);
   if (envTick)
     envTick(dt);
-  cam.fov += ((zoomOn && P && P.wpn !== 'sw' ? (P.wpn === 'sn' ? 18 : 45) : P && P.spr && state === 'play' ? 83 : 75) - cam.fov) * Math.min(1, dt * 12);
+  cam.fov += ((zoomOn && P && P.wpn !== 'sw' ? (P.wpn === 'sn' ? 18 : P.wpn === 'br' ? 37 : 45) : P && P.spr && state === 'play' ? 83 : 75) - cam.fov) * Math.min(1, dt * 12);
   cam.updateProjectionMatrix();
   tracers.forEach(t => {
     t.life -= dt;
@@ -634,6 +634,10 @@ function hud() {
   $('hud').style.visibility = state === 'title' || state === 'menu' ? 'hidden' : 'visible';
   const sc = scoped();
   $('scope').style.display = sc ? 'block' : 'none';
+  if (sc) {
+    $('scope').className = P.wpn === 'br' ? 'br' : '';
+    $('scope').querySelector('span').textContent = P.wpn === 'br' ? '2x' : '5x';
+  }
   $('cross').style.display = state === 'play' && !sc ? 'block' : 'none';
   $('clk').style.display = state === 'play' && !locked && !freeLook ? 'block' : 'none';
   if (!P)
@@ -660,6 +664,7 @@ function hud() {
   const onT = aimOnTarget();
   $('cross').style.borderColor = hitT > 0 ? hitCol : onT ? '#ff4a3a' : 'rgba(155,196,90,.8)';
   $('cross').classList.toggle('on', onT);
+  $('scope').classList.toggle('on', onT);
   compass();
   waypoints();
 }

@@ -4,7 +4,7 @@
  * Everything else (versioned scripts and styles, icons, the Three.js and PeerJS libraries): cache first.
  * Bump CACHE with each release (alongside BUILD in index.html and version.txt) so old files are cleared.
  */
-const CACHE = 'spartan-run-37';
+const CACHE = 'spartan-run-38';
 const CORE = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {

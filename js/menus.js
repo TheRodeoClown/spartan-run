@@ -251,7 +251,7 @@ function titleSettings() {
 
 // Controls page, reached from the pause menu, the multiplayer menu and Settings. back: the function that redraws
 // the screen you came from.
-const CONTROLS = [['WASD', 'Move'], ['Mouse', 'Look'], ['Left click (hold)', 'Fire'], ['Right click (hold)', 'Zoom / sniper scope'], ['Space', 'Jump'],
+const CONTROLS = [['WASD', 'Move'], ['Mouse', 'Look'], ['Left click (hold)', 'Fire'], ['Right click (hold)', 'Zoom (scope on the BR55 and sniper)'], ['Space', 'Jump'],
   ['Shift + WASD', 'Thruster boost (any direction)'], ['Shift + W', 'Sprint (versus)'], ['R', 'Reload'], ['Q', 'Throw grenade'], ['F', 'Melee'],
   ['Wheel or 1 / 2', 'Swap weapon'], ['1 - 3', 'Pick a boon'], ['Tab (hold)', 'Scoreboard (multiplayer)'], ['E', 'REQ station / get in or out of a vehicle (Firefight)'], ['Driving a Ghost', 'Mouse steers, W/S/A/D, Shift boosts, click fires'], ['Warthog', 'Walk up to a seat: driver (mouse steers, W/S), passenger (shoot), gunner (hold fire)'], ['Esc or P', 'Pause menu'], ['M / N', 'Mute all / mute music']];
 
