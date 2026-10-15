@@ -12,10 +12,15 @@ const gcache = (k, f) => GC[k] || (GC[k] = f());
 const mcache = (k, f) => MC[k] || (MC[k] = f());
 
 // Shared Flood materials: pale flesh, rotting tissue, glowing pustules
+// Flood materials: wet pink-tan flesh, red-brown veins and rot, pale infection-form skin, dark horn (claws, spines),
+// pustules and gore
 const floodMats = () => ({
-  flesh: mcache('fflesh', () => new THREE.MeshPhongMaterial({ color: 0xb8a864, emissive: 0x1a1600, shininess: 20 })),
-  rot: mcache('frot', () => new THREE.MeshPhongMaterial({ color: 0x5a5a36, shininess: 10 })),
-  pus: mcache('fpus', () => new THREE.MeshPhongMaterial({ color: 0xd8e070, emissive: 0x404800, shininess: 60 }))
+  flesh: mcache('fflesh', () => rimify(new THREE.MeshPhongMaterial({ color: 0xc8907a, emissive: 0x1a0a06, shininess: 45, specular: 0x6a4a40 }), .18)),
+  rot: mcache('frot', () => rimify(new THREE.MeshPhongMaterial({ color: 0x7a3e30, shininess: 30, specular: 0x4a2a20 }), .15)),
+  pale: mcache('fpale', () => rimify(new THREE.MeshPhongMaterial({ color: 0xe2c4a8, emissive: 0x140a04, shininess: 50, specular: 0x7a6050 }), .2)),
+  horn: mcache('fhorn', () => new THREE.MeshPhongMaterial({ color: 0x2e221c, shininess: 70, specular: 0x8a7a70 })),
+  pus: mcache('fpus', () => new THREE.MeshPhongMaterial({ color: 0xf0d890, emissive: 0x403010, shininess: 80 })),
+  blood: mcache('fblood', () => new THREE.MeshPhongMaterial({ color: 0x8a1a14, emissive: 0x200000, shininess: 60 }))
 });
 
 // Skimmer thruster jets: a fast flicker
@@ -376,70 +381,176 @@ function buildEnemy(t) {
     });
   }
   else if (t === 'fcomb') {
-    // Flood combat form: a hunched, mutated host with lumpy growths, a long whip arm (it swings) and a club arm
-    mat = armor(0x8a8a52);
+    // Flood combat form: a hunched, broken host (a Marine in green armour, or now and then an Elite in red), the
+    // infection form that took it bulging out of its chest with tendrils spilling out, its head lolled to one side
+    // under a growth, tumours over the shoulder and back, one arm turned into a long ropy whip with bone claws (it
+    // swings: arm)
     const F = floodMats();
-    legs = [-1, 1].map(s => rig(s * .18, .95, 0, () => {
-      limb([[s * .18, .95, 0], [s * .24, .55, .14], [s * .2, .08, 0]], .08, F.rot);
-      P3(B(.16, .06, .26), F.rot, s * .2, .04, .06);
+    const el = Math.random() < .3;
+    mat = armor(el ? 0x9a2a28 : 0x4e5a38);
+    const suit = Ph(el ? 0x3a2a30 : 0x2e3428, 30);
+    legs = [-1, 1].map(s => rig(s * .17, .92, 0, () => {
+      limb([[s * .17, .92, 0], [s * .21, .52, .12], [s * .19, .08, -.02]], .085, suit);
+      P3(B(.17, .32, .17), mat, s * .2, .7, .07, null, [.15, 0, 0]);
+      P3(B(.15, .3, .15), mat, s * .2, .3, .06, null, [-.1, 0, 0]);
+      P3(B(.17, .1, .3), Ph(0x1e1e1c, 20), s * .19, .05, .06);
+      if (s > 0)
+        ball(F.flesh, s * .22, .55, .12, .18, .22, .16);
     }));
-    ball(mat, 0, 1.25, .02, .62, .55, .46, [.35, 0, 0]);
-    ball(F.flesh, .1, 1.42, -.12, .42, .4, .4);
-    for (let i = 0; i < 6; i++)
-      ball(F.pus, R(-.25, .25), R(1.1, 1.55), R(-.25, .2), R(.1, .18));
-    limb([[0, 1.45, .15], [0, 1.58, .3]], .07, F.rot);
-    ball(F.flesh, 0, 1.62, .34, .3, .26, .3);
-    ball(glow(0xd0ff60), .06, 1.64, .47, .05);
-    arm = rig(-.3, 1.4, .05, () => limb([[-.3, 1.4, .05], [-.5, 1.15, .25], [-.55, .85, .5], [-.48, .6, .72]], .06, F.flesh));
-    limb([[.3, 1.4, .05], [.45, 1.1, .25], [.5, .95, .45]], .09, F.rot);
-    ball(F.flesh, .52, .92, .52, .26, .24, .26);
+    P3(B(.46, .2, .3), mat, 0, .98, 0);
+    // hunched torso: armour plates over a body swollen with flesh
+    ball(suit, 0, 1.28, .08, .56, .56, .42, [.45, 0, 0]);
+    P3(B(.5, .42, .14), mat, 0, 1.3, .27, null, [.45, 0, 0]);
+    P3(B(.5, .4, .16), mat, 0, 1.36, -.14, null, [.5, 0, 0]);
+    [-1, 1].forEach(s => P3(B(.22, .14, .28), mat, s * .3, 1.55, .08, null, [.3, 0, s * .4]));
+    // the infection form bursting from the chest, tendrils spilling out
+    ball(F.pale, -.06, 1.22, .36, .26, .24, .22);
+    ball(F.flesh, .08, 1.35, .33, .2, .18, .16);
+    for (let i = 0; i < 5; i++) {
+      const a = -1 + i * .5;
+      limb([[-.06, 1.2, .42], [-.06 + Math.sin(a) * .15, 1.08, .55], [-.06 + Math.sin(a) * .25, .92, .52]], .018, F.rot);
+    }
+    // tumours on the shoulder and back
+    ball(F.flesh, .24, 1.62, -.05, .38, .34, .36);
+    ball(F.pale, .32, 1.72, .02, .2, .2, .2);
+    ball(F.flesh, .1, 1.45, -.3, .34, .32, .3);
+    ball(F.pus, .14, 1.5, -.42, .12);
+    // the head, lolled to one side under a flesh growth
+    limb([[0, 1.58, .14], [-.1, 1.66, .3]], .06, F.flesh);
+    if (el) {
+      dome(mat, -.14, 1.66, .34, .34, .3, .46, [-.3, 0, .6]);
+      [-1, 1].forEach(s => P3(B(.03, .14, .03), suit, -.14 + s * .07, 1.56, .5, null, [.4, 0, s * .3]));
+    }
+    else {
+      dome(mat, -.14, 1.68, .32, .36, .32, .38, [-.2, 0, .6]);
+      P3(B(.22, .06, .04), Ph(0xd8a040, 80), -.12, 1.62, .5, null, [0, 0, .6]);
+    }
+    ball(F.flesh, 0, 1.68, .42, .2, .16, .16);
+    // the whip arm: long, ropy and segmented, three bone claws at the end
+    arm = rig(-.34, 1.48, .05, () => {
+      limb([[-.34, 1.48, .05], [-.52, 1.2, .2], [-.62, .9, .42], [-.6, .62, .62], [-.52, .42, .78]], .07, F.flesh);
+      [-1, 0, 1].forEach(k => P3(Co(.035, .26, 5), F.horn, -.52 + k * .05, .32, .86, null, [2.2, 0, k * .3]));
+      ball(F.rot, -.6, .9, .42, .12);
+    });
+    // the other arm, still armoured, hanging limp
+    limb([[.34, 1.48, .05], [.46, 1.15, .18], [.5, .88, .3]], .075, suit);
+    P3(B(.13, .22, .13), mat, .45, 1.15, .18, null, [.3, 0, 0]);
+    ball(F.flesh, .5, .84, .32, .13);
   }
   else if (t === 'finf') {
-    // Flood infection form: a pale, veined bulb on a cluster of thin tentacle legs
-    mat = armor(0xd8d8a0);
+    // Flood infection form: a pale, veined, wrinkled bulb on a ring of thin jointed legs that arch up and out, wiry
+    // tendrils on top and a pair of feelers in front
     const F = floodMats();
-    ball(mat, 0, .8, 0, .5, .44, .5);
-    ball(F.pus, 0, .88, .08, .26, .24, .26);
-    ball(glow(0xd0ff60), 0, .95, .22, .06);
+    mat = armor(0xe2c4a8);
+    ball(mat, 0, .72, 0, .62, .52, .6);
+    [[.14, .78, -.08, .3], [-.14, .76, -.06, .28], [0, .86, .1, .26], [0, .66, -.16, .26]].forEach(([x, y, z, s]) => ball(mat, x, y, z, s));
+    ball(F.rot, 0, .52, 0, .48, .2, .46);
     for (let i = 0; i < 6; i++) {
       const a = i / 6 * 6.28;
-      limb([[Math.cos(a) * .1, .65, Math.sin(a) * .1], [Math.cos(a) * .3, .4, Math.sin(a) * .3], [Math.cos(a) * .42, 0, Math.sin(a) * .42]], .03, F.flesh);
+      limb([[Math.cos(a) * .12, .9, Math.sin(a) * .1], [Math.cos(a) * .26, .8, Math.sin(a) * .24], [Math.cos(a) * .3, .6, Math.sin(a) * .28]], .012, F.rot);
     }
+    for (let i = 0; i < 10; i++) {
+      const a = i / 10 * 6.28 + .3;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      limb([[c * .16, .55, s * .16], [c * .42, .72, s * .42], [c * .62, .38, s * .62], [c * .72, 0, s * .72]], .028, F.flesh);
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = R(0, 6.28);
+      limb([[Math.cos(a) * .1, .95, Math.sin(a) * .1], [Math.cos(a) * .2 + R(-.05, .05), 1.15, Math.sin(a) * .2], [Math.cos(a) * .26, 1.3, Math.sin(a) * .26]], .012, F.rot);
+    }
+    [-1, 1].forEach(s => limb([[s * .06, .7, .26], [s * .12, .66, .44], [s * .1, .56, .56]], .018, F.pale));
+    ball(glow(0xffe0a0), 0, .74, .3, .05);
   }
   else if (t === 'fcarr') {
-    // Flood carrier form: a swollen, pulsing sac on stubby legs, full of infection forms (g.userData.pulse)
-    mat = armor(0xc8b878);
+    // Flood carrier form: a bloated, lumpy sac of flesh on stubby legs, ridged with veins and pale pustules, two
+    // little dangling arms and a vestigial head; it pulses (g.userData.pulse) and bursts into infection forms
     const F = floodMats();
-    legs = [-1, 1].map(s => rig(s * .22, .5, 0, () => limb([[s * .22, .5, 0], [s * .3, .25, .1], [s * .26, .03, 0]], .08, F.rot)));
-    ball(mat, 0, 1.2, 0, 1.1, 1.15, 1.0);
+    mat = armor(0xd09a7c);
+    legs = [-1, 1].map(s => rig(s * .24, .5, 0, () => {
+      limb([[s * .24, .5, 0], [s * .32, .26, .1], [s * .28, .03, 0]], .1, F.rot);
+      P3(Co(.04, .14, 4), F.horn, s * .28, .03, .14, null, [1.6, 0, 0]);
+    }));
+    ball(mat, 0, 1.25, 0, 1.12, 1.2, 1.02);
+    [[.32, 1.5, .2, .55], [-.3, 1.55, .15, .5], [.05, 1.75, -.1, .55], [.2, .95, .3, .48], [-.25, 1.0, .28, .46], [0, 1.3, -.4, .6]].forEach(([x, y, z, s], i) => ball(i % 2 ? mat : F.flesh, x, y, z, s));
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * 6.28;
+      limb([[Math.cos(a) * .3, 1.9, Math.sin(a) * .3], [Math.cos(a) * .55, 1.5, Math.sin(a) * .5], [Math.cos(a) * .58, 1.0, Math.sin(a) * .52]], .022, F.rot);
+    }
     for (let i = 0; i < 9; i++)
-      ball(F.pus, R(-.4, .4), R(.8, 1.7), R(-.35, .45), R(.14, .26));
-    limb([[0, 1.72, .1], [0, 1.92, .3]], .07, F.flesh);
-    ball(F.flesh, 0, 1.95, .35, .22);
+      ball(F.pus, R(-.45, .45), R(.85, 1.75), R(-.3, .5), R(.08, .16));
+    [-1, 1].forEach(s => {
+      limb([[s * .32, 1.1, .4], [s * .38, .85, .5], [s * .34, .66, .52]], .04, F.flesh);
+      [-.03, .03].forEach(o => P3(Co(.015, .1, 4), F.horn, s * .34 + o, .58, .53, null, [Math.PI, 0, 0]));
+    });
+    limb([[0, 1.82, .3], [0, 1.96, .46]], .07, F.flesh);
+    ball(F.pale, 0, 1.98, .5, .2, .16, .2);
     g.userData.pulse = true;
   }
   else if (t === 'gravemind') {
-    // Proto-Gravemind: a towering mass of Flood biomass with a gaping, toothed maw and writhing tentacles
-    mat = armor(0x9a8a58);
+    // Proto-Gravemind: a towering mound of Flood biomass rooted to the floor, a huge folded, cratered head with a
+    // gaping maw ringed with teeth and strung with gore, and two great segmented tentacles arching overhead, each
+    // ending in a dark horn claw
+    mat = armor(0xb07c68);
     const F = floodMats();
-    ball(mat, 0, 1.2, 0, 1.9, 1.6, 1.7);
-    ball(mat, 0, 2.2, .1, 1.3, 1.2, 1.2);
-    ball(F.rot, 0, 2.15, .62, .72, .44, .28);
-    ball(Ph(0x200a05, 10), 0, 2.15, .72, .56, .3, .12);
-    for (let i = 0; i < 10; i++) {
-      const a = i / 10 * 6.28;
-      P3(Co(.04, .16, 4), Ph(0xe8e0c0, 40), Math.cos(a) * .26, 2.15 + Math.sin(a) * .13, .78, null, [Math.PI / 2 + Math.sin(a) * .6, 0, 0]);
-    }
-    for (let i = 0; i < 8; i++) {
-      const a = i / 8 * 6.28 + .3;
+    ball(mat, 0, .9, 0, 2.0, 1.3, 1.8);
+    for (let i = 0; i < 9; i++) {
+      const a = i / 9 * 6.28;
       const c = Math.cos(a);
       const s = Math.sin(a);
-      limb([[c * .6, 1.6, s * .6], [c * 1.25, 2.0, s * 1.25], [c * 1.55, 2.6, s * 1.55], [c * 1.4, 3.1, s * 1.4]], .13, F.flesh);
+      limb([[c * .8, .5, s * .7], [c * 1.3, .25, s * 1.2], [c * 1.7, .02, s * 1.55]], .14, F.rot);
     }
-    for (let i = 0; i < 14; i++)
-      ball(F.pus, R(-.8, .8), R(.6, 2.6), R(-.8, .8), R(.15, .32));
+    ball(mat, 0, 2.15, .15, 1.7, 1.5, 1.55);
+    [[.5, 2.6, .2, .7], [-.5, 2.55, .25, .7], [0, 2.85, -.1, .8], [.6, 1.9, .5, .55], [-.6, 1.9, .5, .55], [0, 2.3, -.5, .9]].forEach(([x, y, z, s], i) => ball(i % 2 ? mat : F.flesh, x, y, z, s));
+    [[.3, 2.9, .45], [-.35, 2.75, .55], [.62, 2.3, .55], [-.6, 2.4, .5]].forEach(([x, y, z]) => ball(F.rot, x, y, z, .16, .12, .1));
+    ball(F.blood, 0, 1.85, .8, .7, .5, .3);
+    ball(Ph(0x1a0604, 10), 0, 1.85, .88, .5, .34, .18);
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * 6.28;
+      P3(Co(.04, .18, 4), Ph(0xe8dcc0, 40), Math.cos(a) * .3, 1.85 + Math.sin(a) * .18, .95, null, [Math.PI / 2 + Math.sin(a) * .7, 0, -Math.cos(a) * .5]);
+    }
+    for (let i = 0; i < 7; i++)
+      limb([[R(-.25, .25), 1.72, .92], [R(-.3, .3), 1.45, .98], [R(-.3, .3), 1.2, .95]], .02, F.blood);
+    [-1, 1].forEach(s => {
+      limb([[s * .8, 2.0, -.3], [s * 1.5, 2.9, -.7], [s * 1.9, 3.8, -.3], [s * 1.8, 4.4, .5], [s * 1.4, 4.5, 1.2]], .26, F.flesh);
+      [[s * 1.15, 2.45, -.5], [s * 1.7, 3.35, -.5], [s * 1.85, 4.1, .1], [s * 1.6, 4.45, .85]].forEach(p => P3(gcache('gmr', () => new THREE.TorusGeometry(.2, .05, 6, 12)), F.rot, p[0], p[1], p[2], null, [Math.PI / 2, 0, s * .5]));
+      P3(Co(.13, .7, 7), F.horn, s * 1.25, 4.4, 1.55, null, [2.3, 0, -s * .2]);
+    });
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * 6.28 + .8;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      limb([[c * .9, 1.2, s * .8], [c * 1.5, 1.6, s * 1.3], [c * 1.8, 1.3, s * 1.6], [c * 1.9, .7, s * 1.7]], .1, F.flesh);
+    }
+    for (let i = 0; i < 12; i++)
+      ball(F.pus, R(-.9, .9), R(.5, 2.7), R(-.6, .9), R(.1, .22));
   }
-  else if (t === 'ghost') {
+  else if (t === 'ftank') {
+    // Flood tank (the Abomination): a hulking pure form, a heaving mass of flesh on thick legs, a huge club arm
+    // dragging bone claws along the ground, a smaller whip arm (it swings: arm), plates and spikes down its back
+    mat = armor(0xb4806a);
+    const F = floodMats();
+    legs = [-1, 1].map(s => rig(s * .3, .85, 0, () => {
+      limb([[s * .3, .85, 0], [s * .38, .45, .16], [s * .34, .06, 0]], .15, F.flesh);
+      [-.07, .07].forEach(o => P3(Co(.04, .16, 4), F.horn, s * .34 + o, .04, .18, null, [1.5, 0, 0]));
+    }));
+    ball(mat, 0, 1.45, 0, 1.15, 1.1, .95, [.35, 0, 0]);
+    ball(F.flesh, .15, 1.75, -.2, .8, .7, .7);
+    ball(mat, -.1, 1.15, .2, .7, .6, .6);
+    [[.35, 1.6, .3, .3], [-.3, 1.5, .35, .26], [.2, 1.95, .1, .28]].forEach(([x, y, z, s]) => ball(F.pale, x, y, z, s));
+    ball(F.flesh, 0, 1.85, .42, .32, .28, .3);
+    ball(F.blood, 0, 1.78, .55, .14, .08, .06);
+    for (let i = 0; i < 6; i++)
+      P3(Co(.08, .4 - i * .03, 5), F.horn, i % 2 ? .18 : -.18, 2.0 - i * .12, -.4 - i * .05, null, [-1, 0, i % 2 ? -.4 : .4]);
+    P3(B(.6, .08, .4), F.horn, 0, 2.05, -.25, null, [-.5, 0, 0]);
+    limb([[.55, 1.75, .05], [.8, 1.25, .25], [.85, .7, .45], [.75, .25, .5]], .2, F.flesh);
+    ball(F.flesh, .75, .22, .52, .36, .3, .36);
+    [-1, 0, 1].forEach(k => P3(Co(.06, .32, 5), F.horn, .75 + k * .1, .12, .74, null, [1.8, 0, k * .3]));
+    arm = rig(-.55, 1.7, .05, () => {
+      limb([[-.55, 1.7, .05], [-.75, 1.35, .25], [-.82, 1.0, .5], [-.75, .7, .75]], .1, F.flesh);
+      [-1, 0, 1].forEach(k => P3(Co(.045, .3, 5), F.horn, -.75 + k * .06, .6, .85, null, [2.2, 0, k * .3]));
+    });
+  }  else if (t === 'ghost') {
     // Ghost: the Covenant hover bike (the model is in ghost.js), in Covenant purple
     mat = armor(0x5a3a8a);
     g.add(ghostMesh(mat));

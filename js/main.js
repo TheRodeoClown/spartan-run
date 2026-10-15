@@ -558,6 +558,9 @@ function playerMove(dt, frz, f, s, m, sy, cy) {
       sfx.cock();
     }
   }
+  // Biofoam Injector: health creeps back after 5s without being hit
+  if (P.hpRegen && T - P.last > 5 && P.hp < P.maxHp)
+    P.hp = Math.min(P.maxHp, P.hp + P.hpRegen * dt);
   if (T - P.last > P.shDelay) {
     if (!P.rch && P.sh < P.maxSh) {
       P.rch = 1;

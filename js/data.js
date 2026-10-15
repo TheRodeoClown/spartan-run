@@ -36,8 +36,8 @@ const ET = {
   finf: { model: 'finf', hp: 5, sh: 0, sp: 8.5, sc: .55, col: 0xd8e070, fr: 9, bs: 0, bd: 0, burst: 0, pref: 0, kami: 1, boom: [2.2, 15, 9], prime: 1.3, kfuse: .12 },
   fcomb: { model: 'fcomb', hp: 55, sh: 0, sp: 5.4, sc: 1.1, col: 0xd8e070, fr: 1.3, bs: 0, bd: 16, burst: 0, pref: 0, melee: 1 },
   fcarr: { model: 'fcarr', hp: 30, sh: 0, sp: 2.2, sc: 1, col: 0xd8e070, fr: 9, bs: 0, bd: 0, burst: 0, pref: 0, kami: 1, boom: [5, 50, 30], prime: 2.6, kfuse: .9, brood: 3 },
-  gravemind: { model: 'gravemind', tint: 0x9a8a58, bn: 'Proto-Gravemind', hp: 950, sh: 0, sp: 1.3, sc: 2.2, col: 0xd8e070, fr: 1.6, bs: 14, bd: 12, burst: 5, spread: 1, pref: 10, armor: .35 },
-  abom: { model: 'fcomb', tint: 0x6a6a3a, bn: 'Flood Abomination', hp: 720, sh: 0, sp: 4.8, sc: 2.1, col: 0xd8e070, fr: 1.6, bs: 0, bd: 28, burst: 0, pref: 0, melee: 1, armor: .35 }
+  gravemind: { model: 'gravemind', tint: 0xb07c68, bn: 'Proto-Gravemind', hp: 950, sh: 0, sp: 1.3, sc: 2.2, col: 0xd8e070, fr: 1.6, bs: 14, bd: 12, burst: 5, spread: 1, pref: 10, armor: .35 },
+  abom: { model: 'ftank', bn: 'Flood Abomination', hp: 720, sh: 0, sp: 4.8, sc: 1.75, col: 0xd8e070, fr: 1.6, bs: 0, bd: 28, burst: 0, pref: 0, melee: 1, armor: .35 }
 };
 // Boss weak points [x, y, z, radius] in model space (scaled with the boss). Elites: helmet gem + back power core.
 // Hunters: exposed orange core in the stomach and on the back. A hit deals CRIT_MUL and ignores armor.
@@ -48,7 +48,8 @@ const CRITS = {
   jackal: { col: 0xffa050, pts: [[0, 1.7, .28, .13], [0, 1.15, -.22, .16]] },
   grunt: { col: 0x7fe0ff, pts: [[0, 1.36, .42, .14], [0, 1.15, -.45, .2]] },
   // Flood: glowing pustules on the Gravemind's crown and back; the Abomination's head growth and hump
-  gravemind: { col: 0xeaff60, pts: [[0, 2.62, .5, .2], [0, 1.5, -.95, .26]] },
+  gravemind: { col: 0xeaff60, pts: [[0, 2.75, .78, .2], [0, 2.3, -.95, .26]] },
+  ftank: { col: 0xeaff60, pts: [[0, 1.86, .6, .15], [.15, 1.75, -.58, .22]] },
   fcomb: { col: 0xeaff60, pts: [[0, 1.66, .44, .12], [.1, 1.45, -.3, .17]] }
 };
 const CRIT_MUL = 2.5;
@@ -85,9 +86,11 @@ const BOONS = [
     n: 'Bigger Boom', d: '+40% grenade radius and damage', f: p => p.nadeMul *= 1.4
   },
   {
-    n: 'Medkit', d: 'Full health, +10 max health', f: p => {
-      p.maxHp += 10;
-      p.hp = p.maxHp;
+    // (rooms already start at full health, so this is a lasting upgrade instead)
+    mx: p => (p.hpRegen || 0) >= 6, n: 'Biofoam Injector', d: '+20 max health, and health slowly regenerates (+2/s, stacks) after 5s without being hit', f: p => {
+      p.maxHp += 20;
+      p.hp += 20;
+      p.hpRegen = (p.hpRegen || 0) + 2;
     }
   },
   {
@@ -174,7 +177,7 @@ const BOONS = [
 // offer rolls a rarity first (see makeChoices), so the rarer ones turn up less often, and more often later in a run.
 const RARITY = { c: { n: 'COMMON', w: 50 }, u: { n: 'UNCOMMON', w: 28 }, r: { n: 'RARE', w: 14 }, e: { n: 'EPIC', w: 6 }, l: { n: 'LEGENDARY', w: 2 } };
 const BOON_R = {
-  'Overshield Capacitor': 'c', 'Quick Recharge': 'c', 'Extended Mag': 'c', 'Grenade Bandolier': 'c', 'Medkit': 'c', 'Fast Hands': 'c', 'Deep Pockets': 'c', 'M6D Magnum': 'c',
+  'Overshield Capacitor': 'c', 'Quick Recharge': 'c', 'Extended Mag': 'c', 'Grenade Bandolier': 'c', 'Biofoam Injector': 'c', 'Fast Hands': 'c', 'Deep Pockets': 'c', 'M6D Magnum': 'c',
   'Hardened Rounds': 'u', 'Tuned Trigger': 'u', 'Bigger Boom': 'u', 'Hardlight Strike': 'u', 'Scavenger': 'u', 'Steady Aim': 'u', 'BR55 Battle Rifle': 'u', 'M90 Shotgun': 'u', 'Type-25 Plasma Rifle': 'u',
   'Headhunter': 'r', 'Sticky Grenades': 'r', 'Adrenaline': 'r', 'Thick Plating': 'r', 'S2 AM Sniper Rifle': 'r', 'Type-33 Needler': 'r',
   'EMP Discharge': 'e', 'M41 Rocket Launcher': 'e', 'Energy Sword': 'e'
