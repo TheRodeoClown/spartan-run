@@ -534,7 +534,9 @@ function buildLevel(lv, empty) {
       const a = i / n * 6.283 + R(-.1, .1);
       const r = R(r0, r1);
       const h = R(h0, h1);
-      add(new THREE.ConeGeometry(h * R(.7, 1.2), h, 5 + (Math.random() * 4 | 0)), m, Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r).rotation.y = R(0, 3);
+      // never so wide that its foot reaches into the arena
+      const w = Math.min(h * R(.7, 1.2), r - A - 10);
+      add(new THREE.ConeGeometry(w, h, 5 + (Math.random() * 4 | 0)), m, Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r).rotation.y = R(0, 3);
     }
   };
   const ground = m => {

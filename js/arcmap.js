@@ -399,7 +399,8 @@ function arcBuild({ add, G, B, hills, ground }) {
   band.position.set(-400, 1760, -900);
   envG.add(band);
   ground(mat('gravelBig', () => new THREE.MeshLambertMaterial({ map: ctex('gravelBig', 256, 256, 160, 160, DR.gravel) })));
-  hills(40, 150, 330, 50, 120, 0x3c3e42);
+  // far mountains: far enough out (and narrow enough) that none reaches inside the cliffs
+  hills(40, 260, 420, 50, 110, 0x3c3e42);
 
   // Terrain mesh: gravel on the floor, darker rock where it's steep (cliffs, the mesa's sides)
   groundFn = groundArc;
