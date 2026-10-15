@@ -52,7 +52,7 @@ addEventListener('mouseup', e => {
 });
 cv.addEventListener('contextmenu', e => e.preventDefault());
 wrap.addEventListener('wheel', e => {
-  if (state === 'play') {
+  if (state === 'play' && !(P && P.veh)) {
     e.preventDefault();
     const n = performance.now();
     if (n - lw > 220) {
@@ -94,6 +94,12 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyN')
     audio.toggleMusic();
   if (state === 'play' && !NET.menu && !NET.down) {
+    // driving a Ghost: only E (get out) does anything
+    if (P.veh) {
+      if (e.code === 'KeyE')
+        vehUse();
+      return;
+    }
     if (e.code === 'Digit1')
       swapTo(0);
     if (e.code === 'Digit2')
@@ -104,7 +110,8 @@ addEventListener('keydown', e => {
       startReload();
     if (e.code === 'KeyF')
       melee();
-    if (e.code === 'KeyE')
+    // E: the Ghost if you're next to it, otherwise the REQ station
+    if (e.code === 'KeyE' && !vehUse())
       ffReq();
     if (e.code === 'Space') {
       jump();

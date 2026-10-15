@@ -29,6 +29,8 @@ const ET = {
   jsniper: { model: 'jsniper', hp: 16, sh: 0, sp: 4.5, sc: .95, col: 0xff4f8f, fr: 3.4, bs: 0, bd: 24, burst: 0, pref: 22, sniper: 1 },
   jmajor: { model: 'jmajor', tint: 0x8a6a2a, hp: 26, sh: 75, sp: 6, sc: 1.05, col: 0xffb040, fr: 1.25, bs: 15, bd: 4, burst: 4, pref: 13, needle: 1 },
   // Skimmer: flies (fly) a few metres up, darting about and over cover
+  // Ghost: a Covenant hover bike (Firefight, from round 3): circle-strafes with plasma cannons, boosts in to ram (ghostAI)
+  ghost: { model: 'ghost', hp: 280, sh: 0, sp: 8, sc: 1.6, col: 0x6fd0ff, fr: 1.1, bs: 30, bd: 5, burst: 4, pref: 16, armor: .35, veh: 1, hov: -.6 },
   skimmer: { model: 'skimmer', hp: 14, sh: 25, sp: 7.5, sc: 1, col: 0x9fff6a, fr: 1.3, bs: 17, bd: 5, burst: 3, pref: 12, fly: 1 },
   // The Flood. boom: [radius, damage to enemies, damage to you] when a kami form bursts; prime / kfuse: how close it gets and how long it takes; brood: infection forms released
   finf: { model: 'finf', hp: 5, sh: 0, sp: 8.5, sc: .55, col: 0xd8e070, fr: 9, bs: 0, bd: 0, burst: 0, pref: 0, kami: 1, boom: [2.2, 15, 9], prime: 1.3, kfuse: .12 },

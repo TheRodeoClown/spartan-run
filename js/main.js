@@ -20,153 +20,11 @@ function update(dt) {
   const m = Math.hypot(f, s) || 1;
   const sy = Math.sin(yaw);
   const cy = Math.cos(yaw);
-  // Adrenaline boon: speed boost for 3s after a kill
-  P.adrT = (P.adrT || 0) - dt;
-  // Sprint (versus): hold Shift while moving forward; firing or zooming stops it, and you can't shoot while sprinting
-  P.spr = NET.mode === 'vs' && !frz && f > 0 && (keys.ShiftLeft || keys.ShiftRight) && !down && !zoomOn;
-  const spd = P.speed * (P.adrT > 0 ? 1.35 : 1) * (P.spr ? 1.6 : 1) * wadeSlow(P.x, P.z, P.y);
-  const ox = P.x;
-  const oz = P.z;
-  P.x = clamp(P.x + (-sy * f + cy * s) / m * spd * dt, -A + 1, A - 1);
-  P.z = clamp(P.z + (-cy * f - sy * s) / m * spd * dt, -A + 1, A - 1);
-  // Thruster boost: a burst over 0.18s
-  // Grenadier (legendary): a grenade back every few seconds
-  if (P.nadeRegen) {
-    P.nrT = (P.nrT || 0) + dt;
-    if (P.nrT >= P.nadeRegen) {
-      P.nrT = 0;
-      if (P.nades < P.nadeMax)
-        P.nades++;
-    }
-  }
-  P.tcd -= dt;
-  if (P.dash > 0) {
-    // Thruster boost along the direction it was fired (forward / back / sideways or diagonal)
-    P.dash -= dt;
-    const v = DASH / .18 * dt;
-    P.x = clamp(P.x + (-sy * P.dashF + cy * P.dashS) * v, -A + 1, A - 1);
-    P.z = clamp(P.z + (-cy * P.dashF - sy * P.dashS) * v, -A + 1, A - 1);
-  }
-  // Knockback (a Hunter's shield bash): a shove that dies away quickly
-  if (P.kbx || P.kbz) {
-    P.x = clamp(P.x + P.kbx * dt, -A + 1, A - 1);
-    P.z = clamp(P.z + P.kbz * dt, -A + 1, A - 1);
-    const k = Math.exp(-5 * dt);
-    P.kbx *= k;
-    P.kbz *= k;
-    if (Math.hypot(P.kbx, P.kbz) < .3)
-      P.kbx = P.kbz = 0;
-  }
-  pushOut(P, .5);
-  // On hilly ground you can't walk up anything steeper than about 50 degrees (cliffs, the sides of a mesa): slide along
-  // it instead. Stairs and decks don't count.
-  if (groundFn && P.gnd) {
-    const steep = (x, z) => {
-      const g = groundH(x, z);
-      return g - P.y > Math.max(.04, Math.hypot(x - ox, z - oz) * 1.2) && floorH(x, z, P.y) <= g + .01;
-    };
-    if (steep(P.x, P.z)) {
-      if (!steep(P.x, oz))
-        P.z = oz;
-      else if (!steep(ox, P.z))
-        P.x = ox;
-      else {
-        P.x = ox;
-        P.z = oz;
-      }
-    }
-  }
-  // Exit gate: once it's open, walk into it to move on (in co-op the host takes everyone through)
-  if (gate && gate.open && state === 'play') {
-    gate.field.material.opacity = .3 + .2 * Math.sin(T * 5);
-    gate.chev.forEach((c, i) => c.material.opacity = .35 + .35 * Math.sin(T * 6 - i));
-    if (P.z < -IN + 3 && Math.abs(P.x) < 2.6 && !NET.down) {
-      if (NET.client)
-        NET.gt = room;
-      else {
-        startPick();
-        return;
-      }
-    }
-  }
-  // Jump and gravity: P.y is the height of your feet; on hilly ground they follow the terrain
-  P.vy -= 20 * dt;
-  P.y += P.vy * dt;
-  const gy = floorH(P.x, P.z, P.y);
-  // Stay on the ground when walking downhill instead of skipping off it
-  if (P.y <= gy || (P.gnd && P.vy <= 0 && P.y - gy < .6)) {
-    if (P.vy < -6)
-      sfx.land();
-    P.y = gy;
-    P.vy = 0;
-    P.gnd = 1;
-  }
-  else
-    P.gnd = 0;
-  cam.position.set(P.x, 1.6 + P.y, P.z);
-  cam.rotation.set(pitch, yaw, 0);
-  P.cd -= dt;
-  P.mcd -= dt;
-  if (P.reload > 0) {
-    P.reload -= dt;
-    if (P.reload <= 0) {
-      const n = Math.min(P.magMax - P.ammo, P.sr[P.cur]);
-      P.ammo += n;
-      P.sr[P.cur] -= n;
-      sfx.cock();
-    }
-  }
-  if (T - P.last > P.shDelay) {
-    if (!P.rch && P.sh < P.maxSh) {
-      P.rch = 1;
-      sfx.recharge();
-    }
-    // (an overshield above the maximum isn't trimmed)
-    if (P.sh < P.maxSh)
-      P.sh = Math.min(P.maxSh, P.sh + P.maxSh / 1.5 * dt * (P.shRate || 1));
-  }
-  else
-    P.rch = 0;
-  // Burst weapons (BR) keep firing the rest of the burst 0.07s apart once the trigger starts it.
-  if (frz || P.spr) { }
-  else if (P.bl > 0) {
-    P.bt -= dt;
-    if (P.bt <= 0) {
-      if (P.ammo > 0 && P.reload <= 0) {
-        fire();
-        P.bl--;
-        P.bt = .07;
-      }
-      else
-        P.bl = 0;
-    }
-  }
-  else if (P.wpn === 'sw') {
-    if (down) {
-      if (P.ammo >= swingCost())
-        melee();
-      else if (P.mcd <= 0) {
-        P.mcd = .4;
-        sfx.dry();
-      }
-    }
-  }
-  else if (down && P.cd <= 0 && P.reload <= 0) {
-    if (P.ammo > 0) {
-      fire();
-      const b = W[P.wpn].burst;
-      if (b) {
-        P.bl = b - 1;
-        P.bt = .07;
-      }
-    }
-    else if (P.sr[P.cur] > 0)
-      startReload();
-    else {
-      P.cd = .4;
-      sfx.dry();
-    }
-  }
+  // You: on foot (playerMove), or driving a Ghost (ghost.js)
+  if (P.veh)
+    vehDrive(dt, f, s);
+  else if (playerMove(dt, frz, f, s, m, sy, cy))
+    return;
   enemies.forEach(e => {
     // Networked bodies (co-op ghosts, versus players) are moved by the network, not by this AI
     if (e.net)
@@ -191,7 +49,9 @@ function update(dt) {
     // Ranged enemies fight from cover and snipers find high ground (ai.js); the rest rush, strafe or hold range
     const ex0 = e.x;
     const ez0 = e.z;
-    if (e.busy || !aiUpdate(e, tg, dt, d, panic)) {
+    if (e.veh && !e.busy)
+      ghostAI(e, tg, dt, d, nx, nz);
+    else if (e.busy || !aiUpdate(e, tg, dt, d, panic)) {
       const mv = e.busy ? 0 : panic ? -1.3 : e.kami ? 1 : e.melee ? (d > 1.8 && e.wind <= 0 ? 1 : 0) : d > e.pref + 3 ? 1 : d < e.pref - 3 ? -1 : 0;
       const st = e.kami || e.busy ? 0 : e.melee ? .15 : e.fly ? 1 : .5;
       const spd = e.sp * (e.lunge > 0 ? 3.2 : 1);
@@ -256,7 +116,7 @@ function update(dt) {
     }
     // e.fl: the floor it walks on (the ground, or a deck it climbed onto)
     e.fl = floorH(e.x, e.z, e.fl == null ? -99 : e.fl);
-    e.y = e.fl - (e.crouch || 0) + (e.fly ? 3.4 + Math.sin(T * 1.7 + e.ph) * .8 : 0);
+    e.y = e.fl - (e.crouch || 0) + (e.hov || 0) + (e.fly ? 3.4 + Math.sin(T * 1.7 + e.ph) * .8 : 0);
     if (e.fly)
       flapWings(e);
     // Flood carriers pulse
@@ -557,6 +417,159 @@ function tick(dt) {
   fx = fx.filter(f => f.life > 0);
 }
 
+// Your movement, jumping, shield recharge and shooting this frame. True when you walked through the exit gate (the
+// update stops there: the boon pick takes over).
+function playerMove(dt, frz, f, s, m, sy, cy) {
+  // Adrenaline boon: speed boost for 3s after a kill
+  P.adrT = (P.adrT || 0) - dt;
+  // Sprint (versus): hold Shift while moving forward; firing or zooming stops it, and you can't shoot while sprinting
+  P.spr = NET.mode === 'vs' && !frz && f > 0 && (keys.ShiftLeft || keys.ShiftRight) && !down && !zoomOn;
+  const spd = P.speed * (P.adrT > 0 ? 1.35 : 1) * (P.spr ? 1.6 : 1) * wadeSlow(P.x, P.z, P.y);
+  const ox = P.x;
+  const oz = P.z;
+  P.x = clamp(P.x + (-sy * f + cy * s) / m * spd * dt, -A + 1, A - 1);
+  P.z = clamp(P.z + (-cy * f - sy * s) / m * spd * dt, -A + 1, A - 1);
+  // Thruster boost: a burst over 0.18s
+  // Grenadier (legendary): a grenade back every few seconds
+  if (P.nadeRegen) {
+    P.nrT = (P.nrT || 0) + dt;
+    if (P.nrT >= P.nadeRegen) {
+      P.nrT = 0;
+      if (P.nades < P.nadeMax)
+        P.nades++;
+    }
+  }
+  P.tcd -= dt;
+  if (P.dash > 0) {
+    // Thruster boost along the direction it was fired (forward / back / sideways or diagonal)
+    P.dash -= dt;
+    const v = DASH / .18 * dt;
+    P.x = clamp(P.x + (-sy * P.dashF + cy * P.dashS) * v, -A + 1, A - 1);
+    P.z = clamp(P.z + (-cy * P.dashF - sy * P.dashS) * v, -A + 1, A - 1);
+  }
+  // Knockback (a Hunter's shield bash): a shove that dies away quickly
+  if (P.kbx || P.kbz) {
+    P.x = clamp(P.x + P.kbx * dt, -A + 1, A - 1);
+    P.z = clamp(P.z + P.kbz * dt, -A + 1, A - 1);
+    const k = Math.exp(-5 * dt);
+    P.kbx *= k;
+    P.kbz *= k;
+    if (Math.hypot(P.kbx, P.kbz) < .3)
+      P.kbx = P.kbz = 0;
+  }
+  pushOut(P, .5);
+  // On hilly ground you can't walk up anything steeper than about 50 degrees (cliffs, the sides of a mesa): slide along
+  // it instead. Stairs and decks don't count.
+  if (groundFn && P.gnd) {
+    const steep = (x, z) => {
+      const g = groundH(x, z);
+      return g - P.y > Math.max(.04, Math.hypot(x - ox, z - oz) * 1.2) && floorH(x, z, P.y) <= g + .01;
+    };
+    if (steep(P.x, P.z)) {
+      if (!steep(P.x, oz))
+        P.z = oz;
+      else if (!steep(ox, P.z))
+        P.x = ox;
+      else {
+        P.x = ox;
+        P.z = oz;
+      }
+    }
+  }
+  // Exit gate: once it's open, walk into it to move on (in co-op the host takes everyone through)
+  if (gate && gate.open && state === 'play') {
+    gate.field.material.opacity = .3 + .2 * Math.sin(T * 5);
+    gate.chev.forEach((c, i) => c.material.opacity = .35 + .35 * Math.sin(T * 6 - i));
+    if (P.z < -IN + 3 && Math.abs(P.x) < 2.6 && !NET.down) {
+      if (NET.client)
+        NET.gt = room;
+      else {
+        startPick();
+        return true;
+      }
+    }
+  }
+  // Jump and gravity: P.y is the height of your feet; on hilly ground they follow the terrain
+  P.vy -= 20 * dt;
+  P.y += P.vy * dt;
+  const gy = floorH(P.x, P.z, P.y);
+  // Stay on the ground when walking downhill instead of skipping off it
+  if (P.y <= gy || (P.gnd && P.vy <= 0 && P.y - gy < .6)) {
+    if (P.vy < -6)
+      sfx.land();
+    P.y = gy;
+    P.vy = 0;
+    P.gnd = 1;
+  }
+  else
+    P.gnd = 0;
+  cam.position.set(P.x, 1.6 + P.y, P.z);
+  cam.rotation.set(pitch, yaw, 0);
+  P.cd -= dt;
+  P.mcd -= dt;
+  if (P.reload > 0) {
+    P.reload -= dt;
+    if (P.reload <= 0) {
+      const n = Math.min(P.magMax - P.ammo, P.sr[P.cur]);
+      P.ammo += n;
+      P.sr[P.cur] -= n;
+      sfx.cock();
+    }
+  }
+  if (T - P.last > P.shDelay) {
+    if (!P.rch && P.sh < P.maxSh) {
+      P.rch = 1;
+      sfx.recharge();
+    }
+    // (an overshield above the maximum isn't trimmed)
+    if (P.sh < P.maxSh)
+      P.sh = Math.min(P.maxSh, P.sh + P.maxSh / 1.5 * dt * (P.shRate || 1));
+  }
+  else
+    P.rch = 0;
+  // Burst weapons (BR) keep firing the rest of the burst 0.07s apart once the trigger starts it.
+  if (frz || P.spr) { }
+  else if (P.bl > 0) {
+    P.bt -= dt;
+    if (P.bt <= 0) {
+      if (P.ammo > 0 && P.reload <= 0) {
+        fire();
+        P.bl--;
+        P.bt = .07;
+      }
+      else
+        P.bl = 0;
+    }
+  }
+  else if (P.wpn === 'sw') {
+    if (down) {
+      if (P.ammo >= swingCost())
+        melee();
+      else if (P.mcd <= 0) {
+        P.mcd = .4;
+        sfx.dry();
+      }
+    }
+  }
+  else if (down && P.cd <= 0 && P.reload <= 0) {
+    if (P.ammo > 0) {
+      fire();
+      const b = W[P.wpn].burst;
+      if (b) {
+        P.bl = b - 1;
+        P.bt = .07;
+      }
+    }
+    else if (P.sr[P.cur] > 0)
+      startReload();
+    else {
+      P.cd = .4;
+      sfx.dry();
+    }
+  }
+  return false;
+}
+
 function hud() {
   // No health bars or crosshair on the title and menu screens
   $('hud').style.visibility = state === 'title' || state === 'menu' ? 'hidden' : 'visible';
@@ -571,6 +584,8 @@ function hud() {
   $('en').style.display = P.wpn === 'sw' && state === 'play' ? 'block' : 'none';
   $('en').firstChild.style.width = P.ammo + '%';
   hudWeapon();
+  // driving a Ghost: no weapon panel (its health and boost are in the Firefight bar)
+  $('wpn').style.visibility = $('gear').style.visibility = P.veh ? 'hidden' : 'visible';
   // One bar for all bosses in the fight (Bonded Hunters are a pair), measured against their combined starting total
   const bss = enemies.filter(e => e.boss);
   $('boss').style.display = bss.length ? 'block' : 'none';

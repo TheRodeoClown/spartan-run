@@ -242,7 +242,7 @@ function aiSniper(e, tg, dt, d) {
 // sets e.aiFire (false = hold fire, e.g. while hiding) and e.crouch (sinks it behind low cover).
 function aiUpdate(e, tg, dt, d, panic) {
   e.aiFire = true;
-  if (e.boss || e.melee || e.kami || e.fly || panic || e.t === 'hunter' || ET[e.t].model === 'hunter') {
+  if (e.boss || e.melee || e.kami || e.fly || e.veh || panic || e.t === 'hunter' || ET[e.t].model === 'hunter') {
     e.crouch = 0;
     return false;
   }

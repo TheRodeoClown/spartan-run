@@ -378,6 +378,11 @@ function buildEnemy(t) {
     for (let i = 0; i < 14; i++)
       ball(F.pus, R(-.8, .8), R(.6, 2.6), R(-.8, .8), R(.15, .32));
   }
+  else if (t === 'ghost') {
+    // Ghost: the Covenant hover bike (the model is in ghost.js), in Covenant purple
+    mat = armor(0x5a3a8a);
+    g.add(ghostMesh(mat));
+  }
   else {
     // Hunter: hunched armored shell with back spines, exposed orange worm colonies at belly and back,
     // spiked shield and fuel-rod cannon
@@ -480,6 +485,9 @@ function spawn(t, px, pz) {
 function hurt(d) {
   if (state !== 'play' || NET.down || P.bubT > T)
     return;
+  // driving a Ghost: it takes most of the hit
+  if (P.veh)
+    d = vehHit(d);
   P.last = T;
   vig = .7;
   sfx.hit(P.sh > 0);
@@ -623,6 +631,9 @@ function dmgE(e, d, crit, ty) {
     e.dead = true;
     kills++;
     sfx.kill(e.t);
+    // a destroyed Ghost blows up
+    if (e.veh && !e.net)
+      explode(e.x, (e.y || 0) + 1, e.z, 5, 40, 25, 'k', true);
     dropMaybe(e);
     earn(e.boss ? 0 : 1);
     scene.remove(e.g);

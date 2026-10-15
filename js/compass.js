@@ -31,6 +31,9 @@ function compassMarks() {
   if (NET.mode === 'coop')
     netRemotes().forEach(r => m.push({ x: r.x, z: r.z, c: '#5ec8f2', s: 3.5, k: 'dot' }));
   if (FF.on) {
+    // the team's Ghost (when you're not in it)
+    if (VEH.on && !P.veh)
+      m.push({ x: VEH.x, z: VEH.z, c: '#9fe8c0', s: 4.5, k: 'tri' });
     FF_STATIONS.forEach(([x, z]) => m.push({ x, z, c: '#ffd060', s: 4, k: 'sq' }));
     if (ffTargets().length)
       ffGensUp().forEach(g => m.push({ x: g.x, z: g.z, c: '#5ff0ff', s: 4.5, k: 'sq' }));

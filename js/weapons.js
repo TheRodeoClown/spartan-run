@@ -312,7 +312,7 @@ setGun('ar');
 const scoped = () => P && state === 'play' && zoomOn && P.wpn === 'sn' && cam.fov < 40;
 
 function animGun(dt) {
-  gun.visible = state !== 'title' && !scoped();
+  gun.visible = state !== 'title' && !scoped() && !(P && P.veh);
   // Sword: pulsing glow, blades off when the battery is too low to swing
   const S = gun.userData.sw;
   swLight.intensity = 0;

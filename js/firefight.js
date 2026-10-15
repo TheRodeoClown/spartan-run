@@ -20,7 +20,7 @@ const FF_ROUNDS = [
 ];
 const FF_BREAK = 20;
 // REQ points per kill
-const FF_PTS = { grunt: 10, kgrunt: 10, jackal: 15, jsniper: 20, jmajor: 25, skimmer: 20, elite: 30, selite: 35, celite: 40, hunter: 60, finf: 2, fcomb: 20, fcarr: 15 };
+const FF_PTS = { grunt: 10, kgrunt: 10, jackal: 15, jsniper: 20, jmajor: 25, skimmer: 20, elite: 30, selite: 35, celite: 40, hunter: 60, finf: 2, fcomb: 20, fcarr: 15, ghost: 60 };
 // REQ station items: k = weapon (vr: its legendary variant), id = other; lv = REQ level needed
 const FF_REQ = [
   { k: 'br', n: 'BR55 Battle Rifle', c: 60, lv: 1 }, { k: 'mg', n: 'M6D Magnum', c: 30, lv: 1 }, { k: 'pr', n: 'Type-25 Plasma Rifle', c: 60, lv: 1 },
@@ -107,6 +107,7 @@ function ffSetup() {
     pillars.push({ x, z, hw: .9, hd: .9, h: y + 2.8 });
     return { gen: true, name, x, y, z, hp: max, max, g, core, beam, flash: 0, pv: max, hitAt: -99 };
   });
+  vehReset();
   P.x = FF_SPAWNS[0][0];
   P.z = FF_SPAWNS[0][1];
   P.y = groundH(P.x, P.z);
@@ -130,6 +131,8 @@ function ffStart() {
   FF.ph = 'break';
   FF.t = 10;
   FF.rl = 1;
+  // the team's Ghost is waiting from the start
+  vehDeliver();
 }
 
 /* ---------- Rounds (host / solo) ---------- */
@@ -252,9 +255,17 @@ function ffBeginRound() {
   }
   if (R0.kind === 'boss')
     ffBoss(['warlord', 'warden', 'blademaster', 'ironclad', 'gravemind'][Math.random() * 5 | 0], 1);
+  // a new Ghost for the team if the last one was destroyed; from round 3 an enemy Ghost joins the fight
+  vehDeliver();
+  if (FF.round >= 3) {
+    const zn = ffZone();
+    const [gx, gz] = ffSpot(zn[0], zn[1], 6);
+    spawn('ghost', gx, gz);
+    flashFx(gx, groundH(gx, gz) + 1.5, gz, 3, 0xb48cff);
+  }
   bossTotal = enemies.filter(e => e.boss).reduce((s, b) => s + b.maxhp + b.maxsh, 0);
   music.set(1);
-  banner('ROUND ' + FF.round + ': ' + R0.n);
+  banner('ROUND ' + FF.round + ': ' + R0.n + (FF.round >= 3 ? ' | ENEMY GHOST INBOUND' : ''));
 }
 
 function ffRoundWon() {
@@ -373,6 +384,7 @@ function ffTick(dt) {
     g.beam.material.opacity = obj === 'next' ? .08 : .16;
     g.core.material.color.setHex(g.hp <= 0 ? 0x202428 : g.flash > 0 ? 0xffffff : k > .5 ? 0x5ff0ff : k > .25 ? 0xffc040 : 0xff4a3a);
   });
+  vehTick(dt);
   // respawn at the base
   if (NET.down && state === 'play') {
     NET.resp -= dt;
@@ -412,7 +424,8 @@ function ffText() {
   const clock = (t / 60 | 0) + ':' + String(t % 60).padStart(2, '0');
   const head = FF.ph === 'break' ? (FF.round ? 'BREAK' : 'GET READY') + ' ' + clock : 'ROUND ' + FF.round + '/5: ' + R0.n + ' | ' + clock;
   const gens = FF.round && R0.kind === 'defend' && FF.ph === 'play' ? ' | ' + ffActive(FF.round).map(g => (g.name === 'C' ? 'CORE' : 'GEN ' + g.name) + ' ' + Math.round(100 * g.hp / g.max) + '%').join(' ') : '';
-  return 'FIREFIGHT | ' + head + gens + ' | REQ ' + (P.req || 0) + ' (LV ' + FF.rl + ')';
+  const gh = P.veh ? ' | GHOST ' + Math.round(100 * VEH.hp / VEH.max) + '% BOOST ' + Math.round(100 * VEH.boost) + '%' : '';
+  return 'FIREFIGHT | ' + head + gens + gh + ' | REQ ' + (P.req || 0) + ' (LV ' + FF.rl + ')';
 }
 
 // REQ station menu (E at the station). The match keeps running while it's open.
@@ -470,6 +483,7 @@ function ffBuy(i) {
 function ffEnd(win, why) {
   if (state === 'over')
     return;
+  P.veh = 0;
   const bonus = win ? 300 : 50 * Math.max(0, FF.round - 1);
   const c = (P ? P.cr : 0) + bonus;
   netBank(bonus);
@@ -483,7 +497,7 @@ function ffEnd(win, why) {
 
 // Host: the firefight part of the world update
 function ffState() {
-  return { r: FF.round, ph: FF.ph, t: Math.max(0, Math.round(FF.t)), rl: FF.rl, gens: FF.gens.map(g => Math.round(g.hp)), why: FF.why || '', sq: FF.sq, zn: FF.zn, zi: FF.zi };
+  return { r: FF.round, ph: FF.ph, t: Math.max(0, Math.round(FF.t)), rl: FF.rl, gens: FF.gens.map(g => Math.round(g.hp)), why: FF.why || '', sq: FF.sq, zn: FF.zn, zi: FF.zi, v: [VEH.on ? 1 : 0, r1(VEH.x), r1(VEH.z), r2(VEH.yw), Math.round(VEH.hp), VEH.drv || ''] };
 }
 
 // Guest: mirror the host's firefight state
@@ -516,6 +530,7 @@ function ffClient(f) {
       banner('ENEMIES INBOUND: ' + String(f.zn).slice(0, 24));
     }
   }
+  vehClient(f.v);
   FF.round = r;
   FF.ph = String(f.ph || 'break');
   FF.t = +f.t || 0;

@@ -365,6 +365,12 @@ function netRead(r, q) {
   r.ex = Array.isArray(q.ex) ? q.ex.slice(0, 4) : [];
   r.cl = Array.isArray(q.cl) ? q.cl.slice(0, 10).map(Number) : [];
   r.gt = n(q.gt, 0);
+  // their Ghost: asking for / in the seat, its health while they drive, and where it is
+  r.vq = q.vq === 1 ? 1 : 0;
+  r.vh = clamp(n(q.vh, -1), -1, 1000);
+  r.vy = n(q.vy, 0);
+  r.vxp = clamp(n(q.vx, NaN), -200, 200);
+  r.vzp = clamp(n(q.vz, NaN), -200, 200);
   if (r.isNew) {
     // First sight: whatever it reported before now is history
     r.isNew = 0;
@@ -1868,7 +1874,7 @@ function netSend(dt) {
       }
     });
   if (live)
-    Object.assign(p, { gt: NET.gt || 0, cl: NET.mycl, x: r1(P.x), y: r1(P.y), z: r1(P.z), yw: r2(yaw), hp: Math.round(P.hp), sh: Math.round(P.sh), w: P.wpn, dn: NET.down ? 1 : 0, fx: NET.fxl, ex: NET.exl, cm: NET.cm, kl: NET.kl });
+    Object.assign(p, { gt: NET.gt || 0, cl: NET.mycl, x: r1(P.x), y: r1(P.y), z: r1(P.z), yw: r2(yaw), hp: Math.round(P.hp), sh: Math.round(P.sh), w: P.wpn, dn: NET.down ? 1 : 0, vq: NET.vq ? 1 : 0, vh: P.veh ? Math.round(VEH.hp) : -1, vy: r2(VEH.yw), vx: r1(VEH.x), vz: r1(VEH.z), fx: NET.fxl, ex: NET.exl, cm: NET.cm, kl: NET.kl });
   const o = { p };
   if (NET.host)
     o.w = NET.w;

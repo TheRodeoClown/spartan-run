@@ -253,7 +253,7 @@ function titleSettings() {
 // the screen you came from.
 const CONTROLS = [['WASD', 'Move'], ['Mouse', 'Look'], ['Left click (hold)', 'Fire'], ['Right click (hold)', 'Zoom / sniper scope'], ['Space', 'Jump'],
   ['Shift + WASD', 'Thruster boost (any direction)'], ['Shift + W', 'Sprint (versus)'], ['R', 'Reload'], ['Q', 'Throw grenade'], ['F', 'Melee'],
-  ['Wheel or 1 / 2', 'Swap weapon'], ['1 - 3', 'Pick a boon'], ['Tab (hold)', 'Scoreboard (multiplayer)'], ['E', 'REQ station (Firefight)'], ['Esc or P', 'Pause menu'], ['M / N', 'Mute all / mute music']];
+  ['Wheel or 1 / 2', 'Swap weapon'], ['1 - 3', 'Pick a boon'], ['Tab (hold)', 'Scoreboard (multiplayer)'], ['E', 'REQ station / get in or out of a Ghost (Firefight)'], ['Driving a Ghost', 'Mouse steers, W/S/A/D, Shift boosts, click fires'], ['Esc or P', 'Pause menu'], ['M / N', 'Mute all / mute music']];
 
 function controlsHTML() {
   return '<div class="ctl">' + CONTROLS.map(([k, a]) => '<div><b>' + k + '</b><span>' + a + '</span></div>').join('') + '</div>';
