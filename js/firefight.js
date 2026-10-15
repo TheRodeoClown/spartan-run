@@ -41,13 +41,15 @@ const FF_GENS = [[32, -112, 'A', 1000], [-28, -110, 'B', 1000], [14, 32, 'C', 16
 const FF_ZONES = [[0, 78, 'NORTH'], [-40, 70, 'NORTH-EAST'], [60, 30, 'NORTH-WEST'], [-52, 18, 'THE MESA'], [-64, -40, 'EAST'], [70, -36, 'WEST'],
   [-56, -128, 'SOUTH-EAST'], [58, -96, 'SOUTH-WEST'], [12, -158, 'SOUTH'], [-32, -142, 'THE SOUTH MESA']];
 
-const FF = { on: false, round: 0, ph: 'break', t: 0, rl: 1, left: 0, spawnT: 0, gens: [], stations: [], kills: 0, sq: 0, zn: '', zi: -1, znAt: 0, lastZ: -1, annT: -99 };
+const FF = { flood: false, floodUsed: false, on: false, round: 0, ph: 'break', t: 0, rl: 1, left: 0, spawnT: 0, gens: [], stations: [], kills: 0, sq: 0, zn: '', zi: -1, znAt: 0, lastZ: -1, annT: -99 };
 
 /* ---------- Setup (everyone) ---------- */
 
 function ffSetup() {
   FF.on = true;
   FF.kills = 0;
+  FF.flood = false;
+  FF.floodUsed = false;
   FF.sq = 0;
   FF.annT = -99;
   NET.ffMode = 1;
@@ -156,6 +158,9 @@ const ffCap = () => 10 + 3 * NET.others();
 function ffPick() {
   const r = FF.round;
   const q = Math.random();
+  // a Flood outbreak round: combat forms, swarms of infection forms, carriers
+  if (FF.flood)
+    return q < .5 ? 'fcomb' : q < .82 ? 'finf' : 'fcarr';
   if (r >= 4 && q < .08)
     return 'hunter';
   if (r >= 2 && q < .16)
@@ -213,7 +218,12 @@ function ffSquad(n) {
   ffAnnounce(name);
   for (let i = 0; i < n; i++) {
     const [x, z] = ffSpot(cx, cz, 7);
-    spawn(ffPick(), x, z);
+    const t = ffPick();
+    spawn(t, x, z);
+    // infection forms come in swarms
+    if (t === 'finf')
+      for (let k = 0; k < 2; k++)
+        spawn('finf', x + R(-1.5, 1.5), z + R(-1.5, 1.5));
     const e = enemies[enemies.length - 1];
     // In defend rounds about half of them go for a generator
     if (FF_ROUNDS[FF.round - 1].kind === 'defend' && Math.random() < .5) {
@@ -242,6 +252,10 @@ function ffBoss(t, frac) {
 function ffBeginRound() {
   FF.round++;
   const R0 = FF_ROUNDS[FF.round - 1];
+  // each of rounds 1-4 has a chance to be a Flood outbreak (at most one a match)
+  FF.flood = !FF.floodUsed && FF.round <= 4 && Math.random() < .25;
+  if (FF.flood)
+    FF.floodUsed = true;
   FF.ph = 'play';
   FF.t = R0.time;
   FF.spawnT = 3.5;
@@ -251,14 +265,18 @@ function ffBeginRound() {
   if (R0.kind === 'defend')
     ffActive(FF.round).forEach(g => g.hp = g.pv = g.max);
   if (R0.kind === 'bosses') {
-    const pool = ['zealot', 'skirmisher', 'deacon', 'shipmaster'].sort(() => Math.random() - .5);
-    [pool[0], pool[1]].forEach(t => ffBoss(t, .6));
+    if (FF.flood)
+      ffBoss('abom', .7);
+    else {
+      const pool = ['zealot', 'skirmisher', 'deacon', 'shipmaster'].sort(() => Math.random() - .5);
+      [pool[0], pool[1]].forEach(t => ffBoss(t, .6));
+    }
   }
   if (R0.kind === 'boss')
     ffBoss(['warlord', 'warden', 'blademaster', 'ironclad', 'gravemind'][Math.random() * 5 | 0], 1);
   // a new Ghost for the team if the last one was destroyed; from round 3 an enemy Ghost joins the fight
   vehDeliver();
-  if (FF.round >= 3) {
+  if (FF.round >= 3 && !FF.flood) {
     const zn = ffZone();
     const [gx, gz] = ffSpot(zn[0], zn[1], 6);
     spawn('ghost', gx, gz);
@@ -266,7 +284,7 @@ function ffBeginRound() {
   }
   bossTotal = enemies.filter(e => e.boss).reduce((s, b) => s + b.maxhp + b.maxsh, 0);
   music.set(1);
-  banner('ROUND ' + FF.round + ': ' + R0.n + (FF.round >= 3 ? ' | ENEMY GHOST INBOUND' : ''));
+  banner('ROUND ' + FF.round + ': ' + R0.n + (FF.flood ? ' | FLOOD OUTBREAK!' : FF.round >= 3 ? ' | ENEMY GHOST INBOUND' : ''));
 }
 
 function ffRoundWon() {
@@ -424,7 +442,7 @@ function ffText() {
   const R0 = FF_ROUNDS[Math.max(0, FF.round - 1)];
   const t = Math.max(0, Math.ceil(FF.t));
   const clock = (t / 60 | 0) + ':' + String(t % 60).padStart(2, '0');
-  const head = FF.ph === 'break' ? (FF.round ? 'BREAK' : 'GET READY') + ' ' + clock : 'ROUND ' + FF.round + '/5: ' + R0.n + ' | ' + clock;
+  const head = FF.ph === 'break' ? (FF.round ? 'BREAK' : 'GET READY') + ' ' + clock : 'ROUND ' + FF.round + '/5: ' + (FF.flood ? 'FLOOD OUTBREAK: ' : '') + R0.n + ' | ' + clock;
   const gens = FF.round && R0.kind === 'defend' && FF.ph === 'play' ? ' | ' + ffActive(FF.round).map(g => (g.name === 'C' ? 'CORE' : 'GEN ' + g.name) + ' ' + Math.round(100 * g.hp / g.max) + '%').join(' ') : '';
   const gh = P.hog ? ' | WARTHOG ' + Math.round(100 * HOG.hp / HOG.max) + '%' : P.veh ? ' | GHOST ' + Math.round(100 * VEH.hp / VEH.max) + '% BOOST ' + Math.round(100 * VEH.boost) + '%' : '';
   return 'FIREFIGHT | ' + head + gens + gh + ' | REQ ' + (P.req || 0) + ' (LV ' + FF.rl + ')';
@@ -502,7 +520,7 @@ function ffEnd(win, why) {
 
 // Host: the firefight part of the world update
 function ffState() {
-  return { r: FF.round, ph: FF.ph, t: Math.max(0, Math.round(FF.t)), rl: FF.rl, gens: FF.gens.map(g => Math.round(g.hp)), why: FF.why || '', sq: FF.sq, zn: FF.zn, zi: FF.zi, v: [VEH.on ? 1 : 0, r1(VEH.x), r1(VEH.z), r2(VEH.yw), Math.round(VEH.hp), VEH.drv || ''], h: [HOG.on ? 1 : 0, r1(HOG.x), r1(HOG.z), r2(HOG.yw), Math.round(HOG.hp)].concat(HOG.seats.map(s => s || '')).concat([r1(HOG.y)]) };
+  return { r: FF.round, ph: FF.ph, t: Math.max(0, Math.round(FF.t)), rl: FF.rl, gens: FF.gens.map(g => Math.round(g.hp)), why: FF.why || '', sq: FF.sq, zn: FF.zn, zi: FF.zi, fl: FF.flood ? 1 : 0, v: [VEH.on ? 1 : 0, r1(VEH.x), r1(VEH.z), r2(VEH.yw), Math.round(VEH.hp), VEH.drv || ''], h: [HOG.on ? 1 : 0, r1(HOG.x), r1(HOG.z), r2(HOG.yw), Math.round(HOG.hp)].concat(HOG.seats.map(s => s || '')).concat([r1(HOG.y)]) };
 }
 
 // Guest: mirror the host's firefight state
@@ -515,7 +533,7 @@ function ffClient(f) {
   if (r !== FF.round || f.ph !== FF.ph) {
     if (f.ph === 'play' && r !== FF.round) {
       music.set(1);
-      banner('ROUND ' + r + ': ' + FF_ROUNDS[clamp(r, 1, 5) - 1].n);
+      banner('ROUND ' + r + ': ' + FF_ROUNDS[clamp(r, 1, 5) - 1].n + (f.fl ? ' | FLOOD OUTBREAK!' : ''));
     }
     else if (f.ph === 'break' && FF.ph === 'play') {
       music.set(0);
@@ -537,6 +555,7 @@ function ffClient(f) {
   }
   vehClient(f.v);
   hogClient(f.h);
+  FF.flood = !!f.fl;
   FF.round = r;
   FF.ph = String(f.ph || 'break');
   FF.t = +f.t || 0;

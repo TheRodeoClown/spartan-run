@@ -96,10 +96,12 @@ function dropW(s) {
   afterPick();
 }
 
-// A run drops you into each mission once, in random order; clearing the last one wins the run.
+// A run is RUN_LEN missions, each picked at random (an equal chance for every level you haven't done this run);
+// clearing the last one wins the run.
+const RUN_LEN = 3;
 function nextMission() {
   const left = LV.map((l, i) => i).filter(i => !P.done.includes(LV[i].id));
-  if (!left.length) {
+  if (!left.length || P.done.length >= RUN_LEN) {
     if (NET.mode) {
       NET.phase = 'v';
       netFinish();
@@ -109,7 +111,7 @@ function nextMission() {
     return;
   }
   startLevel(left[Math.random() * left.length | 0]);
-  banner('MISSION ' + (P.done.length + 1) + '/' + LV.length + ': ' + L.n.toUpperCase());
+  banner('MISSION ' + (P.done.length + 1) + '/' + RUN_LEN + ': ' + L.n.toUpperCase());
 }
 
 function armory() {
