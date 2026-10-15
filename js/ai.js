@@ -52,7 +52,7 @@ function aiCanFire(e, tg) {
   if (T >= (e.losAt || 0) || e.losTg !== tg) {
     e.losAt = T + .25;
     e.losTg = tg;
-    e.los = aiSees(e.x, e.y + 1.4 * e.sc, e.z, tg.x, (tg.y || 0) + 1.3, tg.z);
+    e.los = aiSees(e.x, e.y + (e.sniper ? 1.6 : 1.4) * e.sc, e.z, tg.x, (tg.y || 0) + 1.3, tg.z);
   }
   return e.los;
 }
@@ -171,8 +171,8 @@ function aiPickPerch(e, tg) {
     cs.push({ x, z, y: g, path: [[x, z]], len: 0, s: g * 1.3 - travel * .2 - Math.abs(r - want) * .15 });
   }
   cs.sort((a, b) => b.s - a.s);
-  for (const p of cs.slice(0, 7))
-    if (aiSees(p.x, p.y + 1.4 * e.sc, p.z, tg.x, ty, tg.z))
+  for (const p of cs.slice(0, 10))
+    if (aiSees(p.x, p.y + 1.6 * e.sc, p.z, tg.x, ty, tg.z))
       return p;
   return null;
 }
@@ -228,9 +228,9 @@ function aiSniper(e, tg, dt, d) {
   a.chk = (a.chk || 0) - dt;
   if (a.chk <= 0) {
     a.chk = .5;
-    a.blind = aiSees(e.x, e.y + 1.4 * e.sc, e.z, tg.x, (tg.y || 0) + 1.3, tg.z) ? 0 : a.blind + .5;
+    a.blind = aiSees(e.x, e.y + 1.6 * e.sc, e.z, tg.x, (tg.y || 0) + 1.3, tg.z) ? 0 : a.blind + .5;
   }
-  if (a.blind > 3.5 || d > 52 || d < 5 || a.t <= 0) {
+  if (a.blind > 2 || d > 52 || d < 5 || a.t <= 0) {
     a.st = 'pick';
     a.t = R(.3, .8);
     a.p = null;

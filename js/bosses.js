@@ -400,6 +400,8 @@ const MOVES = {
     let ax = tg.x;
     let az = tg.z;
     let fired = false;
+    // how long the sightline has been blocked while aiming (it gives up after half a second)
+    let blk = 0;
     const line = gm(new THREE.BoxGeometry(.04, .04, 1), 0xff3030, .7);
     line.geometry.translate(0, 0, .5);
     scene.add(line);
@@ -417,20 +419,34 @@ const MOVES = {
         az += (tg.z - az) * k;
         const oy = (e.y || 0) + 1.6 * e.sc;
         const ty = (tg.y || 0) + 1.3;
+        // the laser stops at whatever is in the way
+        const o = new THREE.Vector3(e.x, oy, e.z);
+        const full = Math.hypot(ax - e.x, ty - oy, az - e.z) || 1;
+        const dir = new THREE.Vector3(ax - e.x, ty - oy, az - e.z).multiplyScalar(1 / full);
+        const clear = aiSees(e.x, oy, e.z, ax, ty, az);
         line.position.set(e.x, oy, e.z);
         line.lookAt(ax, ty, az);
-        line.scale.set(1, 1, Math.hypot(ax - e.x, ty - oy, az - e.z) || 1);
+        line.scale.set(1, 1, clear ? full : Math.max(.5, Math.min(full, wallT(o, dir))));
         e.flash = .05;
-        if (t < aim)
+        if (t < aim) {
+          // you ducked out of sight: it gives up after half a second and goes looking for a clear line on you
+          blk = clear ? 0 : blk + dt;
+          if (blk > .5) {
+            e.busy = 0;
+            e.cd = Math.min(e.cd, .8);
+            if (e.ai)
+              e.ai.blind = 99;
+            return false;
+          }
           return true;
+        }
         if (!fired) {
           fired = true;
           line.material.color.setHex(0xffffff);
           line.scale.x = line.scale.y = 3;
           sfx.shot('sn');
-          const o = new THREE.Vector3(e.x, oy, e.z);
-          const dir = new THREE.Vector3(ax - e.x, ty - oy, az - e.z).normalize();
-          if (Math.hypot(tg.x - ax, tg.z - az) < 1.1 && wallT(o, dir) > Math.hypot(tg.x - e.x, tg.z - e.z) - 1)
+          // it only hits if you're where it aimed and nothing is in the way
+          if (Math.hypot(tg.x - ax, tg.z - az) < 1.1 && aiSees(e.x, oy, e.z, tg.x, (tg.y || 0) + 1.3, tg.z))
             hitP(tg, dmg);
         }
         line.material.opacity = Math.max(0, 1 - (t - aim) * 6);
