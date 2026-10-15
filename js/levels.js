@@ -458,6 +458,7 @@ function buildLevel(lv, empty) {
     envG.remove(envG.children[0]);
   pillars.length = 0;
   decks.length = 0;
+  perches.length = 0;
   edgeFn = null;
   envTick = null;
   // Cover layouts are authored for a 22m arena; spread them to the current size

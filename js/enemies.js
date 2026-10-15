@@ -706,3 +706,32 @@ function wallT(o, d) {
       }
   return t;
 }
+
+// Enemy plasma: a white-hot core inside a coloured glow, stretched along its flight (local +z, so lookAt aims it);
+// wider at the head, tapering to the tail. userData.col is the plasma colour (sent to co-op guests).
+const BOLT_CORE = new THREE.CylinderGeometry(.05, .04, .85, 6).rotateX(Math.PI / 2);
+const BOLT_GLOW = new THREE.CylinderGeometry(.15, .06, 1.2, 8).rotateX(Math.PI / 2);
+const _boltW = new THREE.Color(0xffffff);
+function boltMesh(col) {
+  const m = new THREE.Mesh(BOLT_CORE, new THREE.MeshBasicMaterial({ color: new THREE.Color(col).lerp(_boltW, .55) }));
+  m.add(new THREE.Mesh(BOLT_GLOW, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false })));
+  m.userData.col = col;
+  return m;
+}
+function boltColor(m, col) {
+  if (m.userData.col === col)
+    return;
+  m.userData.col = col;
+  m.material.color.setHex(col).lerp(_boltW, .55);
+  m.children[0].material.color.setHex(col);
+}
+
+// Distance from the point (x, y, z) to the segment a-b (Vector3s)
+function segDist(a, b, x, y, z) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dz = b.z - a.z;
+  const l2 = dx * dx + dy * dy + dz * dz;
+  const t = l2 ? clamp(((x - a.x) * dx + (y - a.y) * dy + (z - a.z) * dz) / l2, 0, 1) : 0;
+  return Math.hypot(a.x + dx * t - x, a.y + dy * t - y, a.z + dz * t - z);
+}

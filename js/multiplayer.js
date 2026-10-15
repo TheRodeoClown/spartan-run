@@ -503,7 +503,10 @@ function netWorld() {
           a.push(r1(e.y - groundH(e.x, e.z)));
         return a;
       }),
-      sh: shots.slice(0, 40).map(b => [r1(b.m.position.x), r1(b.m.position.y), r1(b.m.position.z), b.m.material.color.getHex()]),
+      sh: shots.slice(0, 40).map(b => {
+        const v = b.v.clone().normalize();
+        return [r1(b.m.position.x), r1(b.m.position.y), r1(b.m.position.z), b.m.userData.col || b.m.material.color.getHex(), r2(v.x), r2(v.y), r2(v.z)];
+      }),
       hz: netHzOut()
     });
   return w;
@@ -665,13 +668,15 @@ function netShotsIn(list) {
       return;
     let m = NET.shp[n];
     if (!m) {
-      m = new THREE.Mesh(new THREE.SphereGeometry(.13, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      m = boltMesh(0x7fe0ff);
       scene.add(m);
       NET.shp[n] = m;
     }
     m.visible = true;
     m.position.set(+a[0], +a[1], +a[2]);
-    m.material.color.setHex(+a[3] || 0x7fe0ff);
+    boltColor(m, (+a[3] || 0x7fe0ff) & 0xffffff);
+    if ([a[4], a[5], a[6]].every(isFinite))
+      m.lookAt(+a[0] + +a[4], +a[1] + +a[5], +a[2] + +a[6]);
     n++;
   });
   for (let i = n; i < NET.shp.length; i++)

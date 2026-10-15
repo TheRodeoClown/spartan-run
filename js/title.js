@@ -13,6 +13,7 @@ function buildTitle() {
     envG.remove(envG.children[0]);
   pillars.length = 0;
   decks.length = 0;
+  perches.length = 0;
   edgeFn = null;
   groundFn = null;
   gate = null;

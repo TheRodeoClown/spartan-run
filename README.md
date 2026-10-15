@@ -59,6 +59,7 @@ The full list is under **Controls** in the pause menu (Esc) and in Settings, whi
 - Nine bosses (Zealot Commander, Hunter Warlord, Forerunner Warden, Bonded Hunters, Blademaster, Shipmaster, Skirmisher Alpha, Grunt Deacon, Ironclad Hunter). Each mission draws its boss from a pool of three, so runs differ.
 - Fourteen legendary boons, including Infinity Magazine, Bubble Shield, Vampire Rounds, Chain Reaction, Active Camo, Overcharged Shields, Grenadier and Spartan Charge.
 - Enemy roster: Grunts (and suicide Grunts), Jackals with needlers, Jackal Snipers (laser-sighted beam rifles) and Jackal Majors, Elites and Sword Elites, flying Skimmers, Hunters (with a shield bash), and the Flood: infection, combat and carrier forms.
+- Enemy tactics (every mode): ranged enemies fight from cover, hiding then stepping out (or standing up behind low cover) to fire, and move when flanked; they hold fire until they can see you. Jackal Snipers climb to high ground with a clear line of sight. Melee and suicide enemies rush you. Enemy plasma flies as fast glowing bolts.
 - Quarantine Zone: a Flood-infested swamp facility, with the Proto-Gravemind or the Flood Abomination as its boss.
 - Legendary runs: from the third mission, Cloaked Sword Elites can appear: only a faint shimmer, sword included, they reveal themselves only when they strike or are hit.
 - Weapon variants: from the second mission on, boon screens can offer a special version of a gun you carry (MA40 Shredder, BR55 Recon, M6D Executioner, M90 Breacher, S2 Railgun, Type-25 Storm, M41 Hunter-Killer, Type-33 Hive, Prophet's Bane).
@@ -82,6 +83,7 @@ js/               game code (classic scripts, loaded in this order)
   meta.js         save data, armory upgrades, loadouts, legendary boons
   run.js          run flow: rooms, mission start/end
   bosses.js       boss kits: signature moves, summons, boss AI
+  ai.js           enemy tactics: cover, peeking, line of sight, sniper perches
   title.js        title-screen scene (portal, ring, meadow) and logo
   menus.js        overlay screens
   input.js        mouse and keyboard

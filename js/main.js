@@ -188,11 +188,16 @@ function update(dt) {
     const nz = dz / d;
     const panic = e.panic && e.hp < e.maxhp * .4;
     // Melee enemies (Sword Elites) close in and barely strafe; lunging triples their speed.
-    const mv = e.busy ? 0 : panic ? -1.3 : e.kami ? 1 : e.melee ? (d > 1.8 && e.wind <= 0 ? 1 : 0) : d > e.pref + 3 ? 1 : d < e.pref - 3 ? -1 : 0;
-    const st = e.kami || e.busy ? 0 : e.melee ? .15 : e.fly ? 1 : .5;
-    const spd = e.sp * (e.lunge > 0 ? 3.2 : 1);
-    e.x = clamp(e.x + (nx * mv - nz * e.dir * st) * spd * dt, -A + 1, A - 1);
-    e.z = clamp(e.z + (nz * mv + nx * e.dir * st) * spd * dt, -A + 1, A - 1);
+    // Ranged enemies fight from cover and snipers find high ground (ai.js); the rest rush, strafe or hold range
+    if (e.busy || !aiUpdate(e, tg, dt, d, panic)) {
+      const mv = e.busy ? 0 : panic ? -1.3 : e.kami ? 1 : e.melee ? (d > 1.8 && e.wind <= 0 ? 1 : 0) : d > e.pref + 3 ? 1 : d < e.pref - 3 ? -1 : 0;
+      const st = e.kami || e.busy ? 0 : e.melee ? .15 : e.fly ? 1 : .5;
+      const spd = e.sp * (e.lunge > 0 ? 3.2 : 1);
+      e.x += (nx * mv - nz * e.dir * st) * spd * dt;
+      e.z += (nz * mv + nx * e.dir * st) * spd * dt;
+    }
+    e.x = clamp(e.x, -A + 1, A - 1);
+    e.z = clamp(e.z, -A + 1, A - 1);
     // fliers (Skimmers) pass over cover
     if (!e.fly)
       pushOut(e, .6 * e.sc);
@@ -243,7 +248,7 @@ function update(dt) {
     }
     // e.fl: the floor it walks on (the ground, or a deck it climbed onto)
     e.fl = floorH(e.x, e.z, e.fl == null ? -99 : e.fl);
-    e.y = e.fl + (e.fly ? 3.4 + Math.sin(T * 1.7 + e.ph) * .8 : 0);
+    e.y = e.fl - (e.crouch || 0) + (e.fly ? 3.4 + Math.sin(T * 1.7 + e.ph) * .8 : 0);
     if (e.fly)
       flapWings(e);
     // Flood carriers pulse
@@ -313,13 +318,13 @@ function update(dt) {
     }
     // Jackal Sniper: a laser-sighted beam rifle shot (see MOVES.snipe)
     else if (e.sniper) {
-      if (e.cd <= 0 && !e.busy) {
+      if (e.cd <= 0 && !e.busy && e.aiFire !== false && aiCanFire(e, tg)) {
         MOVES.snipe(e, e.bd, 1.3);
         e.cd = e.fr * R(.9, 1.2);
       }
     }
     // Active Camo (legendary): they hold fire at you for 2s after a dash
-    else if (e.cd <= 0 && !panic && !(e.bash > 0) && !(tg === P && P.camoT > T)) {
+    else if (e.cd <= 0 && !panic && !(e.bash > 0) && !(tg === P && P.camoT > T) && e.aiFire !== false && aiCanFire(e, tg)) {
       for (let k = 0; k < e.burst; k++) {
         const a = Math.atan2(nx, nz) + (e.spread ? (k - (e.burst - 1) / 2) * .14 : R(-.06, .06));
         // Aim from the muzzle at the target's chest, allowing for hills between them
@@ -327,12 +332,12 @@ function update(dt) {
         // Needler Jackals fire homing needles; everyone else fires plasma bolts
         const mm = e.needle
           ? new THREE.Mesh(new THREE.BoxGeometry(.06, .06, .42), new THREE.MeshBasicMaterial({ color: e.col }))
-          : new THREE.Mesh(new THREE.SphereGeometry(.16, 8, 6), new THREE.MeshBasicMaterial({ color: e.col }));
+          : boltMesh(e.col);
         mm.position.set(e.x, e.y + 1.4 * e.sc, e.z);
-        if (e.needle)
-          mm.lookAt(mm.position.clone().add(dir));
+        mm.lookAt(mm.position.clone().add(dir));
         scene.add(mm);
-        shots.push({ m: mm, v: dir.multiplyScalar(e.bs * (e.needle ? R(.9, 1.1) : 1)), dmg: e.bd, life: 4, home: e.needle ? 2.2 : 0, tg });
+        // plasma bolts fly a third faster than they used to
+        shots.push({ m: mm, v: dir.multiplyScalar(e.bs * (e.needle ? R(.9, 1.1) : 1.35)), dmg: e.bd, life: 4, home: e.needle ? 2.2 : 0, tg });
       }
       if (e.needle)
         sfx.needleE(d);
@@ -352,10 +357,12 @@ function update(dt) {
       b.v.lerp(new THREE.Vector3(q.x - p.x, 1.3 + q.y - p.y, q.z - p.z).normalize().multiplyScalar(s), Math.min(1, dt * b.home)).setLength(s);
       b.m.lookAt(p.clone().add(b.v));
     }
+    const o0 = p.clone();
     p.addScaledVector(b.v, dt);
     b.life -= dt;
     netTargets().forEach(q => {
-      if (b.life > 0 && Math.hypot(p.x - q.x, p.y - 1.3 - q.y, p.z - q.z) < .7) {
+      // along the whole step, so a fast bolt can't skip through you between frames
+      if (b.life > 0 && segDist(o0, p, q.x, (q.y || 0) + 1.3, q.z) < .7) {
         b.life = 0;
         hitP(q, b.dmg);
       }

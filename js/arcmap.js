@@ -322,6 +322,10 @@ function arcBuild({ add, G, B, hills, ground }) {
     const edge = ax === 'x' ? x + sg * hw : z + sg * hd;
     const foot = edge + sg * L;
     stairs(ax, ax === 'x' ? z : x, foot, edge, 2.6, groundH(ax === 'x' ? foot : x, ax === 'x' ? z : foot), h);
+    // a sniper perch, up the stairs
+    const fo = foot + sg * 1.5;
+    const up = edge - sg * .8;
+    addPerch(ax === 'x' ? [[fo, z], [up, z]] : [[x, fo], [x, up]], [[x + hw * .6, z + hd * .6], [x - hw * .6, z - hd * .6]]);
   };
   const container = (x, z, ax, c, top) => {
     const hw = ax === 'x' ? 3.05 : 1.2;
@@ -557,8 +561,8 @@ function arcBuild({ add, G, B, hills, ground }) {
   tank(-44, -61);
   tank(-28, -61);
   const tt = groundH(-44, -50) + 5;
-  slab(-44, -55.5, 1.2, 3.2, tt, grate, .25);
-  slab(-36, -61, 5.8, 1.2, tt, grate, .25);
+  slab(-44, -55.5, 1.2, 3.5, tt, grate, .25);
+  slab(-36, -61, 6.1, 1.2, tt, grate, .25);
   [-1, 1].forEach(s => {
     rail(-44 + s * 1.2, -55.5, .05, 3.1, tt);
     rail(-36, -61 + s * 1.2, 5.6, .05, tt);
@@ -786,6 +790,16 @@ function arcBuild({ add, G, B, hills, ground }) {
     }
   }
   [[-16, -22], [18, -20], [-26, 46], [20, 30], [-2, 66], [62, 22], [-62, 4], [38, -40], [-40, -46], [0, -70]].forEach(([x, z]) => flood(x, z));
+
+  // ---- Sniper perches (ai.js): the way up from the ground, then the spots ----
+  addPerch([[14.5, -52.9], [-7, -52.9], [-10, -50.6], [-12.4, -48], [-12.4, -43]], [[-9, -40], [9, -38], [0, -35]]);
+  addPerch([[50.5, 14.5], [50.5, -2.5], [50.5, -7], [53.5, -7]], [[58, -3], [60, -13]]);
+  addPerch([[-21.5, 40], [-10.5, 40]], [[-7, 40.2]]);
+  addPerch([[-44, 43.5], [-44, 52.8]], [[-49.2, 53.6], [-41, 54]]);
+  addPerch([[-22, 31], [-40, 20], [-46, 19]], [[-52, 23], [-56, 16], [-48, 12]]);
+  addPerch([[-44, -36.5], [-44, -48.5]], [[-44, -50]]);
+  addPerch([[-44, -36.5], [-44, -48.5], [-44, -58.5], [-44, -61], [-31, -61]], [[-28, -61]]);
+  addPerch([[26, -57], [26, -65]], [[24, -68], [28.5, -68.5]]);
 
   // ---- Steam and drifting dust ----
   const steamN = 50 * vents.length;

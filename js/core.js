@@ -62,6 +62,17 @@ const groundH = (x, z) => groundFn ? groundFn(x, z) : 0;
 // Walkable surfaces above the ground (rooftops, stairs, catwalks, platforms, container tops): boxes {x, z, hw, hd}
 // whose top runs from h0 at the low edge to h1 at the high edge along ax ('x' or 'z'); flat when h0 = h1.
 const decks = [];
+// High ground for snipers (see ai.js): {x, z, y, path: [[x, z], ...] from the ground up to the spot, len}
+const perches = [];
+function addPerch(path, spots) {
+  spots.forEach(([x, z]) => {
+    const p = path.concat([[x, z]]);
+    let len = 0;
+    for (let i = 1; i < p.length; i++)
+      len += Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]);
+    perches.push({ x, z, y: floorH(x, z, 1e3), path: p, len });
+  });
+}
 // How high you can step up without jumping
 const STEP = .7;
 function deckTop(d, x, z) {
