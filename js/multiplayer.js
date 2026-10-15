@@ -1096,13 +1096,30 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
     tp.setY(i, groundBG(tp.getX(i), tp.getZ(i)));
   tg.computeVertexNormals();
   envG.add(new THREE.Mesh(tg, floorMat('bg')));
-  // Creek: a ribbon of water sitting in the creek bed
+  // Creek: a ribbon of water sitting in the creek bed, knee deep at most (wading slows you: see waterFn in core.js)
+  // the surface every half metre down the creek: .42 above the lowest point across it
+  const surf = [];
+  for (let i = 0; i <= 304; i++) {
+    // (just inside the ends, where the bed stops)
+    const z = clamp(-76 + i * .5, -75.8, 75.8);
+    const cx = creekX(z);
+    let lo = 99;
+    for (let dx = -1.8; dx <= 1.8; dx += .2)
+      lo = Math.min(lo, groundBG(cx + dx, z));
+    surf.push(lo + .42);
+  }
+  const creekY = z => {
+    const f = clamp((z + 76) * 2, 0, 304);
+    const i = Math.min(303, f | 0);
+    return surf[i] + (surf[i + 1] - surf[i]) * (f - i);
+  };
+  waterFn = (x, z) => Math.abs(z) <= 76 && Math.abs(x - creekX(z)) < 1.7 ? creekY(z) : null;
   const wp = [];
   const wi = [];
   for (let i = 0; i <= 120; i++) {
     const z = -76 + i * 152 / 120;
     const cx = creekX(z);
-    const y = groundBG(cx, z) + .45;
+    const y = creekY(z);
     wp.push(cx - 1.7, y, z, cx + 1.7, y, z);
     if (i) {
       const a = (i - 1) * 2;
@@ -1651,7 +1668,7 @@ function netReset() {
   netCleanup();
   FF.on = false;
   FF.gens = [];
-  FF.station = null;
+  FF.stations = [];
   NET.ffMode = 0;
   Object.assign(NET, { mode: null, host: false, client: false, down: 0, menu: 0, started: false, ui: null, me: null, phase: 'lobby', ep: 0, vep: -1, win: '', paid: 0, rd: 0, joinT: 0, joined: 0, hostGone: 0, outSeen: null, kb: {}, kbSeen: null, uiK: '', w: null, next: 'r', modeKnown: 0 });
 }

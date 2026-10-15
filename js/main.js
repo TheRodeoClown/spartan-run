@@ -24,7 +24,7 @@ function update(dt) {
   P.adrT = (P.adrT || 0) - dt;
   // Sprint (versus): hold Shift while moving forward; firing or zooming stops it, and you can't shoot while sprinting
   P.spr = NET.mode === 'vs' && !frz && f > 0 && (keys.ShiftLeft || keys.ShiftRight) && !down && !zoomOn;
-  const spd = P.speed * (P.adrT > 0 ? 1.35 : 1) * (P.spr ? 1.6 : 1);
+  const spd = P.speed * (P.adrT > 0 ? 1.35 : 1) * (P.spr ? 1.6 : 1) * wadeSlow(P.x, P.z, P.y);
   const ox = P.x;
   const oz = P.z;
   P.x = clamp(P.x + (-sy * f + cy * s) / m * spd * dt, -A + 1, A - 1);
@@ -189,12 +189,20 @@ function update(dt) {
     const panic = e.panic && e.hp < e.maxhp * .4;
     // Melee enemies (Sword Elites) close in and barely strafe; lunging triples their speed.
     // Ranged enemies fight from cover and snipers find high ground (ai.js); the rest rush, strafe or hold range
+    const ex0 = e.x;
+    const ez0 = e.z;
     if (e.busy || !aiUpdate(e, tg, dt, d, panic)) {
       const mv = e.busy ? 0 : panic ? -1.3 : e.kami ? 1 : e.melee ? (d > 1.8 && e.wind <= 0 ? 1 : 0) : d > e.pref + 3 ? 1 : d < e.pref - 3 ? -1 : 0;
       const st = e.kami || e.busy ? 0 : e.melee ? .15 : e.fly ? 1 : .5;
       const spd = e.sp * (e.lunge > 0 ? 3.2 : 1);
       e.x += (nx * mv - nz * e.dir * st) * spd * dt;
       e.z += (nz * mv + nx * e.dir * st) * spd * dt;
+    }
+    // wading slows them too
+    if (waterFn && !e.fly) {
+      const k = wadeSlow(e.x, e.z, e.fl || 0);
+      e.x = ex0 + (e.x - ex0) * k;
+      e.z = ez0 + (e.z - ez0) * k;
     }
     e.x = clamp(e.x, -A + 1, A - 1);
     e.z = clamp(e.z, -A + 1, A - 1);
@@ -573,6 +581,7 @@ function hud() {
   $('room').textContent = NET.mode ? netRoomText() : (L ? (LEGEND ? 'LEGENDARY | ' : '') + L.n + ' | ' + (lroom > L.rooms ? 'BOSS' : 'Room ' + lroom + '/' + L.rooms) : '') + '  Kills ' + kills;
   $('vig').style.opacity = vig;
   $('cross').style.borderColor = hitT > 0 ? hitCol : 'rgba(155,196,90,.8)';
+  compass();
 }
 // Weapon panel (bottom right): name and damage type, magazine count and reserve, a row of rounds that empties as you
 // fire (it refills during a reload), your other weapon underneath; grenades and thruster on the left.

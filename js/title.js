@@ -15,6 +15,7 @@ function buildTitle() {
   decks.length = 0;
   perches.length = 0;
   edgeFn = null;
+  waterFn = null;
   groundFn = null;
   gate = null;
   floor.visible = false;

@@ -460,6 +460,7 @@ function buildLevel(lv, empty) {
   decks.length = 0;
   perches.length = 0;
   edgeFn = null;
+  waterFn = null;
   envTick = null;
   // Cover layouts are authored for a 22m arena; spread them to the current size
   const lay = lv.lay.map(([x, z]) => [x * K, z * K]);

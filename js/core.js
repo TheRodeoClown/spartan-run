@@ -62,6 +62,15 @@ const groundH = (x, z) => groundFn ? groundFn(x, z) : 0;
 // Walkable surfaces above the ground (rooftops, stairs, catwalks, platforms, container tops): boxes {x, z, hw, hd}
 // whose top runs from h0 at the low edge to h1 at the high edge along ax ('x' or 'z'); flat when h0 = h1.
 const decks = [];
+// Shallow water (the Blood Gulch creek, the flooded pit on Arc Facility): waterFn(x, z) = the water's surface there, or
+// null. It's never more than knee deep, and wading slows you a little (see wadeSlow).
+let waterFn = null;
+const waterDepth = (x, z, y) => {
+  const w = waterFn ? waterFn(x, z) : null;
+  return w == null ? 0 : Math.max(0, w - y);
+};
+// Speed multiplier for a body with its feet at y: down to 0.75 at knee depth
+const wadeSlow = (x, z, y) => 1 - .25 * Math.min(1, waterDepth(x, z, y) / .45);
 // High ground for snipers (see ai.js): {x, z, y, path: [[x, z], ...] from the ground up to the spot, len}
 const perches = [];
 function addPerch(path, spots) {

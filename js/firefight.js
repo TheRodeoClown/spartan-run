@@ -31,13 +31,14 @@ const FF_REQ = [
 ];
 // The map: Arc Facility (arcmap.js), defending building 01 in the south half, with a generator on each flank
 const FF_SPAWNS = [[-4, -44], [4, -44], [-4, -48.5], [4, -48.5]]; // where players (re)deploy: inside building 01, around the REQ station
-const FF_STATION = [0, -47]; // REQ station, inside the base
+// REQ stations: inside the base, in the hangar, inside building 02, by the container yard and at the comms array
+const FF_STATIONS = [[0, -47], [-51, -15], [58, -6], [4, 47], [34, -49]];
 const FF_GENS = [[-27, -38], [27, -38]];
 // Enemy drop zones all round the map (behind the base too): [centre x, centre z, name]. Each squad picks one away
-// from the players.
-const FF_ZONES = [[0, 80, 'NORTH'], [60, 36, 'NORTH-EAST'], [74, 8, 'EAST'], [56, -34, 'SOUTH-EAST'], [6, -84, 'SOUTH'], [-60, -40, 'SOUTH-WEST'], [-52, 18, 'WEST (THE MESA)'], [-40, 72, 'NORTH-WEST']];
+// from the players. Names follow the compass (compass.js): north is +z, east is -x.
+const FF_ZONES = [[0, 80, 'NORTH'], [60, 36, 'NORTH-WEST'], [74, 8, 'WEST'], [56, -34, 'SOUTH-WEST'], [6, -84, 'SOUTH'], [-60, -40, 'SOUTH-EAST'], [-52, 18, 'EAST (THE MESA)'], [-40, 72, 'NORTH-EAST']];
 
-const FF = { on: false, round: 0, ph: 'break', t: 0, rl: 1, left: 0, spawnT: 0, gens: [], station: null, kills: 0, sq: 0, zn: '', lastZ: -1, annT: -99 };
+const FF = { on: false, round: 0, ph: 'break', t: 0, rl: 1, left: 0, spawnT: 0, gens: [], stations: [], kills: 0, sq: 0, zn: '', zi: -1, znAt: 0, lastZ: -1, annT: -99 };
 
 /* ---------- Setup (everyone) ---------- */
 
@@ -60,24 +61,29 @@ function ffSetup() {
   lroom = 1;
   room = 0;
   buildLevel(L);
-  // REQ station: a pedestal with a glowing screen and a slowly turning hologram ring
-  const st = new THREE.Group();
-  const gy = groundH(FF_STATION[0], FF_STATION[1]);
+  // REQ stations: a pedestal with a glowing screen, a slowly turning hologram ring and a yellow beacon light
   const metal = new THREE.MeshPhongMaterial({ color: 0x4a5560, shininess: 80 });
-  const box = (w, h, d, m, x, y, z) => {
-    const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
-    o.position.set(x, y, z);
-    st.add(o);
-    return o;
-  };
-  box(1.4, 1.1, .8, metal, 0, .55, 0);
-  box(1.2, .7, .06, new THREE.MeshBasicMaterial({ color: 0x5ec8f2 }), 0, 1.35, .2).rotation.x = -.35;
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(.6, .04, 6, 32), new THREE.MeshBasicMaterial({ color: 0x9fe4ff, transparent: true, opacity: .7 }));
-  ring.position.y = 2.3;
-  st.add(ring);
-  st.position.set(FF_STATION[0], gy, FF_STATION[1]);
-  envG.add(st);
-  FF.station = { g: st, ring };
+  FF.stations = FF_STATIONS.map(([sx, sz]) => {
+    const st = new THREE.Group();
+    const box = (w, h, d, m, x, y, z) => {
+      const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      o.position.set(x, y, z);
+      st.add(o);
+      return o;
+    };
+    box(1.4, 1.1, .8, metal, 0, .55, 0);
+    box(1.2, .7, .06, new THREE.MeshBasicMaterial({ color: 0x5ec8f2 }), 0, 1.35, .2).rotation.x = -.35;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(.6, .04, 6, 32), new THREE.MeshBasicMaterial({ color: 0x9fe4ff, transparent: true, opacity: .7 }));
+    ring.position.y = 2.3;
+    st.add(ring);
+    const lamp = new THREE.PointLight(0xffd060, .6, 7);
+    lamp.position.y = 2.6;
+    st.add(lamp);
+    st.position.set(sx, groundH(sx, sz), sz);
+    envG.add(st);
+    pillars.push({ v: 1, x: sx, z: sz, hw: .7, hd: .4, h: groundH(sx, sz) + 1.1 });
+    return { g: st, ring };
+  });
   // Generators: a dark base with a glowing core that dims and reddens as it takes damage
   FF.gens = FF_GENS.map(([x, z], i) => {
     const g = new THREE.Group();
@@ -177,6 +183,8 @@ function ffSpot(cx, cz, r) {
 function ffAnnounce(name) {
   FF.sq++;
   FF.zn = name;
+  FF.zi = FF.lastZ;
+  FF.znAt = T;
   if (T - FF.annT > 8) {
     FF.annT = T;
     banner('ENEMIES INBOUND: ' + name);
@@ -333,13 +341,12 @@ function ffReward(e) {
   FF.kills++;
 }
 
-const ffNear = () => FF.on && Math.hypot(P.x - FF_STATION[0], P.z - FF_STATION[1]) < 3.5;
+const ffNear = () => FF.on && FF_STATIONS.some(([x, z]) => Math.hypot(P.x - x, P.z - z) < 3.5);
 
 function ffTick(dt) {
   if (!FF.on)
     return;
-  if (FF.station)
-    FF.station.ring.rotation.y += dt;
+  FF.stations.forEach(s => s.ring.rotation.y += dt);
   FF.gens.forEach(g => {
     const k = g.hp / g.max;
     g.flash -= dt;
@@ -381,7 +388,7 @@ function ffReq() {
   if (!FF.on || state !== 'play' || NET.down)
     return;
   if (!ffNear()) {
-    banner('REQ STATION: INSIDE BUILDING 01');
+    banner('FIND A REQ STATION (YELLOW ON THE COMPASS)');
     return;
   }
   NET.menu = 1;
@@ -444,7 +451,7 @@ function ffEnd(win, why) {
 
 // Host: the firefight part of the world update
 function ffState() {
-  return { r: FF.round, ph: FF.ph, t: Math.max(0, Math.round(FF.t)), rl: FF.rl, gens: FF.gens.map(g => Math.round(g.hp)), why: FF.why || '', sq: FF.sq, zn: FF.zn };
+  return { r: FF.round, ph: FF.ph, t: Math.max(0, Math.round(FF.t)), rl: FF.rl, gens: FF.gens.map(g => Math.round(g.hp)), why: FF.why || '', sq: FF.sq, zn: FF.zn, zi: FF.zi };
 }
 
 // Guest: mirror the host's firefight state
@@ -470,6 +477,8 @@ function ffClient(f) {
   // where the latest squad dropped in
   if (+f.sq > FF.sq && f.ph === 'play') {
     FF.sq = +f.sq;
+    FF.zi = clamp(+f.zi || 0, 0, FF_ZONES.length - 1);
+    FF.znAt = T;
     if (T - FF.annT > 8 && f.zn) {
       FF.annT = T;
       banner('ENEMIES INBOUND: ' + String(f.zn).slice(0, 24));

@@ -3,10 +3,10 @@
  * after the industrial Halo 5 Warzone maps. Classic script (no modules): all files share one global scope.
  *
  * The quarry floor curls up into cliffs at an irregular edge (arcEdge), and rock ridges, a mesa and the excavation pit
- * break it into lanes. The team base (building 01) sits in the south half with a generator on each flank. Around it: a
- * comms array (south-east), a fuel depot (south-west), a hangar (west), the mesa (west), a Covenant outpost
- * (north-west), a container yard and the drill rig (middle), a watchtower joined to a silo by a skybridge (north), and
- * building 02 (east). Most of it can be climbed: stairs, rooftops, catwalks, tank tops, containers and lookouts are
+ * break it into lanes. Directions follow the compass (compass.js): north is +z, east is -x. The team base (building 01)
+ * sits in the south half with a generator on each flank. Around it: a comms array (south-west), a fuel depot
+ * (south-east), a hangar and the mesa (east), a Covenant outpost (north-east), a container yard and the drill rig in its
+ * flooded pit (middle), a watchtower joined to a silo by a skybridge (north), and building 02 (west). Most of it can be climbed: stairs, rooftops, catwalks, tank tops, containers and lookouts are
  * walkable decks (see decks / floorH in core.js); colliders are boxes in `pillars`. Moving parts (radar dishes, drill,
  * crane, sweeping floodlights, beacons, steam, dust) run in envTick.
  */
@@ -26,7 +26,7 @@ const ARC_PADS = [[0, -42, 18, 14], [55, -6, 11, 12], [34, -60, 18, 13], [-38, -
 // rock ridges: [ax, az, bx, bz, height at a, height at b, half-width of the top, width of the slopes]
 // (gentle slopes you can walk up; the last one is the steep-sided path up the mesa)
 const ARC_RIDGES = [[-36, -6, -20, -16, 3, 3, 2, 5], [24, 26, 42, 14, 3.2, 2.6, 2, 5], [-24, 62, -10, 70, 2.6, 2.6, 2, 5], [0, -76, 12, -70, 2.5, 2.5, 2, 5], [-40, 20, -24, 30, 9, 0, 2.5, 3.5]];
-// the mesa (west): [x, z, radius of the top, height]; its sides are too steep to walk up
+// the mesa (east): [x, z, radius of the top, height]; its sides are too steep to walk up
 const ARC_MESA = [-52, 18, 12, 9];
 
 function arcRidge(x, z, [ax, az, bx, bz, ha, hb, w, f]) {
@@ -425,6 +425,16 @@ function arcBuild({ add, G, B, hills, ground }) {
   tg.computeVertexNormals();
   envG.add(new THREE.Mesh(tg, mat('arcGround', () => new THREE.MeshLambertMaterial({ map: ctex('gravel', 256, 256, 30, 30, DR.gravel), vertexColors: true }))));
 
+  // ---- The flooded excavation pit: knee deep at the deepest (wading slows you: see waterFn in core.js) ----
+  let pitLow = 99;
+  for (let a = 0; a < 6.28; a += .5)
+    for (let r = 0; r < 4; r += 1)
+      pitLow = Math.min(pitLow, groundArc(6 + Math.cos(a) * r, 12 + Math.sin(a) * r));
+  const pool = pitLow + .45;
+  waterFn = (x, z) => (x - 6) ** 2 + (z - 12) ** 2 < 324 && groundArc(x, z) < pool ? pool : null;
+  const pw = add(new THREE.CircleGeometry(16, 40), mat('arcWater', () => new THREE.MeshPhongMaterial({ color: 0x3e5a62, shininess: 100, specular: 0x9ab8c8, transparent: true, opacity: .82 })), 6, pool, 12);
+  pw.rotation.x = -Math.PI / 2;
+
   // ---- The quarry walls: boulders along the foot of the cliffs, bigger ones up the cliffs, rock spires beyond ----
   for (let a = 0; a < 6.283;) {
     const e = arcEdge(a);
@@ -448,7 +458,7 @@ function arcBuild({ add, G, B, hills, ground }) {
     a += s * 1.15 / e;
   }
 
-  // ---- The mesa (west): boulders round its rim, cover on top; the ridge on its east side is the way up ----
+  // ---- The mesa (east): boulders round its rim, cover on top; the ridge on its east side is the way up ----
   const [mx, mz, mr, mh] = ARC_MESA;
   for (let a = 0; a < 6.283; a += .36) {
     if (Math.abs(Math.atan2(Math.sin(a - .4), Math.cos(a - .4))) < .45)
@@ -527,7 +537,7 @@ function arcBuild({ add, G, B, hills, ground }) {
   [[-27, -31.5, 'x'], [-33.5, -38, 'z'], [27, -31.5, 'x'], [33.5, -38, 'z'], [-8, -24, 'x'], [8, -24, 'x']].forEach(([x, z, ax]) => barrier(x, z, ax));
   [[-21, -42], [21, -42]].forEach(([x, z]) => crate(x, z, 2, .5));
 
-  // ---- Comms array (south-east): a lookout, a bunker you can climb, a lattice mast with a turning dish ----
+  // ---- Comms array (south-west): a lookout, a bunker you can climb, a lattice mast with a turning dish ----
   lookout(44, -56, 3, 3, 9, '-x', 13);
   solid(26, -68, 5, 3.5, 3.6, panel);
   stairs('z', 26, -58, -64.5, 2.6, groundH(26, -58), groundH(26, -68) + 3.6);
@@ -549,7 +559,7 @@ function arcBuild({ add, G, B, hills, ground }) {
     beacon(x, g + 25.5, z);
   }
 
-  // ---- Fuel depot (south-west): three tanks joined by catwalks across their tops, stairs up the north side ----
+  // ---- Fuel depot (south-east): three tanks joined by catwalks across their tops, stairs up the north side ----
   const tank = (x, z) => {
     const g = groundH(x, z);
     solid(x, z, 2.2, 2.2, 5, null, null, false);
@@ -582,7 +592,7 @@ function arcBuild({ add, G, B, hills, ground }) {
   crate(-34, -54, 1);
   crate(-33, -55.2, 2, .4);
 
-  // ---- Hangar (west): an arched hall open at both ends with a side door, and a mezzanine inside; a lookout outside ----
+  // ---- Hangar (east): an arched hall open at both ends with a side door, and a mezzanine inside; a lookout outside ----
   const hx = -52;
   const hz = -18;
   solid(-59, hz, .4, 15, 5, panel, 0);
@@ -610,7 +620,7 @@ function arcBuild({ add, G, B, hills, ground }) {
   crate(-49.5, -11, 1, .5);
   lookout(-40, -30, 2.5, 2.5, 8, '+z', 12);
 
-  // ---- Building 02 (east): a walkable roof with a crane on it, stairs up the outside; pipelines heading west ----
+  // ---- Building 02 (west): a walkable roof with a crane on it, stairs up the outside; pipelines heading west ----
   const ex = 58;
   const ez = -8;
   const r2 = 8.6;
@@ -681,7 +691,7 @@ function arcBuild({ add, G, B, hills, ground }) {
   put(new THREE.CylinderGeometry(.1, .1, 1.2, 6), dark, sx, sg + 27, sz);
   flood(18, 66);
 
-  // ---- Covenant outpost (north-west): a raised platform with a glowing ramp, spires and a drop beacon ----
+  // ---- Covenant outpost (north-east): a raised platform with a glowing ramp, spires and a drop beacon ----
   const cx = -44;
   const cz = 58;
   const cg = groundH(cx, cz);
