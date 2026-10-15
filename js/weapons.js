@@ -270,42 +270,9 @@ function setGun(k) {
     gun.userData.sw = s;
     return;
   }
-  const add = (w, h, d, x, y, z, c) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: c }));
-    m.position.set(x, y, z);
-    gun.add(m);
-  };
-  const c = { ar: 0x5a6a4a, br: 0x4d5a40, mg: 0x666a70, sg: 0x5a4a3a, sn: 0x40454d, pr: 0x6b3fa0, rk: 0x6a5a3a, nd: 0xc0408a }[k];
-  if (k === 'mg') {
-    add(.05, .07, .22, 0, 0, -.05, c);
-    add(.04, .1, .05, 0, -.07, .04, 0x333333);
-  }
-  else if (k === 'pr') {
-    add(.08, .09, .4, 0, 0, -.1, c);
-    add(.03, .03, .3, 0, .07, -.15, 0x7dff9a);
-  }
-  else if (k === 'rk') {
-    add(.13, .13, .7, 0, .02, -.15, c);
-    add(.09, .09, .1, 0, .02, -.55, 0x222222);
-  }
-  else if (k === 'sn') {
-    add(.05, .07, .75, 0, 0, -.2, c);
-    add(.04, .04, .25, 0, .08, -.1, 0x111111);
-  }
-  else if (k === 'nd') {
-    add(.07, .09, .38, 0, 0, -.1, c);
-    add(.03, .05, .2, 0, .07, -.12, 0xff7be0);
-  }
-  else if (k === 'sg') {
-    add(.06, .07, .55, 0, 0, -.15, c);
-    add(.08, .05, .2, 0, -.05, -.1, 0x3a2a1a);
-  }
-  else {
-    add(.06, .09, .5, 0, 0, -.1, c);
-    add(.04, .12, .06, 0, -.09, .02, 0x222222);
-    add(.03, .03, .2, 0, .07, -.2, 0x222222);
-  }
+  buildGun(k);
 }
+
 setGun('ar');
 
 // Looking through the sniper scope: the gun model is hidden and the scope overlay shown.
@@ -317,6 +284,7 @@ function animGun(dt) {
   const S = gun.userData.sw;
   swLight.intensity = 0;
   updTrail(dt);
+  gunTick();
   if (S && P) {
     const on = P.ammo >= swingCost();
     S.blades.visible = on;

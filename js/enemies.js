@@ -25,14 +25,26 @@ function flapWings(e) {
     j.forEach((c, i) => c.scale.set(1, .85 + .3 * Math.abs(Math.sin(T * 37 + i * 1.7)), 1));
 }
 
+// Stylized rim light for enemy materials: a cool glow along the edges of every shape as it turns away from you (in
+// the spirit of Halo Infinite's crisp silhouettes). k = strength.
+function rimify(m, k) {
+  m.onBeforeCompile = sh => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <output_fragment>',
+      'outgoingLight += vec3(.62, .78, 1.) * ' + k.toFixed(2) + ' * pow(1. - clamp(dot(normal, geometry.viewDir), 0., 1.), 2.6);\n#include <output_fragment>');
+  };
+  m.customProgramCacheKey = () => 'rim' + k.toFixed(2);
+  return m;
+}
+
 function buildEnemy(t) {
   const g = new THREE.Group();
   // The group new parts go into: the model root, or a limb pivot while rig() runs
   let tg = g;
-  const L = c => mcache('l' + c, () => new THREE.MeshLambertMaterial({ color: c }));
-  const Ph = (c, s) => mcache('p' + c + s, () => new THREE.MeshPhongMaterial({ color: c, shininess: s, specular: 0x666677 }));
+  // skin and flesh: soft, armour and metal: glossy; all with the rim light
+  const L = c => mcache('l' + c, () => rimify(new THREE.MeshPhongMaterial({ color: c, shininess: 12, specular: 0x222222 }), .3));
+  const Ph = (c, s) => mcache('p' + c + s, () => rimify(new THREE.MeshPhongMaterial({ color: c, shininess: s, specular: 0x777788 }), .35));
   const glow = c => mcache('g' + c, () => new THREE.MeshBasicMaterial({ color: c }));
-  const armor = c => new THREE.MeshPhongMaterial({ color: c, shininess: 60, specular: 0x555566 });
+  const armor = c => rimify(new THREE.MeshPhongMaterial({ color: c, shininess: 60, specular: 0x6a6a78 }), .45);
   const B = (w, h, d) => gcache('b' + [w, h, d], () => new THREE.BoxGeometry(w, h, d));
   const S = () => gcache('s', () => new THREE.SphereGeometry(.5, 14, 10));
   const Hemi = () => gcache('h', () => new THREE.SphereGeometry(.5, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2));
@@ -122,9 +134,12 @@ function buildEnemy(t) {
       limb([[s * .17, .62, -.02], [s * .22, .34, .1], [s * .2, .08, 0]], .085, skin);
       P3(B(.2, .08, .3), dark, s * .2, .04, .06);
       P3(B(.2, .2, .12), mat, s * .22, .36, .16, null, [.3, 0, 0]);
+      [-.06, .06].forEach(o => P3(Co(.025, .1, 4), dark, s * .2 + o, .03, .24, null, [Math.PI / 2, 0, 0]));
     }));
     ball(skin, 0, .86, 0, .82, .76, .68);
-    P3(B(.6, .42, .16), mat, 0, .92, .22, null, [.3, 0, 0]);
+    // chest armour: a curved shell a little bigger than the belly (so it never pokes through), and a plate on it
+    dome(mat, 0, .86, .01, .9, .78, .86, [Math.PI / 2, 0, 0]);
+    P3(B(.46, .3, .06), mat, 0, .98, .34, null, [-.2, 0, 0]);
     P3(B(.66, .12, .5), mat, 0, .62, 0);
     [-1, 1].forEach(s => dome(mat, s * .33, 1.06, 0, .4, .24, .44, [0, 0, -s * .5]));
     P3(Co(.34, .85, 4), tank, 0, 1.12, -.34, null, [-.2, Math.PI / 4, 0]);
@@ -135,6 +150,17 @@ function buildEnemy(t) {
     P3(Cy(.05, .05, .06, 8), gl, 0, 1.34, .46, null, [Math.PI / 2, 0, 0]);
     limb([[.08, 1.3, .32], [.2, 1.2, .05], [.12, 1.18, -.26]], .025, dark);
     [-1, 1].forEach(s => ball(glow(0xffd24a), s * .09, 1.48, .37, .09));
+    // harness straps and a belt with a glowing buckle, tank valves and a second glow band, a hose on each side of
+    // the mask, a forehead plate, glowing trim on the shoulder guards
+    [-1, 1].forEach(s => P3(B(.07, .44, .03), dark, s * .2, .86, .38, null, [0, 0, s * .35]));
+    P3(B(.72, .08, .54), dark, 0, .56, 0);
+    P3(B(.12, .07, .03), gl, 0, .56, .28);
+    [-1, 1].forEach(s => P3(Cy(.06, .06, .16, 8), tank, s * .25, 1.0, -.4, null, [0, 0, Math.PI / 2]));
+    P3(B(.46, .05, .05), gl, 0, .8, -.6, null, [-.2, 0, 0]);
+    P3(gcache('gv', () => new THREE.TorusGeometry(.07, .02, 6, 12)), dark, 0, 1.5, -.44, null, [Math.PI / 2, 0, 0]);
+    limb([[-.08, 1.3, .32], [-.2, 1.2, .05], [-.12, 1.18, -.26]], .025, dark);
+    dome(mat, 0, 1.55, .12, .44, .2, .42, [-.35, 0, 0]);
+    [-1, 1].forEach(s => P3(B(.03, .03, .26), glow(0xffd24a), s * .36, 1.12, 0, null, [0, 0, -s * .5]));
     if (kam) {
       // Arms raised, a lit plasma grenade in each hand
       [-1, 1].forEach(s => limb([[s * .33, 1.05, .02], [s * .46, 1.18, .12], [s * .5, 1.25, .25]], .07, skin));
@@ -154,6 +180,8 @@ function buildEnemy(t) {
       const pp = Ph(0x3f6b3a, 80);
       ball(pp, .5, .74, .42, .14, .14, .3);
       ball(glow(0x7dff6a), .5, .76, .56, .08);
+      [-1, 1].forEach(s => P3(Co(.03, .16, 6), pp, .5 + s * .06, .74, .6, null, [Math.PI / 2, 0, -s * .2]));
+      P3(gcache('ppc', () => new THREE.TorusGeometry(.075, .014, 6, 14)), glow(0x7dff6a), .5, .74, .48);
       P3(B(.04, .1, .06), dark, .5, .66, .36);
     }
   }
@@ -168,6 +196,7 @@ function buildEnemy(t) {
     legs = [-1, 1].map(s => rig(s * .12, .9, -.04, () => {
       limb([[s * .12, .9, -.04], [s * .15, .58, .14], [s * .14, .24, -.1], [s * .14, .05, .06]], .06, skin);
       P3(B(.11, .05, .24), dark, s * .14, .03, .1);
+      [-.04, .04].forEach(o => P3(Co(.02, .1, 4), dark, s * .14 + o, .03, .25, null, [Math.PI / 2, 0, 0]));
       P3(B(.12, .28, .08), mat, s * .15, .62, .17, null, [-.4, 0, 0]);
     }));
     ball(skin, 0, 1.12, 0, .42, .6, .36, [.25, 0, 0]);
@@ -179,6 +208,13 @@ function buildEnemy(t) {
     P3(Co(.08, .34), beak, 0, 1.64, .52, null, [Math.PI / 2, 0, 0]);
     [-1, 1].forEach(s => ball(glow(0xff5030), s * .09, 1.73, .3, .07));
     [[-.08, .1], [0, .14], [.08, .1], [0, .02]].forEach(([x, o], i) => P3(Co(.03, .32, 5), quill, x, 1.86 - o * .5, -.02 - i * .03, null, [-.7 - o, 0, x * 2]));
+    // spine quills down the back, an armoured collar, a hanging loin flap, glowing trim on the chest plate
+    for (let i = 0; i < 4; i++)
+      P3(Co(.025, .22, 5), quill, 0, 1.36 - i * .1, -.16 - i * .02, null, [-1.2, 0, 0]);
+    P3(gcache('jcol', () => new THREE.TorusGeometry(.13, .03, 6, 14)), mat, 0, 1.4, .05, null, [Math.PI / 2 - .3, 0, 0]);
+    P3(B(.18, .3, .03), L(0x5a2a4a), 0, .72, .16, null, [.15, 0, 0]);
+    P3(B(.2, .06, .04), mat, 0, .88, .17);
+    [-1, 1].forEach(s => P3(B(.03, .03, .2), glow(jmj ? 0xffc070 : 0x9ff0ff), s * .2, 1.25, .2, null, [.25, 0, 0]));
     if (jsn) {
       // Sniper: both hands on a long beam rifle with a glowing muzzle and scope
       limb([[-.2, 1.32, 0], [-.18, 1.12, .2], [.02, 1.2, .42]], .045, skin);
@@ -201,6 +237,8 @@ function buildEnemy(t) {
       P3(B(.09, .12, .36), nd, .34, .95, .4);
       ball(nd, .34, .93, .22, .12, .14, .12);
       [-.035, 0, .035].forEach(x => P3(Co(.02, .15, 5), glow(0xff7be0), .34 + x, 1.07, .4 + x * .5, null, [-.3, 0, 0]));
+      [-.02, .02].forEach(x => P3(Co(.018, .12, 5), glow(0xff7be0), .34 + x, 1.05, .28, null, [-.4, 0, 0]));
+      P3(Co(.04, .1, 8), nd, .34, .95, .62, null, [Math.PI / 2, 0, 0]);
     }
   }
   else if (t === 'elite') {
@@ -213,6 +251,8 @@ function buildEnemy(t) {
       limb([[s * .2, 1.0, -.02], [s * .24, .62, .2], [s * .22, .26, -.1], [s * .22, .05, .08]], .085, skin);
       P3(B(.17, .38, .14), mat, s * .24, .42, .12, null, [-.55, 0, 0]);
       P3(B(.16, .06, .3), dark, s * .22, .03, .12);
+      [-.05, .05].forEach(o => P3(Co(.025, .12, 4), dark, s * .22 + o, .04, .28, null, [Math.PI / 2, 0, 0]));
+      P3(Co(.04, .16, 5), mat, s * .24, .64, .32, null, [1.2, 0, 0]);
       P3(B(.24, .26, .26), mat, s * .21, .92, .02);
     }));
     ball(skin, 0, 1.02, 0, .5, .4, .36);
@@ -240,6 +280,7 @@ function buildEnemy(t) {
       const f = () => {
         limb([[s * .5, 1.42, 0], [s * .62, 1.1, .12], [s * .58, .98, .36]], .075, skin);
         P3(B(.14, .14, .3), mat, s * .6, 1.04, .24, null, [.4, 0, 0]);
+        P3(B(.02, .02, .26), glow(0x7fe8ff), s * .675, 1.07, .24, null, [.4, 0, 0]);
       };
       // Left arm swings; the right arm holds the weapon steady
       if (s < 0)
@@ -247,13 +288,33 @@ function buildEnemy(t) {
       else
         f();
     });
+    // glowing armour trim and a chest gem, plated tassets front and back, helmet fins, pauldron trim, mandible
+    // teeth, back-pack vents, a belt
+    const trim = glow(0x7fe8ff);
+    P3(B(.6, .025, .025), trim, 0, 1.56, .26);
+    P3(B(.025, .3, .025), trim, 0, 1.33, .33);
+    ball(trim, 0, 1.36, .34, .09, .09, .05);
+    [-1, 1].forEach(s => {
+      P3(B(.24, .32, .06), mat, s * .2, .86, .2, null, [.2, 0, s * .12]);
+      P3(B(.2, .02, .02), trim, s * .2, .99, .23, null, [.2, 0, s * .12]);
+      P3(B(.22, .3, .06), mat, s * .2, .88, -.2, null, [-.2, 0, -s * .12]);
+      P3(B(.03, .14, .3), mat, s * .27, 1.9, -.06, null, [-.3, 0, s * .25]);
+      P3(B(.025, .025, .3), trim, s * .52, 1.62, .1, null, [0, 0, -s * .45]);
+      [0, 1].forEach(i => P3(Co(.015, .06, 4), Ph(0xe8e0d0, 40), s * (.1 + i * .09), 1.47 + i * .05, .4 - i * .03, null, [Math.PI, 0, 0]));
+    });
+    [1.14, 1.3].forEach(y => P3(B(.3, .03, .02), trim, 0, y, -.34));
+    P3(B(.66, .06, .48), dark, 0, 1.02, .02);
     if (sel)
       swordAt(.58, 1, .3, .75);
     else {
       // Two-pronged plasma rifle
       const gun = Ph(0x5a6070, 90);
-      [-1, 1].forEach(k => ball(gun, .58 + k * .05, .98, .52, .08, .12, .42));
+      [-1, 1].forEach(k => {
+        ball(gun, .58 + k * .055, .98, .5, .08, .12, .46);
+        P3(Co(.035, .16, 6), gun, .58 + k * .06, .98, .76, null, [Math.PI / 2, 0, -k * .2]);
+      });
       ball(glow(0xff7be0), .58, .98, .72, .07);
+      P3(B(.015, .015, .3), glow(0xff7be0), .58, 1.05, .5);
       P3(B(.04, .12, .06), dark, .58, .9, .4);
     }
   }
@@ -421,6 +482,11 @@ function buildEnemy(t) {
     P3(Cy(.2, .24, 1, 10), dark, .75, 1.1, .6, null, [Math.PI / 2, 0, 0]);
     [.35, .6, .85].forEach(z => P3(gcache('ht', () => new THREE.TorusGeometry(.24, .04, 6, 16)), worm, .75, 1.1, z));
     ball(glow(0x7dff6a), .75, 1.1, 1.1, .24);
+    // a ridge of spines down the back, glowing seams in the chest armour, a hot visor slit
+    for (let i = 0; i < 7; i++)
+      P3(Co(.07, .45 - i * .03, 5), dark, i % 2 ? .12 : -.12, 1.75 - i * .1, -.45 - i * .04, null, [-.9 - i * .05, 0, i % 2 ? -.3 : .3]);
+    [-1, 1].forEach(s => P3(B(.03, .3, .03), glow(0xff9a40), s * .3, 1.2, .34, null, [.25, s * .3, 0]));
+    P3(B(.3, .04, .04), glow(0xffd060), 0, 1.65, .44);
   }
   const aura = new THREE.Mesh(new THREE.SphereGeometry(1.05, 14, 10), new THREE.MeshBasicMaterial({ color: 0x78dcff, transparent: true, opacity: .2 }));
   aura.position.y = 1.05;
