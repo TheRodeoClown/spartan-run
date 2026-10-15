@@ -312,7 +312,7 @@ setGun('ar');
 const scoped = () => P && state === 'play' && zoomOn && P.wpn === 'sn' && cam.fov < 40;
 
 function animGun(dt) {
-  gun.visible = state !== 'title' && !scoped() && !(P && P.veh);
+  gun.visible = state !== 'title' && !scoped() && !(P && (P.veh || P.hog === 1 || P.hog === 3));
   // Sword: pulsing glow, blades off when the battery is too low to swing
   const S = gun.userData.sw;
   swLight.intensity = 0;
@@ -765,7 +765,7 @@ function throwNade() {
 const DASH = 5.5;
 
 function jump() {
-  if (state !== 'play' || P.y > floorH(P.x, P.z, P.y) + .05)
+  if (state !== 'play' || P.hog || P.veh || P.y > floorH(P.x, P.z, P.y) + .05)
     return;
   P.vy = 7;
   sfx.jump();
@@ -773,7 +773,7 @@ function jump() {
 
 // Thruster: Shift + a direction (WASD) boosts that way.
 function thrust() {
-  if (state !== 'play' || !P.thrust || P.tcd > 0 || P.dash > 0)
+  if (state !== 'play' || P.hog || P.veh || !P.thrust || P.tcd > 0 || P.dash > 0)
     return;
   // The boost goes the way you're moving: WASD in any combination (in versus, Shift + W is sprint instead)
   const f = (keys.KeyW && NET.mode !== 'vs' ? 1 : 0) - (keys.KeyS ? 1 : 0);
@@ -792,7 +792,7 @@ function thrust() {
 }
 
 function melee() {
-  if (P.mcd > 0 || state !== 'play')
+  if (P.mcd > 0 || state !== 'play' || P.hog || P.veh)
     return;
   const sw = P.wpn === 'sw' && P.ammo >= swingCost();
   P.mcd = sw ? .5 : .7;

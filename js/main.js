@@ -23,6 +23,8 @@ function update(dt) {
   // You: on foot (playerMove), or driving a Ghost (ghost.js)
   if (P.veh)
     vehDrive(dt, f, s);
+  else if (P.hog)
+    hogRide(dt, frz, f, s, m, sy, cy);
   else if (playerMove(dt, frz, f, s, m, sy, cy))
     return;
   enemies.forEach(e => {
@@ -585,7 +587,9 @@ function hud() {
   $('en').firstChild.style.width = P.ammo + '%';
   hudWeapon();
   // driving a Ghost: no weapon panel (its health and boost are in the Firefight bar)
-  $('wpn').style.visibility = $('gear').style.visibility = P.veh ? 'hidden' : 'visible';
+  $('wpn').style.visibility = $('gear').style.visibility = P.veh || P.hog === 1 || P.hog === 3 ? 'hidden' : 'visible';
+  // what E would do here
+  $('prompt').textContent = state === 'play' && FF.on && !NET.down && !NET.menu ? usePrompt() : '';
   // One bar for all bosses in the fight (Bonded Hunters are a pair), measured against their combined starting total
   const bss = enemies.filter(e => e.boss);
   $('boss').style.display = bss.length ? 'block' : 'none';

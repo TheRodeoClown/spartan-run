@@ -26,7 +26,7 @@ const FF_REQ = [
   { k: 'br', n: 'BR55 Battle Rifle', c: 60, lv: 1 }, { k: 'mg', n: 'M6D Magnum', c: 30, lv: 1 }, { k: 'pr', n: 'Type-25 Plasma Rifle', c: 60, lv: 1 },
   { k: 'nd', n: 'Type-33 Needler', c: 80, lv: 1 }, { k: 'sg', n: 'M90 Shotgun', c: 120, lv: 1 }, { id: 'ammo', n: 'Ammo resupply', c: 30, lv: 1 }, { id: 'nades', n: 'Grenade resupply', c: 40, lv: 1 },
   { k: 'sn', n: 'S2 Sniper Rifle', c: 200, lv: 2 }, { k: 'sw', n: 'Energy Sword', c: 220, lv: 2 },
-  { k: 'rk', n: 'M41 Rocket Launcher', c: 300, lv: 3 }, { id: 'os', n: 'Overshield (+60 shield)', c: 150, lv: 3 },
+  { id: 'hog', n: 'M12 Warthog (driver, passenger, gunner)', c: 250, lv: 2 }, { k: 'rk', n: 'M41 Rocket Launcher', c: 300, lv: 3 }, { id: 'os', n: 'Overshield (+60 shield)', c: 150, lv: 3 },
   { k: 'sn', vr: 1, n: 'S2 Railgun (pierces everything)', c: 400, lv: 4 }, { k: 'sw', vr: 1, n: 'Prophet\'s Bane (legendary sword)', c: 420, lv: 4 }, { k: 'rk', vr: 1, n: 'M41 Hunter-Killer (homing rockets)', c: 450, lv: 4 }
 ];
 // The map: Arc Facility (arcmap.js), defending building 01 in the south half, with a generator on each flank
@@ -108,6 +108,7 @@ function ffSetup() {
     return { gen: true, name, x, y, z, hp: max, max, g, core, beam, flash: 0, pv: max, hitAt: -99 };
   });
   vehReset();
+  hogReset();
   P.x = FF_SPAWNS[0][0];
   P.z = FF_SPAWNS[0][1];
   P.y = groundH(P.x, P.z);
@@ -385,6 +386,7 @@ function ffTick(dt) {
     g.core.material.color.setHex(g.hp <= 0 ? 0x202428 : g.flash > 0 ? 0xffffff : k > .5 ? 0x5ff0ff : k > .25 ? 0xffc040 : 0xff4a3a);
   });
   vehTick(dt);
+  hogTick(dt);
   // respawn at the base
   if (NET.down && state === 'play') {
     NET.resp -= dt;
@@ -424,7 +426,7 @@ function ffText() {
   const clock = (t / 60 | 0) + ':' + String(t % 60).padStart(2, '0');
   const head = FF.ph === 'break' ? (FF.round ? 'BREAK' : 'GET READY') + ' ' + clock : 'ROUND ' + FF.round + '/5: ' + R0.n + ' | ' + clock;
   const gens = FF.round && R0.kind === 'defend' && FF.ph === 'play' ? ' | ' + ffActive(FF.round).map(g => (g.name === 'C' ? 'CORE' : 'GEN ' + g.name) + ' ' + Math.round(100 * g.hp / g.max) + '%').join(' ') : '';
-  const gh = P.veh ? ' | GHOST ' + Math.round(100 * VEH.hp / VEH.max) + '% BOOST ' + Math.round(100 * VEH.boost) + '%' : '';
+  const gh = P.hog ? ' | WARTHOG ' + Math.round(100 * HOG.hp / HOG.max) + '%' : P.veh ? ' | GHOST ' + Math.round(100 * VEH.hp / VEH.max) + '% BOOST ' + Math.round(100 * VEH.boost) + '%' : '';
   return 'FIREFIGHT | ' + head + gens + gh + ' | REQ ' + (P.req || 0) + ' (LV ' + FF.rl + ')';
 }
 
@@ -459,6 +461,8 @@ function ffBuy(i) {
   const q = FF_REQ[i];
   if (!q || q.lv > FF.rl || (P.req || 0) < q.c || NET.down)
     return;
+  if (q.id === 'hog' && !hogBuy())
+    return;
   P.req -= q.c;
   if (q.k) {
     setW(P, q.k);
@@ -484,6 +488,7 @@ function ffEnd(win, why) {
   if (state === 'over')
     return;
   P.veh = 0;
+  P.hog = 0;
   const bonus = win ? 300 : 50 * Math.max(0, FF.round - 1);
   const c = (P ? P.cr : 0) + bonus;
   netBank(bonus);
@@ -497,7 +502,7 @@ function ffEnd(win, why) {
 
 // Host: the firefight part of the world update
 function ffState() {
-  return { r: FF.round, ph: FF.ph, t: Math.max(0, Math.round(FF.t)), rl: FF.rl, gens: FF.gens.map(g => Math.round(g.hp)), why: FF.why || '', sq: FF.sq, zn: FF.zn, zi: FF.zi, v: [VEH.on ? 1 : 0, r1(VEH.x), r1(VEH.z), r2(VEH.yw), Math.round(VEH.hp), VEH.drv || ''] };
+  return { r: FF.round, ph: FF.ph, t: Math.max(0, Math.round(FF.t)), rl: FF.rl, gens: FF.gens.map(g => Math.round(g.hp)), why: FF.why || '', sq: FF.sq, zn: FF.zn, zi: FF.zi, v: [VEH.on ? 1 : 0, r1(VEH.x), r1(VEH.z), r2(VEH.yw), Math.round(VEH.hp), VEH.drv || ''], h: [HOG.on ? 1 : 0, r1(HOG.x), r1(HOG.z), r2(HOG.yw), Math.round(HOG.hp)].concat(HOG.seats.map(s => s || '')).concat([r1(HOG.y)]) };
 }
 
 // Guest: mirror the host's firefight state
@@ -531,6 +536,7 @@ function ffClient(f) {
     }
   }
   vehClient(f.v);
+  hogClient(f.h);
   FF.round = r;
   FF.ph = String(f.ph || 'break');
   FF.t = +f.t || 0;

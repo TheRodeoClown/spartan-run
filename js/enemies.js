@@ -488,6 +488,8 @@ function hurt(d) {
   // driving a Ghost: it takes most of the hit
   if (P.veh)
     d = vehHit(d);
+  else if (P.hog)
+    d = hogHit(d);
   P.last = T;
   vig = .7;
   sfx.hit(P.sh > 0);

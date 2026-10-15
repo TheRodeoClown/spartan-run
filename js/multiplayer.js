@@ -371,6 +371,14 @@ function netRead(r, q) {
   r.vy = n(q.vy, 0);
   r.vxp = clamp(n(q.vx, NaN), -200, 200);
   r.vzp = clamp(n(q.vz, NaN), -200, 200);
+  // their Warthog seat (asked for / in it, 1-3), damage they've taken in it so far, purchases, and (driving) where it is
+  r.hq = clamp(n(q.hq, 0) | 0, 0, 3);
+  r.hd = Math.max(0, n(q.hd, 0));
+  r.hb = Math.max(0, n(q.hb, 0) | 0);
+  r.hx = clamp(n(q.hx, NaN), -200, 200);
+  r.hz = clamp(n(q.hz, NaN), -200, 200);
+  r.hy = clamp(n(q.hy, 0), -5, 40);
+  r.hyw = n(q.hyw, 0);
   if (r.isNew) {
     // First sight: whatever it reported before now is history
     r.isNew = 0;
@@ -1873,8 +1881,11 @@ function netSend(dt) {
         delete NET.cmT[k];
       }
     });
+  // driving the Warthog: where it is
+  if (live && P.hog === 1)
+    Object.assign(p, { hx: r1(HOG.x), hz: r1(HOG.z), hy: r1(HOG.y), hyw: r2(HOG.yw) });
   if (live)
-    Object.assign(p, { gt: NET.gt || 0, cl: NET.mycl, x: r1(P.x), y: r1(P.y), z: r1(P.z), yw: r2(yaw), hp: Math.round(P.hp), sh: Math.round(P.sh), w: P.wpn, dn: NET.down ? 1 : 0, vq: NET.vq ? 1 : 0, vh: P.veh ? Math.round(VEH.hp) : -1, vy: r2(VEH.yw), vx: r1(VEH.x), vz: r1(VEH.z), fx: NET.fxl, ex: NET.exl, cm: NET.cm, kl: NET.kl });
+    Object.assign(p, { gt: NET.gt || 0, cl: NET.mycl, x: r1(P.x), y: r1(P.y), z: r1(P.z), yw: r2(yaw), hp: Math.round(P.hp), sh: Math.round(P.sh), w: P.wpn, dn: NET.down ? 1 : 0, vq: NET.vq ? 1 : 0, vh: P.veh ? Math.round(VEH.hp) : -1, vy: r2(VEH.yw), vx: r1(VEH.x), vz: r1(VEH.z), hq: NET.hq || 0, hd: Math.round(NET.hd || 0), hb: NET.hb || 0, fx: NET.fxl, ex: NET.exl, cm: NET.cm, kl: NET.kl });
   const o = { p };
   if (NET.host)
     o.w = NET.w;

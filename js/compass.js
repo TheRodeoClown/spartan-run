@@ -34,6 +34,9 @@ function compassMarks() {
     // the team's Ghost (when you're not in it)
     if (VEH.on && !P.veh)
       m.push({ x: VEH.x, z: VEH.z, c: '#9fe8c0', s: 4.5, k: 'tri' });
+    // the Warthog (when you're not in it)
+    if (HOG.on && !P.hog)
+      m.push({ x: HOG.x, z: HOG.z, c: '#c8e070', s: 5, k: 'tri' });
     FF_STATIONS.forEach(([x, z]) => m.push({ x, z, c: '#ffd060', s: 4, k: 'sq' }));
     if (ffTargets().length)
       ffGensUp().forEach(g => m.push({ x: g.x, z: g.z, c: '#5ff0ff', s: 4.5, k: 'sq' }));

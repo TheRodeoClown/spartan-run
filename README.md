@@ -60,6 +60,7 @@ The full list is under **Controls** in the pause menu (Esc) and in Settings, whi
 - Fourteen legendary boons, including Infinity Magazine, Bubble Shield, Vampire Rounds, Chain Reaction, Active Camo, Overcharged Shields, Grenadier and Spartan Charge.
 - Enemy roster: Grunts (and suicide Grunts), Jackals with needlers, Jackal Snipers (laser-sighted beam rifles) and Jackal Majors, Elites and Sword Elites, flying Skimmers, Hunters (with a shield bash), and the Flood: infection, combat and carrier forms.
 - Ghosts (Firefight): the team gets a drivable Ghost at the base from round 1, and a new one each round if it was destroyed. E gets in and out; the mouse steers, W/S/A/D drive, Shift boosts, click fires the twin plasma cannons, and ramming at speed splatters enemies. It soaks most of the damage aimed at its driver. From round 3 an enemy Ghost joins each round, circle-strafing and boosting in to ram.
+- Warthog (Firefight, REQ level 2, 250 REQ): delivered beside the base. Walk up to a seat and press E: the driver's side (the mouse steers, W/S throttle and reverse, it drifts in hard turns, and it runs enemies over), the passenger's side (shoot your own weapons from the seat) or the chaingun in the back. It soaks most of the damage aimed at its crew and can be bought again once it's destroyed.
 - Compass (every mode): a heading strip across the top of the screen marks enemies (red, bosses orange), teammates (blue) and, in Firefight, REQ stations (yellow), generators under attack (cyan) and the latest enemy drop zone (purple). Versus shows directions only.
 - Shallow water (the Blood Gulch creek, the flooded pit on Arc Facility) is knee deep at most and slows you a little while you wade.
 - Enemy tactics (every mode): ranged enemies fight from cover, hiding then stepping out (or standing up behind low cover) to fire, and move when flanked; they hold fire until they can see you. Jackal Snipers climb to high ground with a clear line of sight. Melee and suicide enemies rush you. Enemy plasma flies as fast glowing bolts.
@@ -89,6 +90,7 @@ js/               game code (classic scripts, loaded in this order)
   ai.js           enemy tactics: cover, peeking, line of sight, sniper perches
   compass.js      the HUD compass and its markers
   ghost.js        Ghosts: the drivable one (Firefight) and the enemy one
+  warthog.js      the Warthog (Firefight): three seats, driving, the chaingun
   title.js        title-screen scene (portal, ring, meadow) and logo
   menus.js        overlay screens
   input.js        mouse and keyboard
