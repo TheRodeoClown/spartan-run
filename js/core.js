@@ -59,6 +59,33 @@ let groundFn = null;
 let titleScene = false;
 const groundH = (x, z) => groundFn ? groundFn(x, z) : 0;
 
+// Ground that matches the terrain mesh exactly: fn sampled on the same (n x n cell) grid as a PlaneGeometry(2 * half,
+// 2 * half, n, n) laid flat, and between samples the same two triangles per cell the mesh draws. Without it, you'd
+// stand on the smooth formula while seeing its flat-faceted mesh: sunk into the ground in hollows and at the foot of
+// slopes. Build the mesh's heights from the returned function too.
+function meshGround(fn, half, n) {
+  const s = half * 2 / n;
+  const n1 = n + 1;
+  const hs = new Float32Array(n1 * n1);
+  for (let j = 0; j <= n; j++)
+    for (let i = 0; i <= n; i++)
+      hs[j * n1 + i] = fn(-half + i * s, -half + j * s);
+  return (x, z) => {
+    const fx = clamp((x + half) / s, 0, n - 1e-6);
+    const fz = clamp((z + half) / s, 0, n - 1e-6);
+    const i = fx | 0;
+    const j = fz | 0;
+    const u = fx - i;
+    const v = fz - j;
+    const a = hs[j * n1 + i];
+    const b = hs[(j + 1) * n1 + i];
+    const c = hs[(j + 1) * n1 + i + 1];
+    const d = hs[j * n1 + i + 1];
+    // the cell's diagonal runs from (i, j + 1) to (i + 1, j), as in PlaneGeometry
+    return u + v <= 1 ? a + (d - a) * u + (b - a) * v : c + (b - c) * (1 - u) + (d - c) * (1 - v);
+  };
+}
+
 // Walkable surfaces above the ground (rooftops, stairs, catwalks, platforms, container tops): boxes {x, z, hw, hd}
 // whose top runs from h0 at the low edge to h1 at the high edge along ax ('x' or 'z'); flat when h0 = h1.
 const decks = [];

@@ -1087,13 +1087,13 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
   hills(36, 175, 330, 30, 60, 0x6d7458);
   pines(46, 92, 160);
   // Terrain: a displaced grid replaces the flat floor, and becomes the ground everything stands on
-  groundFn = groundBG;
+  groundFn = meshGround(groundBG, A, 128);
   floor.visible = false;
   const tg = new THREE.PlaneGeometry(A * 2, A * 2, 128, 128);
   tg.rotateX(-Math.PI / 2);
   const tp = tg.attributes.position;
   for (let i = 0; i < tp.count; i++)
-    tp.setY(i, groundBG(tp.getX(i), tp.getZ(i)));
+    tp.setY(i, groundH(tp.getX(i), tp.getZ(i)));
   tg.computeVertexNormals();
   envG.add(new THREE.Mesh(tg, floorMat('bg')));
   // Creek: a ribbon of water sitting in the creek bed, knee deep at most (wading slows you: see waterFn in core.js)
@@ -1105,7 +1105,7 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
     const cx = creekX(z);
     let lo = 99;
     for (let dx = -1.8; dx <= 1.8; dx += .2)
-      lo = Math.min(lo, groundBG(cx + dx, z));
+      lo = Math.min(lo, groundH(cx + dx, z));
     surf.push(lo + .42);
   }
   const creekY = z => {
@@ -1181,7 +1181,7 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
   });
   // Rock outcrops: a big faceted rock with a smaller one leaning on it
   BG_ROCKS.forEach(([x, z, hw, hd, h]) => {
-    const g0 = Math.min(groundBG(x - hw, z - hd), groundBG(x + hw, z + hd), groundBG(x - hw, z + hd), groundBG(x + hw, z - hd));
+    const g0 = Math.min(groundH(x - hw, z - hd), groundH(x + hw, z + hd), groundH(x - hw, z + hd), groundH(x + hw, z - hd));
     pillars.push({ x, z, hw, hd, h: g0 + h });
     const o = add(new THREE.DodecahedronGeometry(1), rockM, x, g0 + h * .35, z);
     o.scale.set(hw * 1.15, h * .75, hd * 1.15);
@@ -1200,7 +1200,7 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
     if (Math.abs(x) + Math.abs(z) > 100 || avoid.some(([ax, az, r]) => Math.hypot(x - ax, z - az) < r + s + 1.5))
       continue;
     n++;
-    const g = groundBG(x, z);
+    const g = groundH(x, z);
     pillars.push({ x, z, hw: s * .75, hd: s * .75, h: g + s * 1.2 });
     const o = add(new THREE.DodecahedronGeometry(s), rockM, x, g + s * .3, z);
     o.scale.y = .8;
@@ -1218,7 +1218,7 @@ function bgBuild({ add, M, G, B, WL, walls, wallH, spots, onW, hills, ground, pi
     if (avoid.some(([ax, az, r]) => Math.hypot(x - ax, z - az) < r + 3))
       continue;
     n++;
-    const g = groundBG(x, z);
+    const g = groundH(x, z);
     pillars.push({ x, z, hw: .45 * s, hd: .45 * s, h: g + 9 });
     add(new THREE.CylinderGeometry(.25 * s, .35 * s, 3 * s, 7), tk, x, g + 1.5 * s, z);
     for (let j = 0; j < 3; j++)

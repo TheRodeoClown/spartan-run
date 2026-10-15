@@ -1078,7 +1078,7 @@ function missionGround(lv, lay) {
 // Builds the hilly ground mesh in place of the flat floor. Vertex colours lighten the hilltops and add soft patches,
 // so the ground texture doesn't look like one repeating tile.
 function missionTerrain(lv, lay, add) {
-  groundFn = missionGround(lv, lay);
+  groundFn = meshGround(missionGround(lv, lay), A, 100);
   floor.visible = false;
   const g = new THREE.PlaneGeometry(A * 2, A * 2, 100, 100);
   g.rotateX(-Math.PI / 2);

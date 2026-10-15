@@ -403,7 +403,7 @@ function arcBuild({ add, G, B, hills, ground }) {
   hills(40, 260, 420, 50, 110, 0x3c3e42);
 
   // Terrain mesh: gravel on the floor, darker rock where it's steep (cliffs, the mesa's sides)
-  groundFn = groundArc;
+  groundFn = meshGround(groundArc, A, 150);
   edgeFn = arcLimit;
   floor.visible = false;
   const tg = new THREE.PlaneGeometry(A * 2, A * 2, 150, 150);
@@ -413,11 +413,12 @@ function arcBuild({ add, G, B, hills, ground }) {
   for (let i = 0; i < tp.count; i++) {
     const x = tp.getX(i);
     const z = tp.getZ(i);
-    const h = groundArc(x, z);
+    const h = groundH(x, z);
     tp.setY(i, h);
     const sl = Math.hypot(groundArc(x + .8, z) - groundArc(x - .8, z), groundArc(x, z + .8) - groundArc(x, z - .8)) / 1.6;
     const k = Math.min(1.1, .84 + Math.min(h, 4) * .03 + .08 * Math.sin(x * .3 + z * .17) * Math.cos(z * .21 - x * .13));
-    const rk = smooth01((sl - .45) / .6);
+    // rock colour only where it's too steep to walk (cliffs, the mesa's sides), not on the walkable ridges
+    const rk = smooth01((sl - 1) / .6);
     const q = .55 + .1 * Math.sin(x * .7 + z * .9);
     colr.push(k + (q - k) * rk, k * .98 + (q - k * .98) * rk, k * .95 + (q * 1.02 - k * .95) * rk);
   }
@@ -429,9 +430,9 @@ function arcBuild({ add, G, B, hills, ground }) {
   let pitLow = 99;
   for (let a = 0; a < 6.28; a += .5)
     for (let r = 0; r < 4; r += 1)
-      pitLow = Math.min(pitLow, groundArc(6 + Math.cos(a) * r, 12 + Math.sin(a) * r));
+      pitLow = Math.min(pitLow, groundH(6 + Math.cos(a) * r, 12 + Math.sin(a) * r));
   const pool = pitLow + .45;
-  waterFn = (x, z) => (x - 6) ** 2 + (z - 12) ** 2 < 324 && groundArc(x, z) < pool ? pool : null;
+  waterFn = (x, z) => (x - 6) ** 2 + (z - 12) ** 2 < 324 && groundH(x, z) < pool ? pool : null;
   const pw = add(new THREE.CircleGeometry(16, 40), mat('arcWater', () => new THREE.MeshPhongMaterial({ color: 0x3e5a62, shininess: 100, specular: 0x9ab8c8, transparent: true, opacity: .82 })), 6, pool, 12);
   pw.rotation.x = -Math.PI / 2;
 
