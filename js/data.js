@@ -41,6 +41,8 @@ const ET = {
 };
 // Boss weak points [x, y, z, radius] in model space (scaled with the boss). Elites: helmet gem + back power core.
 // Hunters: exposed orange core in the stomach and on the back. A hit deals CRIT_MUL and ignores armor.
+// Close-quarters melee damage (main.js), by enemy type or model; anything else hits for 14. Bosses hit 1.6x.
+const MELEE_DMG = { grunt: 10, jackal: 14, jsniper: 12, jmajor: 16, elite: 24, skimmer: 12, gravemind: 20 };
 const CRITS = {
   elite: { col: 0xffe066, pts: [[0, 1.78, .38, .15], [0, 1.2, -.32, .2]] },
   hunter: { col: 0xff7a2a, pts: [[0, 1.12, .4, .18], [0, 1.15, -.6, .2]] },

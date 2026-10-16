@@ -144,6 +144,47 @@ function update(dt) {
       e.camoRev = (e.camoRev || 0) - dt;
       camoLook(e, e.camoRev > 0);
     }
+    // Close-quarters melee, for everything without its own (Sword Elites and the Flood's melee forms slash, Hunters
+    // bash, Ghosts ram, bombers explode): get too close and it winds up (a 0.25s tell: it rears back and draws its
+    // free arm) and strikes, with a shove. Ranged fire waits while it does.
+    if (!e.melee && !e.kami && !e.veh && e.t !== 'hunter' && ET[e.t].model !== 'hunter') {
+      const reach = 1.7 + .5 * e.sc;
+      const near = d < reach && Math.abs((tg.y || 0) - (e.y || 0)) < 2;
+      e.mcd = (e.mcd == null ? R(0, .4) : e.mcd) - dt;
+      if (e.mwind > 0) {
+        // it holds its ground through the wind-up, then lunges a step into the blow
+        e.x = ex0;
+        e.z = ez0;
+        e.mwind -= dt;
+        if (e.mwind <= 0 && d > 1.2) {
+          e.x += nx * Math.min(.6, d - 1.2);
+          e.z += nz * Math.min(.6, d - 1.2);
+        }
+        swingPose(e, .2 - 1.4 * (1 - e.mwind / .25));
+        e.lean = -.18;
+        if (e.mwind <= 0) {
+          e.mhit = .2;
+          sfx.melee();
+          if (d < reach + .5 && Math.abs((tg.y || 0) - (e.y || 0)) < 2) {
+            hitP(tg, (MELEE_DMG[e.t] || MELEE_DMG[ET[e.t].model] || 14) * (e.boss ? 1.6 : 1));
+            knockP(tg, nx * 9, nz * 9);
+          }
+        }
+      }
+      else if (e.mcd <= 0 && !e.busy && near) {
+        e.mwind = .25;
+        e.mcd = R(1.3, 1.8);
+        e.cd = Math.max(e.cd, .7);
+      }
+      if (e.mhit > 0) {
+        e.mhit -= dt;
+        swingPose(e, -1.2 + 1.6 * (1 - Math.max(0, e.mhit) / .2));
+        e.lean = .3;
+      }
+      else if (!(e.mwind > 0))
+        e.lean = 0;
+      e.g.rotation.x += ((e.lean || 0) - e.g.rotation.x) * Math.min(1, dt * 14);
+    }
     e.cd -= dt;
     if (e.melee) {
       // Sword Elite: lunge in from mid range, raise the sword (0.35s tell), then slash
