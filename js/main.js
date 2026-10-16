@@ -748,6 +748,8 @@ function loop(now) {
   netTick(dt);
   tick(dt);
   hud();
+  // the weapon panel and the rest of the HUD stay hidden on the title screen and the menus behind it
+  $('hud').classList.toggle('off', state === 'title' || state === 'menu');
   gfxTick(dt);
   gfxRender();
   requestAnimationFrame(loop);

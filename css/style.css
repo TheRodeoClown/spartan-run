@@ -149,4 +149,5 @@ canvas{width:100%;height:100%;display:block}
 #wpn #gnade i{width:7px;height:10px;margin-right:3px;transform:none;border-radius:3px 3px 2px 2px;border:1px solid rgba(160,215,255,.6);vertical-align:-1px}
 #wpn #gnade i.on{background:linear-gradient(#e8f6ff,#7cc4ff);box-shadow:0 0 5px rgba(120,200,255,.8)}
 #wpn #gthr{margin-top:0}
-#wpn #gthr span{width:56px;height:3px;vertical-align:1px}
+#wpn #gthr span{width:56px;height:3px;vertical-align:1px}/* nothing of the in-game HUD on the title screen */
+#hud.off #wpn,#hud.off #gear,#hud.off .bar,#hud.off #room,#hud.off #boss,#hud.off #cross{display:none}

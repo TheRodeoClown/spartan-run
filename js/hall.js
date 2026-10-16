@@ -556,6 +556,37 @@ function cutWall(s) {
       envG.remove(o);
       return yc;
     }
+    if (o.geometry.type === 'PlaneGeometry' && sz.x > 5 && sz.z < 3) {
+      // a flat panel across the wall (the Covenant cruiser's space window): keep the parts either side of the gap
+      const inv = new THREE.Matrix4().copy(o.matrixWorld).invert();
+      const lx = x => new THREE.Vector3(x, (bb.min.y + bb.max.y) / 2, (bb.min.z + bb.max.z) / 2).applyMatrix4(inv).x;
+      const W = o.geometry.parameters.width;
+      [[bb.min.x - 1, -2.2], [2.2, bb.max.x + 1]].forEach(([x0, x1]) => {
+        let a = lx(x0);
+        let b = lx(x1);
+        if (a > b)
+          [a, b] = [b, a];
+        a = Math.max(a, -W / 2);
+        b = Math.min(b, W / 2);
+        if (b - a < .05)
+          return;
+        const g = o.geometry.clone();
+        const p = g.attributes.position;
+        const uv = g.attributes.uv;
+        for (let v = 0; v < p.count; v++) {
+          const x = Math.min(b, Math.max(a, p.getX(v)));
+          p.setX(v, x);
+          uv.setX(v, x / W + .5);
+        }
+        const m = new THREE.Mesh(g, o.material);
+        m.position.copy(o.position);
+        m.quaternion.copy(o.quaternion);
+        m.scale.copy(o.scale);
+        envG.add(m);
+      });
+      envG.remove(o);
+      return;
+    }
     // smaller things on the wall (boulders, panels, lights) in the way go
     if (sz.x < 7 && sz.y < 9 && sz.z < 7)
       envG.remove(o);
