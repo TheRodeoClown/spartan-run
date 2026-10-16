@@ -142,6 +142,33 @@ function buildHall(lv, mode) {
   const edge = (half + .5) * C;
   // the hallway's back edge meets the room's wall: z0 shifts the whole grid into place
   const z0 = stub ? IN - 1 + edge : -IN + 1 - edge;
+  // the level's scenery outside the walls (trees, rocks, drifts) where the hallway runs is cleared away
+  {
+    const bb = new THREE.Box3();
+    const sz = new THREE.Vector3();
+    const near = (x0, x1, z0b, z1b) => {
+      for (const k of cells) {
+        const [i, j] = k.split(',').map(Number);
+        const cx = i * C;
+        const cz = j * C + z0;
+        if (x1 > cx - C / 2 - 1.5 && x0 < cx + C / 2 + 1.5 && z1b > cz - C / 2 - 1.5 && z0b < cz + C / 2 + 1.5)
+          return true;
+      }
+      return false;
+    };
+    envG.children.slice().forEach(o => {
+      if (!o.isMesh || !o.geometry)
+        return;
+      bb.setFromObject(o);
+      bb.getSize(sz);
+      const cx = (bb.min.x + bb.max.x) / 2;
+      const cz = (bb.min.z + bb.max.z) / 2;
+      if (sz.x > 12 || sz.z > 12 || (Math.abs(cx) < IN + .6 && Math.abs(cz) < IN + .6))
+        return;
+      if (near(bb.min.x, bb.max.x, bb.min.z, bb.max.z))
+        envG.remove(o);
+    });
+  }
   const hallG = new THREE.Group();
   hallG.position.set(0, .02, z0);
   envG.add(hallG);
@@ -441,6 +468,9 @@ function buildHall(lv, mode) {
     const j = Math.round((z - z0) / C);
     return cells.has(key(i, j));
   };
+  // a doorway through the room's north wall behind the gate, so you can see down the hallway through it (cut before
+  // the arena grows, while IN is still the room's own size)
+  cutWall(-1);
   // the room's wall either side of the gate stays solid where the hallway is wider than the gate
   const wide = edge + 1;
   [-1, 1].forEach(s => pillars.push({ x: s * (2.3 + (wide - 2.3) / 2), z: -IN, hw: (wide - 2.3) / 2, hd: .5, h: 12 }));
@@ -471,8 +501,6 @@ function buildHall(lv, mode) {
       o.geometry.computeVertexNormals();
     });
   }
-  // a doorway through the room's north wall behind the gate, so you can see down the hallway through it
-  cutWall(-1);
   if (gate)
     gate.see = true;
   const prev = envTick;
