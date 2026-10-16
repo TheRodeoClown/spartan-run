@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#2a2350">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="stylesheet" href="css/style.css?v=41"></head><body><main>
+<link rel="stylesheet" href="css/style.css?v=42"></head><body><main>
 <h1>SPARTAN RUN — First-Person</h1>
 <p>Halo-inspired FPS rogue-lite prototype. Click to lock the mouse. Esc pauses: the pause menu has the controls and settings. If your browser blocks pointer lock, hold the mouse button and drag to look.</p>
 <div id="wrap"><canvas id="c"></canvas>
@@ -19,7 +19,7 @@
 // Self-update: GitHub Pages lets browsers keep this page for up to 10 minutes, so ask for the latest version number
 // (never cached) and reload once if this copy is older. Bump BUILD here and in version.txt together on each release.
 (function () {
-  var BUILD = '41';
+  var BUILD = '42';
   fetch('version.txt?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : BUILD; }).then(function (v) {
     v = String(v).trim();
     if (v && v !== BUILD && sessionStorage.getItem('spartan_reloaded') !== v) {
@@ -39,29 +39,30 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/core.js?v=41"></script>
-<script src="js/data.js?v=41"></script>
-<script src="js/audio.js?v=41"></script>
-<script src="js/enemies.js?v=41"></script>
-<script src="js/levels.js?v=41"></script>
-<script src="js/graphics.js?v=41"></script>
-<script src="js/gunmodels.js?v=41"></script>
-<script src="js/weapons.js?v=41"></script>
-<script src="js/meta.js?v=41"></script>
-<script src="js/run.js?v=41"></script>
-<script src="js/bosses.js?v=41"></script>
-<script src="js/ai.js?v=41"></script>
-<script src="js/title.js?v=41"></script>
-<script src="js/menus.js?v=41"></script>
-<script src="js/input.js?v=41"></script>
+<script src="js/core.js?v=42"></script>
+<script src="js/data.js?v=42"></script>
+<script src="js/audio.js?v=42"></script>
+<script src="js/enemies.js?v=42"></script>
+<script src="js/levels.js?v=42"></script>
+<script src="js/graphics.js?v=42"></script>
+<script src="js/gunmodels.js?v=42"></script>
+<script src="js/weapons.js?v=42"></script>
+<script src="js/meta.js?v=42"></script>
+<script src="js/run.js?v=42"></script>
+<script src="js/hall.js?v=42"></script>
+<script src="js/bosses.js?v=42"></script>
+<script src="js/ai.js?v=42"></script>
+<script src="js/title.js?v=42"></script>
+<script src="js/menus.js?v=42"></script>
+<script src="js/input.js?v=42"></script>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/multiplayer.js?v=41"></script>
-<script src="js/arcmap.js?v=41"></script>
-<script src="js/firefight.js?v=41"></script>
-<script src="js/ghost.js?v=41"></script>
-<script src="js/warthog.js?v=41"></script>
-<script src="js/compass.js?v=41"></script>
-<script src="js/main.js?v=41"></script>
+<script src="js/multiplayer.js?v=42"></script>
+<script src="js/arcmap.js?v=42"></script>
+<script src="js/firefight.js?v=42"></script>
+<script src="js/ghost.js?v=42"></script>
+<script src="js/warthog.js?v=42"></script>
+<script src="js/compass.js?v=42"></script>
+<script src="js/main.js?v=42"></script>
 <script>
 // Installable app: the service worker caches the game so it can run from the desktop and offline
 if ('serviceWorker' in navigator)

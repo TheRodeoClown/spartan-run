@@ -73,7 +73,17 @@ function pickTick() {
     setTimeout(pickTick, 100);
 }
 
+// After a boon pick: between rooms you walk a hallway to the next one first (hall.js); a new mission after a boss
+// loads straight in
 function afterPick() {
+  if (!P.pending && L && !L.ff) {
+    enterHall(afterHall);
+    return;
+  }
+  afterHall();
+}
+
+function afterHall() {
   // Multiplayer: wait for the squad instead of starting the next room straight away
   if (NET.mode) {
     netAfterPick();

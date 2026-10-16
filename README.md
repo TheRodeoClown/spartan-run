@@ -58,9 +58,10 @@ The full list is under **Controls** in the pause menu (Esc) and in Settings, whi
 - You start every room at full health and shields.
 - Aiming: enemies are hit anywhere on their bodies (feet to head), near-misses get a little bullet magnetism, the reticle turns red over an enemy in your weapon's range, and recoil settles back after you stop firing.
 - Roguelite loop: a run is three missions, each picked at random from all the levels (an equal chance for each); boon after every room, a legendary boon after each boss. Beat the third boss to win. Enemies scale with each level cleared.
-- Missions are a run of separate rooms: each room has its own cover layout and ground. Clear it and the exit gate on the far wall opens; walk through it to pick a boon, then the next room's enemies warp in a second after you arrive.
+- Missions are a run of separate rooms: each room has its own cover layout and ground. Clear it and the exit gate on the far wall opens; walk through it to pick a boon, then walk the hallway beyond (a ship corridor, Forerunner passage, Flood tunnel or canyon path, depending on the level) to the next room, where the enemies warp in a second after you arrive.
 - Nine bosses (Zealot Commander, Hunter Warlord, Forerunner Warden, Bonded Hunters, Blademaster, Shipmaster, Skirmisher Alpha, Grunt Deacon, Ironclad Hunter). Each mission draws its boss from a pool of three, so runs differ.
 - Fourteen legendary boons, including Infinity Magazine, Bubble Shield, Vampire Rounds, Chain Reaction, Active Camo, Overcharged Shields, Grenadier and Spartan Charge.
+- Enemies have CE-style detailed surfaces (armour plating with seams, rivets and wear; mottled skin; veined Flood flesh) and CE rank colours: red majors among the Grunts and Elites are tougher.
 - Enemy roster: Grunts (and suicide Grunts), Jackals with needlers, Jackal Snipers (laser-sighted beam rifles) and Jackal Majors, Elites and Sword Elites, flying Skimmers, Hunters (with a shield bash), and the Flood (after Halo 3's): spider-legged infection forms, combat forms (infected Marines and Elites with whip arms), bloated carrier forms, and the hulking Abomination and the Proto-Gravemind as bosses.
 - Ghosts (Firefight): the team gets a drivable Ghost at the base from round 1, and a new one each round if it was destroyed. E gets in and out; the mouse steers, W/S/A/D drive, Shift boosts, click fires the twin plasma cannons, and ramming at speed splatters enemies. It soaks most of the damage aimed at its driver. From round 3 an enemy Ghost joins each round, circle-strafing and boosting in to ram.
 - Warthog (Firefight, REQ level 2, 250 REQ): delivered beside the base. Walk up to a seat and press E: the driver's side (the mouse steers, W/S throttle and reverse, it drifts in hard turns, and it runs enemies over), the passenger's side (shoot your own weapons from the seat) or the chaingun in the back. It soaks most of the damage aimed at its crew and can be bought again once it's destroyed.
@@ -88,6 +89,7 @@ js/               game code (classic scripts, loaded in this order)
   audio.js        Web Audio SFX, in-game score, title theme
   enemies.js      enemy models, spawning, damage
   levels.js       level definitions (LV) and arena builder
+  hall.js         the hallway walk between rooms
   graphics.js     the CE look: post-processing (bloom, grade), sun shadows, reflections, skies
   gunmodels.js    the first-person weapon models and arms
   weapons.js      weapon table (W), viewmodels, firing, grenades, pickups

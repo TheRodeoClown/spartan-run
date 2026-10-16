@@ -767,6 +767,9 @@ function clientEnter(w) {
     pitch = 0;
   }
   addGate(lroom <= L.rooms);
+  if (lroom > 1)
+    addEntry();
+  HALL.on = false;
   L.cleared = false;
   NET.gt = 0;
   room = +w.rm;

@@ -143,4 +143,10 @@ canvas{width:100%;height:100%;display:block}
 /* the CE assault rifle reticle: a broken ring with a dot */
 #cross{width:24px;height:24px;margin:-12px 0 0 -12px;border-width:2px;-webkit-mask:conic-gradient(#000 0 35deg,transparent 35deg 55deg,#000 55deg 125deg,transparent 125deg 145deg,#000 145deg 215deg,transparent 215deg 235deg,#000 235deg 305deg,transparent 305deg 325deg,#000 325deg);mask:conic-gradient(#000 0 35deg,transparent 35deg 55deg,#000 55deg 125deg,transparent 125deg 145deg,#000 145deg 215deg,transparent 215deg 235deg,#000 235deg 305deg,transparent 305deg 325deg,#000 325deg)}
 #cross:after{-webkit-mask:none;background:#cfeaff}
-@media (max-width:640px){#gear{top:90px}#mt{width:110px}}
+@media (max-width:640px){#gear{top:90px}#mt{width:110px}}/* grenades and thruster: one compact row inside the weapon panel, under the weapon name */
+#wpn #gear{position:static;display:flex;align-items:center;gap:14px;margin-top:5px;font-size:9px;letter-spacing:.16em;color:#9fd2ff}
+#wpn #gear b{margin-right:6px}
+#wpn #gnade i{width:7px;height:10px;margin-right:3px;transform:none;border-radius:3px 3px 2px 2px;border:1px solid rgba(160,215,255,.6);vertical-align:-1px}
+#wpn #gnade i.on{background:linear-gradient(#e8f6ff,#7cc4ff);box-shadow:0 0 5px rgba(120,200,255,.8)}
+#wpn #gthr{margin-top:0}
+#wpn #gthr span{width:56px;height:3px;vertical-align:1px}

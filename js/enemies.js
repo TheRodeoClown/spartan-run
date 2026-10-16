@@ -15,9 +15,9 @@ const mcache = (k, f) => MC[k] || (MC[k] = f());
 // Flood materials: wet pink-tan flesh, red-brown veins and rot, pale infection-form skin, dark horn (claws, spines),
 // pustules and gore
 const floodMats = () => ({
-  flesh: mcache('fflesh', () => rimify(new THREE.MeshPhongMaterial({ color: 0xc8907a, emissive: 0x1a0a06, shininess: 45, specular: 0x6a4a40 }), .18)),
-  rot: mcache('frot', () => rimify(new THREE.MeshPhongMaterial({ color: 0x7a3e30, shininess: 30, specular: 0x4a2a20 }), .15)),
-  pale: mcache('fpale', () => rimify(new THREE.MeshPhongMaterial({ color: 0xe2c4a8, emissive: 0x140a04, shininess: 50, specular: 0x7a6050 }), .2)),
+  flesh: mcache('fflesh', () => surf(rimify(new THREE.MeshPhongMaterial({ color: 0xc8907a, emissive: 0x1a0a06, shininess: 45, specular: 0x6a4a40 }), .18), 'flesh', .025)),
+  rot: mcache('frot', () => surf(rimify(new THREE.MeshPhongMaterial({ color: 0x7a3e30, shininess: 30, specular: 0x4a2a20 }), .15), 'flesh', .02)),
+  pale: mcache('fpale', () => surf(rimify(new THREE.MeshPhongMaterial({ color: 0xe2c4a8, emissive: 0x140a04, shininess: 50, specular: 0x7a6050 }), .2), 'skin', .02)),
   horn: mcache('fhorn', () => new THREE.MeshPhongMaterial({ color: 0x2e221c, shininess: 70, specular: 0x8a7a70 })),
   pus: mcache('fpus', () => new THREE.MeshPhongMaterial({ color: 0xf0d890, emissive: 0x403010, shininess: 80 })),
   blood: mcache('fblood', () => new THREE.MeshPhongMaterial({ color: 0x8a1a14, emissive: 0x200000, shininess: 60 }))
@@ -29,6 +29,108 @@ function flapWings(e) {
   if (j)
     j.forEach((c, i) => c.scale.set(1, .85 + .3 * Math.abs(Math.sin(T * 37 + i * 1.7)), 1));
 }
+
+// CE-style surface detail for enemies: armour plating (panel seams, rivets, wear), mottled skin, veined Flood flesh.
+// Each texture is both the colour map (light grey, so the material's colour still shows through) and a bump map, so
+// the light catches the seams and folds.
+const ETEX = {};
+function etex(k) {
+  if (ETEX[k])
+    return ETEX[k];
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+  let sd = k.length * 977 + 13;
+  const rnd = () => (sd = sd * 16807 % 2147483647) / 2147483647;
+  g.fillStyle = '#e4e4e4';
+  g.fillRect(0, 0, 256, 256);
+  if (k === 'armor') {
+    for (let i = 0; i < 14; i++) {
+      const x = rnd() * 256;
+      const y = rnd() * 256;
+      const w = 30 + rnd() * 90;
+      const h = 20 + rnd() * 70;
+      g.strokeStyle = 'rgba(40,40,50,.55)';
+      g.lineWidth = 2;
+      g.strokeRect(x, y, w, h);
+      g.strokeStyle = 'rgba(255,255,255,.5)';
+      g.lineWidth = 1;
+      g.strokeRect(x + 1.5, y + 1.5, w, h);
+    }
+    for (let i = 0; i < 40; i++) {
+      g.fillStyle = 'rgba(60,60,70,.6)';
+      g.beginPath();
+      g.arc(rnd() * 256, rnd() * 256, 1.6, 0, 7);
+      g.fill();
+    }
+    for (let i = 0; i < 60; i++) {
+      g.strokeStyle = 'rgba(255,255,255,' + (.1 + rnd() * .2) + ')';
+      g.lineWidth = .6;
+      const x = rnd() * 256;
+      const y = rnd() * 256;
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x + rnd() * 16 - 8, y + rnd() * 16 - 8);
+      g.stroke();
+    }
+  }
+  else if (k === 'skin') {
+    for (let i = 0; i < 220; i++) {
+      g.fillStyle = 'rgba(70,60,50,' + (.05 + rnd() * .12) + ')';
+      g.beginPath();
+      g.ellipse(rnd() * 256, rnd() * 256, 3 + rnd() * 12, 2 + rnd() * 8, rnd() * 3, 0, 7);
+      g.fill();
+    }
+    for (let i = 0; i < 50; i++) {
+      g.strokeStyle = 'rgba(60,50,40,.18)';
+      g.lineWidth = 1;
+      const x = rnd() * 256;
+      const y = rnd() * 256;
+      g.beginPath();
+      g.moveTo(x, y);
+      g.quadraticCurveTo(x + rnd() * 20 - 10, y + rnd() * 10, x + rnd() * 30 - 15, y + rnd() * 16 - 8);
+      g.stroke();
+    }
+  }
+  else {
+    for (let i = 0; i < 160; i++) {
+      const x = rnd() * 256;
+      const y = rnd() * 256;
+      const r = 3 + rnd() * 10;
+      const gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, 'rgba(255,240,220,.35)');
+      gr.addColorStop(1, 'rgba(255,240,220,0)');
+      g.fillStyle = gr;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    for (let i = 0; i < 26; i++) {
+      let x = rnd() * 256;
+      let y = rnd() * 256;
+      g.strokeStyle = 'rgba(110,20,20,.45)';
+      g.lineWidth = 1 + rnd() * 1.5;
+      g.beginPath();
+      g.moveTo(x, y);
+      for (let j = 0; j < 12; j++) {
+        x += rnd() * 16 - 8;
+        y += rnd() * 16 - 8;
+        g.lineTo(x, y);
+      }
+      g.stroke();
+    }
+  }
+  speck(g, 256, 256, 1800, .12);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(2, 2);
+  t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  return ETEX[k] = t;
+}
+const surf = (m, k, bump) => {
+  m.map = etex(k);
+  m.bumpMap = etex(k);
+  m.bumpScale = bump;
+  return m;
+};
 
 // Stylized rim light for enemy materials: a cool glow along the edges of every shape as it turns away from you (in
 // the spirit of Halo Infinite's crisp silhouettes). k = strength.
@@ -46,14 +148,14 @@ function buildEnemy(t) {
   // The group new parts go into: the model root, or a limb pivot while rig() runs
   let tg = g;
   // skin and flesh: soft, armour and metal: glossy; all with the rim light
-  const L = c => mcache('l' + c, () => rimify(new THREE.MeshPhongMaterial({ color: c, shininess: 12, specular: 0x222222 }), .3));
-  const Ph = (c, s) => mcache('p' + c + s, () => { const m = rimify(new THREE.MeshPhongMaterial({ color: c, shininess: s, specular: 0x777788 }), .35); return s >= 80 ? gfxShiny(m, .16) : m; });
+  const L = c => mcache('l' + c, () => surf(rimify(new THREE.MeshPhongMaterial({ color: c, shininess: 12, specular: 0x222222 }), .3), 'skin', .015));
+  const Ph = (c, s) => mcache('p' + c + s, () => { const m = surf(rimify(new THREE.MeshPhongMaterial({ color: c, shininess: s, specular: 0x777788 }), .35), 'armor', .01); return s >= 80 ? gfxShiny(m, .16) : m; });
   const glow = c => mcache('g' + c, () => new THREE.MeshBasicMaterial({ color: c }));
   // armour reflects the level (CE's chrome-shiny Covenant armour)
-  const armor = c => gfxShiny(rimify(new THREE.MeshPhongMaterial({ color: c, shininess: 60, specular: 0x6a6a78 }), .45), .2);
+  const armor = c => gfxShiny(surf(rimify(new THREE.MeshPhongMaterial({ color: c, shininess: 60, specular: 0x6a6a78 }), .45), 'armor', .022), .2);
   const B = (w, h, d) => gcache('b' + [w, h, d], () => new THREE.BoxGeometry(w, h, d));
-  const S = () => gcache('s', () => new THREE.SphereGeometry(.5, 14, 10));
-  const Hemi = () => gcache('h', () => new THREE.SphereGeometry(.5, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2));
+  const S = () => gcache('s2', () => new THREE.SphereGeometry(.5, 20, 14));
+  const Hemi = () => gcache('h2', () => new THREE.SphereGeometry(.5, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2));
   const Cy = (a, b, h, n) => gcache('c' + [a, b, h, n], () => new THREE.CylinderGeometry(a, b, h, n || 10));
   const Co = (r, h, n) => gcache('k' + [r, h, n], () => new THREE.ConeGeometry(r, h, n || 8));
   const UC = gcache('uc', () => new THREE.CylinderGeometry(1, 1, 1, 8));
@@ -130,8 +232,11 @@ function buildEnemy(t) {
     g.add(sw);
   };
   if (t === 'grunt') {
-    // Stubby legs, armored harness, peaked methane tank with a hose to the breather mask
-    mat = armor(0xe8943a);
+    // Stubby legs, armored harness, peaked methane tank with a hose to the breather mask; majors in red (CE ranks)
+    const gMaj = !kam && Math.random() < .25;
+    mat = armor(gMaj ? 0xc8302a : 0xe8943a);
+    if (gMaj)
+      g.userData.rank = 1;
     const skin = L(0x7d7058);
     const dark = Ph(0x2a2a30, 30);
     const tank = Ph(0x6fa8cf, 90);
@@ -249,7 +354,11 @@ function buildEnemy(t) {
   }
   else if (t === 'elite') {
     // Backward knees with armored shins, chest plate, pauldrons, helmet, four mandibles, back power pack
-    mat = armor(0x3b5bd6);
+    // blue minors, red majors (CE ranks)
+    const eMaj = !sel && Math.random() < .3;
+    mat = armor(eMaj ? 0xb8302c : 0x3b5bd6);
+    if (eMaj)
+      g.userData.rank = 1;
     const skin = L(0x3d3347);
     const metal = Ph(0x9aa3b5, 90);
     const dark = Ph(0x24222c, 40);
@@ -625,6 +734,8 @@ function spawn(t, px, pz) {
   g.rotation.order = 'YXZ'; // so a forward/back lean (rotation.x) is relative to where it faces
   // Tankier per mission cleared and per room within a mission
   const dm = (1 + .55 * P.done.length) * (1 + .06 * Math.max(0, lroom - 1)) * DIFF.hp * (1 + (d.bn ? .9 : .25) * NET.others()); // bosses scale much harder with extra co-op players
+  // majors are tougher (more health, stronger shields)
+  const rk = g.userData.rank && !d.bn ? [1.3, 1.5] : [1, 1];
   g.position.set(x, 0, z);
   scene.add(g);
   gfxCaster(g);
@@ -641,7 +752,7 @@ function spawn(t, px, pz) {
       return { m, h, r };
     });
   }
-  enemies.push({ ...d, t, x, z, id: ++NET.eid, fr: d.fr * DIFF.fr, bs: d.bs * DIFF.bs, g, mat, aura, sw, kg, crits, legs, arm, px: x, pz: z, ph: R(0, 6.28), gs: 0, kf: 0, lcd: R(.3, 1), lunge: 0, wind: 0, swing: 0, hp: d.hp * dm, sh: d.sh * dm, maxhp: d.hp * dm, maxsh: d.sh * dm, boss: !!d.bn, sumT: 8, cd: R(1.2, 2.4), dir: Math.random() < .5 ? 1 : -1, dirT: R(1, 3), flash: 0 });
+  enemies.push({ ...d, t, x, z, id: ++NET.eid, fr: d.fr * DIFF.fr, bs: d.bs * DIFF.bs, g, mat, aura, sw, kg, crits, legs, arm, px: x, pz: z, ph: R(0, 6.28), gs: 0, kf: 0, lcd: R(.3, 1), lunge: 0, wind: 0, swing: 0, hp: d.hp * dm * rk[0], sh: d.sh * dm * rk[1], maxhp: d.hp * dm * rk[0], maxsh: d.sh * dm * rk[1], boss: !!d.bn, sumT: 8, cd: R(1.2, 2.4), dir: Math.random() < .5 ? 1 : -1, dirT: R(1, 3), flash: 0 });
   // Active camouflage: body and sword get their own see-through materials (bo: each one's normal opacity)
   if (d.camo) {
     const e = enemies[enemies.length - 1];

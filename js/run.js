@@ -67,8 +67,11 @@ function nextRoom() {
   lroom++;
   L.cleared = false;
   // Each room after the first is its own area: fresh cover and ground, entered from the south
-  if (lroom > 1)
+  if (lroom > 1) {
     setupRoom();
+    // the doorway you just came through from the hallway
+    addEntry();
+  }
   state = 'play';
   NET.phase = 'p';
   NET.menu = 0;

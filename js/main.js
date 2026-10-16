@@ -27,6 +27,9 @@ function update(dt) {
     hogRide(dt, frz, f, s, m, sy, cy);
   else if (playerMove(dt, frz, f, s, m, sy, cy))
     return;
+  // walking a hallway between rooms: through the far door, the next room starts
+  if (hallTick())
+    return;
   enemies.forEach(e => {
     // Networked bodies (co-op ghosts, versus players) are moved by the network, not by this AI
     if (e.net)
@@ -677,6 +680,8 @@ function hud() {
 // Weapon panel (bottom right): name and damage type, magazine count and reserve, a row of rounds that empties as you
 // fire (it refills during a reload), your other weapon underneath; grenades and thruster on the left.
 const hudK = {};
+// grenades and thruster live in the weapon panel, under the weapon name
+$('wpn').appendChild($('gear'));
 function hudSet(id, prop, v) {
   if (hudK[id + prop] === v)
     return;
