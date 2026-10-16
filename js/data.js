@@ -46,7 +46,7 @@ const CRITS = {
   hunter: { col: 0xff7a2a, pts: [[0, 1.12, .4, .18], [0, 1.15, -.6, .2]] },
   // Jackal: head and the back of the harness; Grunt: breather mask and methane tank
   jackal: { col: 0xffa050, pts: [[0, 1.7, .28, .13], [0, 1.15, -.22, .16]] },
-  grunt: { col: 0x7fe0ff, pts: [[0, 1.36, .42, .14], [0, 1.15, -.45, .2]] },
+  grunt: { col: 0x7fe0ff, pts: [[0, 1.3, .46, .14], [0, 1.3, -.38, .2]] },
   // Flood: glowing pustules on the Gravemind's crown and back; the Abomination's head growth and hump
   gravemind: { col: 0xeaff60, pts: [[0, 2.75, .78, .2], [0, 2.3, -.95, .26]] },
   ftank: { col: 0xeaff60, pts: [[0, 1.86, .6, .15], [.15, 1.75, -.58, .22]] },

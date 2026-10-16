@@ -232,68 +232,125 @@ function buildEnemy(t) {
     g.add(sw);
   };
   if (t === 'grunt') {
-    // Stubby legs, armored harness, peaked methane tank with a hose to the breather mask; majors in red (CE ranks)
+    // Low-poly Halo CE Grunt, all flat-shaded facets: squat bowed legs on big clawed feet, long heavy arms hanging to
+    // the knees, blue-grey scaly hide, a chunky armour vest with big shoulder pads and an emblem on the chest (orange
+    // for minors, red for majors, CE's ranks), the head sunk low between the shoulders in a pointed hood with a tan face
+    // and breather mask, and the pyramid methane tank peaking up behind it
     const gMaj = !kam && Math.random() < .25;
     mat = armor(gMaj ? 0xc8302a : 0xe8943a);
+    mat.flatShading = true;
     if (gMaj)
       g.userData.rank = 1;
-    const skin = L(0x7d7058);
-    const dark = Ph(0x2a2a30, 30);
-    const tank = Ph(0x6fa8cf, 90);
+    const flat = (k, c, s) => mcache('gf' + k + c, () => surf(rimify(new THREE.MeshPhongMaterial({ color: c, shininess: s, specular: 0x333344, flatShading: true }), .3), k === 'a' ? 'armor' : 'skin', .015));
+    const skin = flat('s', 0x56628a, 8);
+    const hood = flat('s', 0x3a4564, 12);
+    const face = flat('s', 0xc4a48e, 8);
+    const bone = flat('s', 0xd8d0b4, 20);
+    const grey = flat('a', 0x6e727a, 40);
+    const dark = flat('a', 0x24262c, 30);
+    const tankM = flat('a', 0x56668e, 70);
     const gl = glow(0x9fe8ff);
-    legs = [-1, 1].map(s => rig(s * .17, .62, -.02, () => {
-      limb([[s * .17, .62, -.02], [s * .22, .34, .1], [s * .2, .08, 0]], .085, skin);
-      P3(B(.2, .08, .3), dark, s * .2, .04, .06);
-      P3(B(.2, .2, .12), mat, s * .22, .36, .16, null, [.3, 0, 0]);
-      [-.06, .06].forEach(o => P3(Co(.025, .1, 4), dark, s * .2 + o, .03, .24, null, [Math.PI / 2, 0, 0]));
+    // low-poly shapes: a faceted ball, a six-sided tube, a few-sided cone
+    const Ico = () => gcache('ico1', () => new THREE.IcosahedronGeometry(.5, 1));
+    const gem = (m, x, y, z, sx, sy, sz, r) => P3(Ico(), m, x, y, z, [sx, sy == null ? sx : sy, sz == null ? sx : sz], r);
+    const seg = (a, b, r0, r1, m) => {
+      const A3 = new THREE.Vector3(...a);
+      const d = new THREE.Vector3(...b).sub(A3);
+      const o = new THREE.Mesh(gcache('t6' + r0 + ',' + r1, () => new THREE.CylinderGeometry(r1, r0, 1, 6)), m);
+      o.scale.set(1, d.length(), 1);
+      o.position.copy(A3).addScaledVector(d, .5);
+      o.quaternion.setFromUnitVectors(UP, d.normalize());
+      tg.add(o);
+      return o;
+    };
+    // three claws from a point, pointing along (dx, dy, dz)
+    const claws = (x, y, z, dx, dy, dz, len) => [-1, 0, 1].forEach(i => {
+      const c = new THREE.Mesh(Co(.035, len, 4), bone);
+      c.position.set(x + i * .07, y, z);
+      c.quaternion.setFromUnitVectors(UP, new THREE.Vector3(dx + i * .25, dy, dz).normalize());
+      c.translateY(len / 2);
+      tg.add(c);
+    });
+    // bowed legs: thick thigh out to the knee, shin down to a wide clawed foot
+    legs = [-1, 1].map(s => rig(s * .2, .56, -.02, () => {
+      seg([s * .2, .56, -.02], [s * .34, .3, .1], .12, .1, skin);
+      gem(skin, s * .34, .3, .1, .2);
+      seg([s * .34, .3, .1], [s * .3, .1, .02], .1, .08, skin);
+      gem(skin, s * .3, .07, .07, .3, .13, .34);
+      claws(s * .3, .05, .2, 0, -.15, 1, .14);
+      P3(Co(.03, .1, 4), bone, s * .3, .05, -.1, null, [-Math.PI / 2, 0, 0]);
     }));
-    ball(skin, 0, .86, 0, .82, .76, .68);
-    // chest armour: a curved shell a little bigger than the belly (so it never pokes through), and a plate on it
-    dome(mat, 0, .86, .01, .9, .78, .86, [Math.PI / 2, 0, 0]);
-    P3(B(.46, .3, .06), mat, 0, .98, .34, null, [-.2, 0, 0]);
-    P3(B(.66, .12, .5), mat, 0, .62, 0);
-    [-1, 1].forEach(s => dome(mat, s * .33, 1.06, 0, .4, .24, .44, [0, 0, -s * .5]));
-    P3(Co(.34, .85, 4), tank, 0, 1.12, -.34, null, [-.2, Math.PI / 4, 0]);
-    P3(B(.5, .06, .06), gl, 0, .92, -.52, null, [-.2, 0, 0]);
-    P3(Cy(.05, .05, .14, 6), dark, 0, 1.56, -.44);
-    ball(skin, 0, 1.42, .16, .5, .46, .5);
-    P3(B(.26, .16, .14), dark, 0, 1.34, .38);
-    P3(Cy(.05, .05, .06, 8), gl, 0, 1.34, .46, null, [Math.PI / 2, 0, 0]);
-    limb([[.08, 1.3, .32], [.2, 1.2, .05], [.12, 1.18, -.26]], .025, dark);
-    [-1, 1].forEach(s => ball(glow(0xffd24a), s * .09, 1.48, .37, .09));
-    // harness straps and a belt with a glowing buckle, tank valves and a second glow band, a hose on each side of
-    // the mask, a forehead plate, glowing trim on the shoulder guards
-    [-1, 1].forEach(s => P3(B(.07, .44, .03), dark, s * .2, .86, .38, null, [0, 0, s * .35]));
-    P3(B(.72, .08, .54), dark, 0, .56, 0);
-    P3(B(.12, .07, .03), gl, 0, .56, .28);
-    [-1, 1].forEach(s => P3(Cy(.06, .06, .16, 8), tank, s * .25, 1.0, -.4, null, [0, 0, Math.PI / 2]));
-    P3(B(.46, .05, .05), gl, 0, .8, -.6, null, [-.2, 0, 0]);
-    P3(gcache('gv', () => new THREE.TorusGeometry(.07, .02, 6, 12)), dark, 0, 1.5, -.44, null, [Math.PI / 2, 0, 0]);
-    limb([[-.08, 1.3, .32], [-.2, 1.2, .05], [-.12, 1.18, -.26]], .025, dark);
-    dome(mat, 0, 1.55, .12, .44, .2, .42, [-.35, 0, 0]);
-    [-1, 1].forEach(s => P3(B(.03, .03, .26), glow(0xffd24a), s * .36, 1.12, 0, null, [0, 0, -s * .5]));
+    // belly under the vest, a dark loincloth belt
+    gem(skin, 0, .74, .02, .66, .48, .54);
+    P3(B(.5, .12, .38), dark, 0, .55, 0);
+    P3(B(.2, .22, .04), dark, 0, .44, .17, null, [.15, 0, 0]);
+    // the vest: a six-sided shell, a sloped chest plate with a seam and an emblem, big shoulder pads
+    P3(Cy(.37, .31, .48, 6), mat, 0, 1.0, .02, [1, 1, .82], [.15, Math.PI / 6, 0]);
+    P3(B(.52, .34, .08), mat, 0, 1.0, .3, null, [-.15, 0, 0]);
+    P3(B(.03, .34, .02), dark, -.04, .99, .345, null, [-.15, 0, 0]);
+    P3(Cy(.07, .07, .025, 8), grey, .13, 1.03, .345, null, [Math.PI / 2 - .15, 0, 0]);
+    P3(Cy(.035, .035, .03, 5), dark, .13, 1.03, .35, null, [Math.PI / 2 - .15, 0, 0]);
+    [-1, 1].forEach(s => {
+      P3(B(.34, .17, .44), mat, s * .37, 1.17, 0, null, [0, 0, -s * .38]);
+      P3(B(.3, .1, .38), mat, s * .45, 1.05, 0, null, [0, 0, -s * .7]);
+      P3(B(.03, .03, .4), glow(0xffd24a), s * .5, 1.21, 0, null, [0, 0, -s * .38]);
+    });
+    // a grey collar, and the head sunk low in it: pointed hood, tan face, dark eyes, breather mask
+    P3(Cy(.2, .25, .1, 6), grey, 0, 1.23, .08);
+    gem(hood, 0, 1.38, .14, .42, .38, .44);
+    P3(Co(.17, .38, 5), hood, 0, 1.6, .06, null, [-.45, 0, 0]);
+    gem(face, 0, 1.33, .3, .32, .27, .22);
+    [-1, 1].forEach(s => gem(Ph(0x101014, 120), s * .08, 1.38, .39, .08, .06, .05));
+    P3(Cy(.08, .1, .12, 6), grey, 0, 1.29, .43, null, [Math.PI / 2, 0, 0]);
+    P3(Cy(.05, .05, .02, 6), dark, 0, 1.29, .5, null, [Math.PI / 2, 0, 0]);
+    P3(gcache('gmr', () => new THREE.TorusGeometry(.085, .015, 4, 6)), gl, 0, 1.29, .46);
+    // the methane tank: a pyramid behind the head on a box pack, valves either side, a glowing band; hoses to the mask
+    P3(B(.5, .42, .24), tankM, 0, 1.06, -.32);
+    P3(Co(.3, .72, 4), tankM, 0, 1.46, -.34, null, [-.22, Math.PI / 4, 0]);
+    P3(B(.46, .05, .05), gl, 0, .96, -.45);
+    [-1, 1].forEach(s => {
+      P3(Cy(.04, .05, .2, 6), grey, s * .2, 1.36, -.16);
+      P3(Cy(.05, .05, .03, 6), dark, s * .2, 1.47, -.16);
+      seg([s * .07, 1.27, .45], [s * .2, 1.2, .2], .022, .022, dark);
+      seg([s * .2, 1.2, .2], [s * .18, 1.18, -.18], .022, .022, dark);
+    });
+    // long heavy arms: upper arm out from under the pad, a thicker forearm down to a clawed hand by the knee
+    const armL = (s, el, wr) => {
+      seg([s * .42, 1.08, .02], el, .08, .075, skin);
+      gem(skin, ...el, .17);
+      seg(el, wr, .085, .11, skin);
+      gem(skin, wr[0], wr[1] - .04, wr[2] + .02, .16, .14, .17);
+      // spurs on the back of the forearm
+      P3(Co(.025, .1, 4), bone, (el[0] + wr[0]) / 2 + s * .07, (el[1] + wr[1]) / 2, (el[2] + wr[2]) / 2 - .02, null, [0, 0, -s * 1.2]);
+    };
     if (kam) {
       // Arms raised, a lit plasma grenade in each hand
-      [-1, 1].forEach(s => limb([[s * .33, 1.05, .02], [s * .46, 1.18, .12], [s * .5, 1.25, .25]], .07, skin));
+      [-1, 1].forEach(s => {
+        armL(s, [s * .62, 1.12, .14], [s * .6, 1.34, .3]);
+        claws(s * .6, 1.4, .32, 0, 1, .3, .1);
+      });
       kg = new THREE.Group();
-      [-.5, .5].forEach(x => {
+      [-.6, .6].forEach(x => {
         const o = new THREE.Mesh(S(), glow(0x7fe0ff));
         o.scale.setScalar(.26);
-        o.position.set(x, 1.25, .25);
+        o.position.set(x, 1.46, .34);
         kg.add(o);
       });
       g.add(kg);
     }
     else {
-      arm = rig(-.33, 1.05, .02, () => limb([[-.33, 1.05, .02], [-.44, .86, .14], [-.42, .78, .3]], .07, skin));
-      limb([[.33, 1.05, .02], [.46, .86, .18], [.5, .76, .32]], .07, skin);
-      // Plasma pistol
+      arm = rig(-.42, 1.08, .02, () => {
+        armL(-1, [-.6, .78, .1], [-.56, .46, .24]);
+        claws(-.56, .38, .27, 0, -1, .4, .14);
+      });
+      armL(1, [.6, .78, .12], [.56, .48, .28]);
+      claws(.56, .4, .34, 0, -.6, 1, .1);
+      // Plasma pistol in the right hand
       const pp = Ph(0x3f6b3a, 80);
-      ball(pp, .5, .74, .42, .14, .14, .3);
-      ball(glow(0x7dff6a), .5, .76, .56, .08);
-      [-1, 1].forEach(s => P3(Co(.03, .16, 6), pp, .5 + s * .06, .74, .6, null, [Math.PI / 2, 0, -s * .2]));
-      P3(gcache('ppc', () => new THREE.TorusGeometry(.075, .014, 6, 14)), glow(0x7dff6a), .5, .74, .48);
-      P3(B(.04, .1, .06), dark, .5, .66, .36);
+      ball(pp, .56, .44, .4, .14, .14, .3);
+      ball(glow(0x7dff6a), .56, .46, .54, .08);
+      [-1, 1].forEach(s => P3(Co(.03, .16, 6), pp, .56 + s * .06, .44, .58, null, [Math.PI / 2, 0, -s * .2]));
+      P3(gcache('ppc', () => new THREE.TorusGeometry(.075, .014, 6, 14)), glow(0x7dff6a), .56, .44, .46);
     }
   }
   else if (t === 'jackal') {
