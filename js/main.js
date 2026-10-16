@@ -646,6 +646,8 @@ function hud() {
   if (!P)
     return;
   $('sh').firstChild.style.width = Math.min(100, 100 * P.sh / P.maxSh) + '%';
+  // CE: the shield bar flashes red when it's nearly gone
+  $('sh').classList.toggle('low', P.sh < P.maxSh * .25 && state === 'play');
   $('hp').firstChild.style.width = 100 * P.hp / P.maxHp + '%';
   $('en').style.display = P.wpn === 'sw' && state === 'play' ? 'block' : 'none';
   $('en').firstChild.style.width = P.ammo + '%';
@@ -665,10 +667,11 @@ function hud() {
   $('vig').style.opacity = vig;
   // the reticle: hit marker colour, red over an enemy in range, otherwise green
   const onT = aimOnTarget();
-  $('cross').style.borderColor = hitT > 0 ? hitCol : onT ? '#ff4a3a' : 'rgba(155,196,90,.8)';
+  $('cross').style.borderColor = hitT > 0 ? hitCol : onT ? '#ff4a3a' : 'rgba(120,205,255,.92)';
   $('cross').classList.toggle('on', onT);
   $('scope').classList.toggle('on', onT);
   compass();
+  tracker();
   waypoints();
 }
 // Weapon panel (bottom right): name and damage type, magazine count and reserve, a row of rounds that empties as you
@@ -737,7 +740,8 @@ function loop(now) {
   netTick(dt);
   tick(dt);
   hud();
-  renderer.render(scene, cam);
+  gfxTick(dt);
+  gfxRender();
   requestAnimationFrame(loop);
 }
 cam.position.set(0, 1.6, 14);

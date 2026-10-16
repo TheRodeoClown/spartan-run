@@ -439,6 +439,7 @@ function netAvatars(dt) {
         return;
       r.av = Object.assign({ t: 'spartan', net: 1, pl: NET.mode === 'vs' ? r.peer : null, x: r.tx, z: r.tz, y: 0, sc: 1, hp: 40, sh: 60, maxhp: 40, maxsh: 60, armor: 0, crits: null, px: r.tx, pz: r.tz, ph: 0, gs: 0, flash: 0, dead: false, id: -1 }, makeSpartan(r.c, r.n));
       scene.add(r.av.g);
+      gfxCaster(r.av.g);
     }
     const e = r.av;
     e.g.visible = show;

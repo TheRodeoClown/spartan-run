@@ -971,6 +971,8 @@ function buildLevel(lv, empty) {
         add(new THREE.OctahedronGeometry(.45), cy, x, 4.6, z);
       });
   }
+  // shadows, sky and the reflection cubemap (graphics.js)
+  gfxLevel(lv);
 }
 // Extra ground textures for the outdoor levels
 Object.assign(DR, {

@@ -200,3 +200,111 @@ function waypoints() {
   for (let i = list.length; i < wpEls.length; i++)
     wpEls[i].style.display = 'none';
 }
+/* ---------- The motion tracker (bottom-left, after Halo: Combat Evolved's) ---------- */
+// A round radar 25m across each way, you in the middle facing up: enemies are red blips, other players and your
+// vehicles yellow, with a sweep ring pulsing out every 1.5s. (CE only showed enemies that moved or fired; this shows
+// them all, except cloaked ones.)
+const mtc = document.createElement('canvas');
+mtc.id = 'mt';
+mtc.width = 200;
+mtc.height = 200;
+$('hud').appendChild(mtc);
+const MT_RANGE = 25;
+
+function tracker() {
+  const show = !!P && (state === 'play' || state === 'pick') && !scoped();
+  mtc.style.display = show ? 'block' : 'none';
+  if (!show)
+    return;
+  const g = mtc.getContext('2d');
+  const c = 100;
+  const R = 92;
+  g.clearRect(0, 0, 200, 200);
+  // the dish
+  const bg = g.createRadialGradient(c, c, 10, c, c, R);
+  bg.addColorStop(0, 'rgba(20,50,80,.55)');
+  bg.addColorStop(1, 'rgba(6,18,32,.7)');
+  g.fillStyle = bg;
+  g.beginPath();
+  g.arc(c, c, R, 0, 7);
+  g.fill();
+  g.strokeStyle = 'rgba(110,200,255,.75)';
+  g.lineWidth = 2;
+  g.stroke();
+  g.strokeStyle = 'rgba(110,200,255,.25)';
+  g.lineWidth = 1;
+  [R * .5].forEach(r => {
+    g.beginPath();
+    g.arc(c, c, r, 0, 7);
+    g.stroke();
+  });
+  g.beginPath();
+  g.moveTo(c - R, c);
+  g.lineTo(c + R, c);
+  g.moveTo(c, c - R);
+  g.lineTo(c, c + R);
+  g.stroke();
+  // the sweep
+  const sw = (T % 1.5) / 1.5;
+  g.strokeStyle = 'rgba(140,215,255,' + (.5 * (1 - sw)) + ')';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.arc(c, c, R * sw, 0, 7);
+  g.stroke();
+  // blips: you face up the dish
+  const rx = Math.cos(yaw);
+  const rz = -Math.sin(yaw);
+  const fx = -Math.sin(yaw);
+  const fz = -Math.cos(yaw);
+  const blip = (x, z, col, s) => {
+    const dx = x - P.x;
+    const dz = z - P.z;
+    const sx = dx * rx + dz * rz;
+    const sy = dx * fx + dz * fz;
+    const d = Math.hypot(sx, sy);
+    if (d > MT_RANGE)
+      return;
+    const px = c + sx / MT_RANGE * R;
+    const py = c - sy / MT_RANGE * R;
+    const gl = g.createRadialGradient(px, py, 0, px, py, s * 2.4);
+    gl.addColorStop(0, col);
+    gl.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gl;
+    g.beginPath();
+    g.arc(px, py, s * 2.4, 0, 7);
+    g.fill();
+    g.fillStyle = col;
+    g.beginPath();
+    g.arc(px, py, s, 0, 7);
+    g.fill();
+  };
+  if (NET.mode !== 'vs')
+    enemies.forEach(e => {
+      if (!e.dead && !e.camo)
+        blip(e.x, e.z, e.boss ? '#ffa040' : '#ff4a3a', e.boss ? 7 : 5);
+    });
+  else
+    enemies.forEach(e => {
+      if (!e.dead)
+        blip(e.x, e.z, '#ff4a3a', 5);
+    });
+  if (NET.mode === 'coop')
+    netRemotes().forEach(r => blip(r.x, r.z, '#ffe050', 5));
+  if (FF.on) {
+    if (VEH.on && !P.veh)
+      blip(VEH.x, VEH.z, '#ffe050', 4);
+    if (HOG.on && !P.hog)
+      blip(HOG.x, HOG.z, '#ffe050', 5);
+  }
+  // you
+  g.fillStyle = '#cfeaff';
+  g.beginPath();
+  g.moveTo(c, c - 7);
+  g.lineTo(c - 5, c + 5);
+  g.lineTo(c + 5, c + 5);
+  g.fill();
+  g.fillStyle = 'rgba(160,215,255,.85)';
+  g.font = 'bold 13px monospace';
+  g.textAlign = 'center';
+  g.fillText(MT_RANGE + 'm', c, 196);
+}

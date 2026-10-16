@@ -111,6 +111,7 @@ function hogReset() {
   NET.hb = NET.hb || 0;
   const m = hogMesh();
   HOG.g = m.g;
+  gfxCaster(HOG.g);
   HOG.head = m.head;
   HOG.barrels = m.barrels;
   HOG.wheels = m.wheels;

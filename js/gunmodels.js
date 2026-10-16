@@ -10,7 +10,11 @@
 
 const GMAT = {};
 const gmat = (k, f) => GMAT[k] || (GMAT[k] = f());
-const gPh = (c, s, sp) => gmat('p' + c + '_' + (s || 40), () => new THREE.MeshPhongMaterial({ color: c, shininess: s || 40, specular: sp || 0x5a5e66 }));
+const gPh = (c, s, sp) => gmat('p' + c + '_' + (s || 40), () => {
+  const m = new THREE.MeshPhongMaterial({ color: c, shininess: s || 40, specular: sp || 0x5a5e66 });
+  // shiny metal and Covenant shells reflect the level (graphics.js)
+  return (s || 40) >= 100 ? gfxShiny(m, .28) : (s || 40) >= 60 ? gfxShiny(m, .1) : m;
+});
 const gGlow = c => gmat('g' + c, () => new THREE.MeshBasicMaterial({ color: c }));
 
 function buildGun(k) {

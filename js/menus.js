@@ -220,7 +220,7 @@ const SLIDERS = [['master', 'Master volume', 0, 100, 100], ['music', 'Music', 0,
 const fmtSet = k => k === 'sens' ? SET.sens.toFixed(2) + 'x' : Math.round(SET[k] * 100) + '%';
 
 function settingsHTML() {
-  return '<div class="set">' + SLIDERS.map(([k, n, a, b, s]) => '<label for="s_' + k + '">' + n + '</label><input type="range" id="s_' + k + '" min="' + a + '" max="' + b + '" value="' + Math.round(SET[k] * s) + '" oninput="setVal(\'' + k + '\',this.value/' + s + ')"><span id="v_' + k + '">' + fmtSet(k) + '</span>').join('') + '</div><button id="fsbtn" class="linkbtn" onclick="toggleFull()">' + fsLabel() + '</button>';
+  return '<div class="set">' + SLIDERS.map(([k, n, a, b, s]) => '<label for="s_' + k + '">' + n + '</label><input type="range" id="s_' + k + '" min="' + a + '" max="' + b + '" value="' + Math.round(SET[k] * s) + '" oninput="setVal(\'' + k + '\',this.value/' + s + ')"><span id="v_' + k + '">' + fmtSet(k) + '</span>').join('') + '</div><button id="fsbtn" class="linkbtn" onclick="toggleFull()">' + fsLabel() + '</button> <button id="gfxbtn" class="linkbtn" onclick="toggleGfx()">' + gfxLabel() + '</button>';
 }
 
 // Fullscreen: the game area fills the screen (the settings panel's button toggles it; Esc also leaves)
@@ -237,6 +237,15 @@ document.addEventListener('fullscreenchange', () => {
   setTimeout(resize, 50);
 });
 const fsLabel = () => document.fullscreenElement ? 'EXIT FULLSCREEN' : 'FULLSCREEN';
+// Graphics quality: HIGH has bloom, colour grading and sun shadows (graphics.js); LOW is faster
+const gfxLabel = () => 'GRAPHICS: ' + (SET.gfx ? 'HIGH' : 'LOW');
+function toggleGfx() {
+  SET.gfx = SET.gfx ? 0 : 1;
+  saveSet();
+  const b = $('gfxbtn');
+  if (b)
+    b.textContent = gfxLabel();
+}
 
 function setVal(k, v) {
   SET[k] = v;

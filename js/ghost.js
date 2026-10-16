@@ -57,8 +57,9 @@ function vehReset() {
   Object.assign(VEH, { on: false, drv: null, vx: 0, vz: 0, hp: VEH.max, boost: 1 });
   P.veh = 0;
   NET.vq = 0;
-  const hull = new THREE.MeshPhongMaterial({ color: 0x4a62a8, shininess: 70, specular: 0x8a9acc });
+  const hull = gfxShiny(new THREE.MeshPhongMaterial({ color: 0x4a62a8, shininess: 70, specular: 0x8a9acc }), .25);
   VEH.g = ghostMesh(hull);
+  gfxCaster(VEH.g);
   VEH.g.scale.setScalar(1.6);
   VEH.g.visible = false;
   envG.add(VEH.g);

@@ -47,9 +47,10 @@ function buildEnemy(t) {
   let tg = g;
   // skin and flesh: soft, armour and metal: glossy; all with the rim light
   const L = c => mcache('l' + c, () => rimify(new THREE.MeshPhongMaterial({ color: c, shininess: 12, specular: 0x222222 }), .3));
-  const Ph = (c, s) => mcache('p' + c + s, () => rimify(new THREE.MeshPhongMaterial({ color: c, shininess: s, specular: 0x777788 }), .35));
+  const Ph = (c, s) => mcache('p' + c + s, () => { const m = rimify(new THREE.MeshPhongMaterial({ color: c, shininess: s, specular: 0x777788 }), .35); return s >= 80 ? gfxShiny(m, .16) : m; });
   const glow = c => mcache('g' + c, () => new THREE.MeshBasicMaterial({ color: c }));
-  const armor = c => rimify(new THREE.MeshPhongMaterial({ color: c, shininess: 60, specular: 0x6a6a78 }), .45);
+  // armour reflects the level (CE's chrome-shiny Covenant armour)
+  const armor = c => gfxShiny(rimify(new THREE.MeshPhongMaterial({ color: c, shininess: 60, specular: 0x6a6a78 }), .45), .2);
   const B = (w, h, d) => gcache('b' + [w, h, d], () => new THREE.BoxGeometry(w, h, d));
   const S = () => gcache('s', () => new THREE.SphereGeometry(.5, 14, 10));
   const Hemi = () => gcache('h', () => new THREE.SphereGeometry(.5, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2));
@@ -626,6 +627,7 @@ function spawn(t, px, pz) {
   const dm = (1 + .55 * P.done.length) * (1 + .06 * Math.max(0, lroom - 1)) * DIFF.hp * (1 + (d.bn ? .9 : .25) * NET.others()); // bosses scale much harder with extra co-op players
   g.position.set(x, 0, z);
   scene.add(g);
+  gfxCaster(g);
   // Bosses get glowing weak points (a solid core plus a pulsing halo) attached to the model
   let crits = null;
   if (d.bn) {

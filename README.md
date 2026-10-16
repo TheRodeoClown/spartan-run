@@ -66,6 +66,7 @@ The full list is under **Controls** in the pause menu (Esc) and in Settings, whi
 - Warthog (Firefight, REQ level 2, 250 REQ): delivered beside the base. Walk up to a seat and press E: the driver's side (the mouse steers, W/S throttle and reverse, it drifts in hard turns, and it runs enemies over), the passenger's side (shoot your own weapons from the seat) or the chaingun in the back. It soaks most of the damage aimed at its crew and can be bought again once it's destroyed.
 - Compass (every mode): a heading strip across the top of the screen marks enemies (red, bosses orange), teammates (blue) and, in Firefight, REQ stations (yellow), generators under attack (cyan) and the latest enemy drop zone (purple). Versus shows directions only.
 - Shallow water (the Blood Gulch creek, the flooded pit on Arc Facility) is knee deep at most and slows you a little while you wade.
+- Halo: Combat Evolved look: bloom on glowing things, CE's saturated colour grade and vignette, real-time sun shadows from characters, vehicles and props, chrome-like reflective Covenant armour and weapons, drifting cloud layers and a glowing sun on outdoor levels, and the CE HUD (blue shield bar and segmented health top-right, ammo with bullet rows top-left, the motion tracker bottom-left, the broken-ring reticle). The settings panel has a GRAPHICS: HIGH/LOW toggle (LOW turns off bloom, grading and shadows).
 - Look: first-person weapons are fully modelled and held in armoured Spartan gloves (the MA40 and BR55 have working digital ammo counters, the Needler's crystals run down as you fire, Covenant weapons glow), and enemies have detailed armour, glowing trim and a stylized rim light.
 - Enemy tactics (every mode): ranged enemies fight from cover, hiding then stepping out (or standing up behind low cover) to fire, and move when flanked; they hold fire until they can see you. Jackal Snipers climb to high ground with a clear line of sight. Melee and suicide enemies rush you. Enemy plasma flies as fast glowing bolts.
 - Quarantine Zone: a Flood-infested swamp facility, with the Proto-Gravemind or the Flood Abomination as its boss.
@@ -87,6 +88,7 @@ js/               game code (classic scripts, loaded in this order)
   audio.js        Web Audio SFX, in-game score, title theme
   enemies.js      enemy models, spawning, damage
   levels.js       level definitions (LV) and arena builder
+  graphics.js     the CE look: post-processing (bloom, grade), sun shadows, reflections, skies
   gunmodels.js    the first-person weapon models and arms
   weapons.js      weapon table (W), viewmodels, firing, grenades, pickups
   meta.js         save data, armory upgrades, loadouts, legendary boons
