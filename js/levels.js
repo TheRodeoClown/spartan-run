@@ -462,6 +462,8 @@ function buildLevel(lv, empty) {
   edgeFn = null;
   waterFn = null;
   envTick = null;
+  HALLWAY.on = false;
+  HALL.field = null;
   // Cover layouts are authored for a 22m arena; spread them to the current size
   const lay = lv.lay.map(([x, z]) => [x * K, z * K]);
   scene.background.setHex(lv.fog);
@@ -1248,6 +1250,8 @@ function setGateOpen() {
     return;
   gate.open = true;
   gate.field.material.color.setHex(0x40ffa0);
+  // the hallway to the next room appears behind the gate (hall.js)
+  attachHall();
 }
 
 

@@ -497,6 +497,8 @@ function playerMove(dt, frz, f, s, m, sy, cy) {
       P.kbx = P.kbz = 0;
   }
   pushOut(P, .5);
+  // with a hallway open off the room, stay in the room or the hallway
+  hallKeep(ox, oz);
   // On hilly ground you can't walk up anything steeper than about 50 degrees (cliffs, the sides of a mesa): slide along
   // it instead. Stairs and decks don't count.
   if (groundFn && P.gnd) {
@@ -517,9 +519,9 @@ function playerMove(dt, frz, f, s, m, sy, cy) {
   }
   // Exit gate: once it's open, walk into it to move on (in co-op the host takes everyone through)
   if (gate && gate.open && state === 'play') {
-    gate.field.material.opacity = .3 + .2 * Math.sin(T * 5);
+    gate.field.material.opacity = gate.see ? .1 + .08 * Math.sin(T * 5) : .3 + .2 * Math.sin(T * 5);
     gate.chev.forEach((c, i) => c.material.opacity = .35 + .35 * Math.sin(T * 6 - i));
-    if (P.z < -IN + 3 && Math.abs(P.x) < 2.6 && !NET.down) {
+    if (P.z < -(HALLWAY.on ? HALLWAY.IN : IN) + 3 && Math.abs(P.x) < 2.6 && !NET.down) {
       if (NET.client)
         NET.gt = room;
       else {
