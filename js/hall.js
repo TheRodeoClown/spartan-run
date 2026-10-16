@@ -53,7 +53,13 @@ function enterHall(done) {
 
 // Every frame (from update): reached the far door?
 function hallTick() {
-  if (!HALL.on || state !== 'play' || !HALL.exit || Math.hypot(P.x - HALL.exit.x, P.z - HALL.exit.z) > 2.6)
+  if (!HALL.on || state !== 'play' || !HALL.exit)
+    return false;
+  const dd = Math.hypot(P.x - HALL.exit.x, P.z - HALL.exit.z);
+  // the far door slides open as you come up to it
+  if (dd < 10 && HALL.door && HALL.door.target < 1)
+    doorOpen(HALL.door, true);
+  if (dd > 2.6)
     return false;
   const d = HALL.done;
   HALL.on = false;
@@ -374,31 +380,21 @@ function buildHall(lv, mode) {
 
   /* ---- the door at the far end (open ahead of you; sealed at the end of a stub) ---- */
   const frameM = mat('gateFrame', () => new THREE.MeshPhongMaterial({ color: 0x30363d, shininess: 40, specular: 0x556070 }));
-  const door = (x, z, alongX, col, op) => {
-    const g = new THREE.Group();
-    [-2.4, 2.4].forEach(o => {
-      const p = new THREE.Mesh(B(.6, 4.4, .8), frameM);
-      p.position.set(o, 2.2, 0);
-      g.add(p);
-    });
-    const top = new THREE.Mesh(B(5.4, .6, .8), frameM);
-    top.position.y = 4.4;
-    g.add(top);
-    const f = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.1), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false }));
-    f.position.y = 2.05;
-    g.add(f);
-    g.position.set(x, 0, z);
-    g.rotation.y = alongX ? Math.PI / 2 : 0;
-    hallG.add(g);
-    return f;
+  const door = (x, z, alongX) => {
+    const d = makeDoor(false, 0xff4030);
+    d.g.position.set(x, 0, z);
+    d.g.rotation.y = alongX ? Math.PI / 2 : 0;
+    hallG.add(d.g);
+    return d;
   };
   const [dx, dz] = DIRS[endDir];
   const ex = ei * C + dx * (edge - .4);
   const ez = ej * C + dz * (edge - .4) * flip;
   if (stub)
-    door(ex, ez, endDir !== 'N', 0xff4030, .4);
+    door(ex, ez, endDir !== 'N');
   else {
-    HALL.field = door(ex, ez, endDir !== 'N', 0x40ffa0, .5);
+    HALL.door = door(ex, ez, endDir !== 'N');
+    HALL.field = HALL.door.light;
     HALL.exit = { x: ex - dx * .6, z: ez - dz * .6 + z0 };
     HALL.centre = centre.map(([i, j]) => [i * C, j * C + z0]);
     // chevrons on the floor pointing the way, every few cells
@@ -477,10 +473,8 @@ function buildHall(lv, mode) {
   }
   // a doorway through the room's north wall behind the gate, so you can see down the hallway through it
   cutWall(-1);
-  if (gate) {
+  if (gate)
     gate.see = true;
-    gate.field.material.opacity = .15;
-  }
   const prev = envTick;
   envTick = dt => {
     if (prev)
@@ -493,18 +487,9 @@ function buildHall(lv, mode) {
 // The open doorway you came in through, in the south wall behind you as a room starts, with the end of the hallway
 // you walked beyond it
 function addEntry() {
-  const g = new THREE.Group();
-  const frameM = mat('gateFrame', () => new THREE.MeshPhongMaterial({ color: 0x30363d, shininess: 40, specular: 0x556070 }));
-  [-2.4, 2.4].forEach(x => {
-    const p = new THREE.Mesh(new THREE.BoxGeometry(.6, 4.4, .8), frameM);
-    p.position.set(x, 2.2, 0);
-    g.add(p);
-  });
-  const top = new THREE.Mesh(new THREE.BoxGeometry(5.4, .6, .8), frameM);
-  top.position.y = 4.4;
-  g.add(top);
-  g.position.set(0, groundH(0, IN - .5), IN - .5);
-  envG.add(g);
+  const d = makeDoor(true, 0x40ffa0);
+  d.g.position.set(0, groundH(0, IN - .5), IN - .5);
+  envG.add(d.g);
   if (L && !L.ff && lroom > 1) {
     cutWall(1);
     buildHall(L, 'stub');
@@ -547,4 +532,76 @@ function cutWall(s) {
     if (sz.x < 7 && sz.y < 9 && sz.z < 7)
       envG.remove(o);
   });
+}
+
+/* ---------- Sliding doors ---------- */
+// A door after Halo's: an armoured frame, two heavy panels that part sideways (each with a hazard band and a glowing
+// seam on its inner edge) and a status light over it, red while it's locked, green when it opens. d.t runs from 0
+// (shut) to 1 (open), easing toward d.target (doorsTick).
+const DOORS = [];
+function makeDoor(open, col) {
+  const g = new THREE.Group();
+  const frameM = mat('gateFrame', () => new THREE.MeshPhongMaterial({ color: 0x30363d, shininess: 40, specular: 0x556070 }));
+  const panelM = mat('doorPanel', () => gfxShiny(new THREE.MeshPhongMaterial({ color: 0x5c6670, shininess: 70, specular: 0x8a96a4, map: ctex('doorPanelTex', 256, 256, 1, 1, DR.panel) }), .12));
+  const darkM = mat('doorDark', () => new THREE.MeshPhongMaterial({ color: 0x23272c, shininess: 30 }));
+  const hazM = mat('doorHaz', () => new THREE.MeshLambertMaterial({ map: ctex('doorHazTex', 128, 32, 2, 1, DR.hazard) }));
+  const box = (w, h, d, m, x, y, z, par) => {
+    const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    o.position.set(x, y, z);
+    (par || g).add(o);
+    return o;
+  };
+  [-2.4, 2.4].forEach(x => box(.6, 4.4, .9, frameM, x, 2.2, 0));
+  box(5.4, .6, .9, frameM, 0, 4.4, 0);
+  const lightM = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 1 });
+  const light = box(1.6, .16, 1, lightM, 0, 4.82, 0);
+  const seamM = new THREE.MeshBasicMaterial({ color: col });
+  const panels = [-1, 1].map(s => {
+    const p = new THREE.Group();
+    box(2.1, 4.1, .28, panelM, 0, 2.05, 0, p);
+    box(2.12, .3, .3, hazM, 0, 1.1, 0, p);
+    box(2.12, .1, .3, darkM, 0, 3.3, 0, p);
+    box(.3, 4.1, .32, darkM, s * .9, 2.05, 0, p);
+    box(.05, 3.4, .33, seamM, -s * 1.03, 2.05, 0, p);
+    g.add(p);
+    return p;
+  });
+  const d = { g, panels, light, seamM, t: open ? 1 : 0, target: open ? 1 : 0 };
+  doorSet(d);
+  DOORS.push(d);
+  return d;
+}
+
+function doorSet(d) {
+  d.panels.forEach((p, i) => p.position.x = (i ? 1 : -1) * (1.05 + d.t * 2.15));
+}
+
+// Open (or shut) a door, and set its status light
+function doorOpen(d, open) {
+  if (!d)
+    return;
+  if (open && d.target < 1 && Math.hypot(d.g.getWorldPosition(new THREE.Vector3()).x - P.x, d.g.getWorldPosition(new THREE.Vector3()).z - P.z) < 40)
+    sfx.recharge();
+  d.target = open ? 1 : 0;
+  const c = open ? 0x40ffa0 : 0xff4030;
+  d.light.material.color.setHex(c);
+  d.seamM.color.setHex(c);
+}
+
+// Every frame: the doors slide (doors no longer in the scene are forgotten)
+function doorsTick(dt) {
+  for (let i = DOORS.length - 1; i >= 0; i--) {
+    const d = DOORS[i];
+    let o = d.g;
+    while (o && o !== scene)
+      o = o.parent;
+    if (!o) {
+      DOORS.splice(i, 1);
+      continue;
+    }
+    if (Math.abs(d.target - d.t) > .001) {
+      d.t += (d.target - d.t) * Math.min(1, dt * 2.6);
+      doorSet(d);
+    }
+  }
 }

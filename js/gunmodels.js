@@ -140,20 +140,55 @@ function buildGun(k) {
     left(-.005, -.1, -.24);
   }
   else if (k === 'mg') {
-    // M6D Magnum: steel slide with a small smart-link sight, dark frame, angled grip; held one-handed
-    bx(.046, .05, .25, steel, 0, .03, -.09);
-    for (let i = 0; i < 5; i++)
-      bx(.048, .028, .006, dark, 0, .035, .0 - i * .014);
-    bx(.042, .035, .21, dark, 0, -.006, -.08);
-    cy(.012, .012, .03, black, 0, .03, -.225, Z);
-    cy(.018, .018, .09, dark, 0, .074, -.07, Z);
-    cy(.014, .014, .004, gGlow(0xff6a5a), 0, .074, -.117, Z);
-    bx(.008, .03, .008, dark, 0, .06, -.04);
-    bx(.042, .115, .058, black, 0, -.075, .035, .28);
-    bx(.03, .006, .05, steel, 0, -.03, -.02);
-    bx(.006, .04, .02, steel, 0, -.035, -.01);
-    bx(.022, .012, .02, dark, 0, .06, .03);
-    right(0, -.085, .035);
+    // M6D Magnum, after Halo: Combat Evolved's: a long brushed-silver slide with two stacked barrel ports at the
+    // muzzle, the angled smart-link sight block on top at the front (with its hex bolt), a serrated rear sight, a dark
+    // frame with a big angular trigger guard, a raked brown textured grip and the magazine showing under it.
+    const silver = gPh(0xa6abb0, 90, 0xe0e4e8);
+    const silverD = gPh(0x80868c, 70, 0xc0c4c8);
+    const gunm = gPh(0x45484c, 50);
+    const grip = gmat('mgGrip', () => new THREE.MeshPhongMaterial({ color: 0x6a3a2a, shininess: 18, specular: 0x3a2a24, map: ctex('mgGripTex', 64, 128, 1, 1, (g, w, h) => {
+      g.fillStyle = '#c8b4a8';
+      g.fillRect(0, 0, w, h);
+      g.fillStyle = 'rgba(40,20,14,.55)';
+      for (let y = 2; y < h; y += 5)
+        for (let x = (y % 10 ? 2 : 4.5); x < w; x += 5)
+          g.fillRect(x, y, 2, 2);
+      g.fillStyle = 'rgba(30,15,10,.6)';
+      g.fillRect(0, h * .3, w, 2);
+      g.fillRect(0, h * .62, w, 2);
+    }) }));
+    // the slide: long and squared off, a little taller at the back
+    bx(.052, .058, .29, silver, 0, .045, -.11);
+    bx(.054, .012, .27, silverD, 0, .018, -.11);
+    bx(.05, .02, .07, silverD, 0, .082, .005);
+    // serrated rear sight at the back of the slide
+    for (let i = 0; i < 6; i++)
+      bx(.056, .05, .005, gunm, 0, .05, .02 - i * .011);
+    bx(.03, .016, .03, gunm, 0, .1, .02);
+    // the muzzle: two stacked rounded barrel ports, dark inside
+    [.068, .03].forEach(y => {
+      cy(.017, .017, .03, silverD, 0, y, -.26, Z, 0, 0, 12);
+      cy(.011, .011, .032, black, 0, y, -.262, Z, 0, 0, 10);
+    });
+    bx(.05, .02, .03, silverD, 0, .05, -.26);
+    // the smart-link sight block on top at the front, sloping down at the back, with a hex bolt on its side
+    bx(.054, .045, .12, silver, 0, .095, -.19);
+    bx(.054, .035, .06, silver, 0, .088, -.118, .55);
+    cy(.012, .012, .008, silverD, .029, .095, -.2, 0, 0, Math.PI / 2, 6);
+    cy(.005, .005, .01, gunm, .029, .095, -.2, 0, 0, Math.PI / 2, 6);
+    bx(.03, .006, .1, gGlow(0x7fd8ff), 0, .118, -.19);
+    // the frame under the slide, the big angular trigger guard and the trigger
+    bx(.046, .03, .2, gunm, 0, .0, -.12);
+    bx(.012, .075, .014, gunm, 0, -.045, -.195, -.25);
+    bx(.012, .012, .13, gunm, 0, -.085, -.13);
+    bx(.012, .03, .012, gunm, 0, -.07, -.07);
+    bx(.008, .04, .01, silverD, 0, -.035, -.115, .35);
+    // the grip, raked back, brown and textured, with the magazine poking out under it
+    bx(.046, .13, .062, grip, 0, -.065, .015, .22);
+    bx(.048, .02, .066, gunm, 0, -.005, .0, .22);
+    bx(.036, .04, .05, black, 0, -.14, .045, .22);
+    bx(.042, .012, .058, gunm, 0, -.162, .05, .22);
+    right(0, -.085, .03);
   }
   else if (k === 'sg') {
     // M90: heavy receiver, long barrel over a tube magazine, ribbed pump, heat shield, stock

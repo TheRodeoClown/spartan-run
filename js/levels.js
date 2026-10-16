@@ -1219,18 +1219,10 @@ function addGate(on) {
   if (!on)
     return;
   const g = new THREE.Group();
-  const dark = mat('gateFrame', () => new THREE.MeshPhongMaterial({ color: 0x30363d, shininess: 40, specular: 0x556070 }));
-  [-2.4, 2.4].forEach(x => {
-    const p = new THREE.Mesh(new THREE.BoxGeometry(.6, 4.4, .8), dark);
-    p.position.set(x, 2.2, 0);
-    g.add(p);
-  });
-  const top = new THREE.Mesh(new THREE.BoxGeometry(5.4, .6, .8), dark);
-  top.position.y = 4.4;
-  g.add(top);
-  const field = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.1), new THREE.MeshBasicMaterial({ color: 0xff4030, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false }));
-  field.position.y = 2.05;
-  g.add(field);
+  // a sliding door (hall.js), shut and red-lit until the room is cleared
+  const door = makeDoor(false, 0xff4030);
+  g.add(door.g);
+  const field = door.light;
   // chevrons on the ground pointing at the gate, lit once it opens
   const chev = [];
   for (let i = 0; i < 3; i++) {
@@ -1242,14 +1234,15 @@ function addGate(on) {
   }
   g.position.set(0, 0, -IN + .5);
   envG.add(g);
-  gate = { g, field, chev, open: false };
+  gate = { g, field, chev, door, open: false };
 }
 
 function setGateOpen() {
   if (!gate)
     return;
   gate.open = true;
-  gate.field.material.color.setHex(0x40ffa0);
+  // the door slides open
+  doorOpen(gate.door, true);
   // the hallway to the next room appears behind the gate (hall.js)
   attachHall();
 }

@@ -423,6 +423,7 @@ function makeChoices() {
 
 function tick(dt) {
   animGun(dt);
+  doorsTick(dt);
   if (envTick)
     envTick(dt);
   cam.fov += ((zoomOn && P && P.wpn !== 'sw' ? (P.wpn === 'sn' ? 18 : P.wpn === 'br' ? 37 : 45) : P && P.spr && state === 'play' ? 83 : 75) - cam.fov) * Math.min(1, dt * 12);
@@ -519,7 +520,7 @@ function playerMove(dt, frz, f, s, m, sy, cy) {
   }
   // Exit gate: once it's open, walk into it to move on (in co-op the host takes everyone through)
   if (gate && gate.open && state === 'play') {
-    gate.field.material.opacity = gate.see ? .1 + .08 * Math.sin(T * 5) : .3 + .2 * Math.sin(T * 5);
+    gate.field.material.opacity = .65 + .35 * Math.sin(T * 5);
     gate.chev.forEach((c, i) => c.material.opacity = .35 + .35 * Math.sin(T * 6 - i));
     if (P.z < -(HALLWAY.on ? HALLWAY.IN : IN) + 3 && Math.abs(P.x) < 2.6 && !NET.down) {
       if (NET.client)
