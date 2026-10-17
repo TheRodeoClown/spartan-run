@@ -157,8 +157,7 @@ function setupRoom() {
   clearHz();
   drops.forEach(d => scene.remove(d.m));
   drops = [];
-  L.lay = roomLayout(L, lroom);
-  L.seed = L.id + lroom;
+  applyRoomGen(L, lroom);
   buildLevel(L);
   P.x = 0;
   P.z = A * .64;
@@ -233,8 +232,10 @@ function refillAmmo() {
 function startLevel(i) {
   clearHz();
   // A copy, so the run's boss pick and per-room layout don't change the level table
-  L = Object.assign({}, LV[i], pickBoss(LV[i]), { lay0: LV[i].lay, seed: LV[i].id + 1 });
+  // rs: this run's seed for the mission's generated rooms (procgen.js; co-op players get it from the host)
+  L = Object.assign({}, LV[i], pickBoss(LV[i]), { lay0: LV[i].lay, rs: 1 + Math.floor(Math.random() * 1e9) });
   lroom = 0;
+  applyRoomGen(L, 1);
   buildLevel(L);
   refillAmmo();
   P.x = 0;

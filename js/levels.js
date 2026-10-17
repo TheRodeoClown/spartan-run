@@ -973,6 +973,9 @@ function buildLevel(lv, empty) {
         add(new THREE.OctahedronGeometry(.45), cy, x, 4.6, z);
       });
   }
+  // the generated room's climbable structures (procgen.js)
+  if (lv.st)
+    procStructures(lv, add);
   // shadows, sky and the reflection cubemap (graphics.js)
   gfxLevel(lv);
 }
@@ -1077,6 +1080,9 @@ function missionGround(lv, lay) {
       f *= smooth01((Math.min(Math.abs(x), Math.abs(z)) - 1) / 2.5);
     for (const [px, pz] of lay)
       f *= smooth01((Math.hypot(x - px, z - pz) - 2.4) / 2.2);
+    // and under the room's structures (procgen.js)
+    for (const s of lv.st || [])
+      f *= smooth01((stDist(s, x, z) - .8) / 2.5);
     return Math.max(0, h) * f;
   };
 }
@@ -1164,7 +1170,7 @@ function scatterProps(lv, lay, add) {
   for (let tries = 0; n < 90 && tries < 400; tries++) {
     const x = R(-A + 2, A - 2);
     const z = R(-A + 2, A - 2);
-    if (Math.abs(x) + Math.abs(z) > OCT - 2 || lay.some(([px, pz]) => Math.abs(x - px) < 2.2 && Math.abs(z - pz) < 2.2))
+    if (Math.abs(x) + Math.abs(z) > OCT - 2 || lay.some(([px, pz]) => Math.abs(x - px) < 2.2 && Math.abs(z - pz) < 2.2) || (lv.st || []).some(s => stDist(s, x, z) < .6))
       continue;
     // Keep the Forerunner platform and the relay's floor rings clear
     if ((lv.sty === 'fr' || lv.sty === 'sn') && Math.hypot(x, z) < OUTDOOR[lv.sty].flat - 1)
@@ -1179,37 +1185,15 @@ function scatterProps(lv, lay, add) {
 }
 
 /* ---------- Rooms and bosses ----------
-   A mission is a run of separate rooms: each has its own cover layout and ground (deterministic from the level and
-   room number, so co-op players match), you enter from the south and leave through the exit gate on the north wall.
-   The first room and the boss arena use the level's hand-made layout. */
+   A mission is a run of separate rooms, each generated fresh every run (procgen.js: its size, cover, ground and
+   climbable structures, from the level, the run's seed and the room number, so co-op players match); you enter from
+   the south and leave through the exit gate on the north wall. */
 
 // The mission's boss for this run, from the level's pool (an entry is a boss key, or { boss, bossN, bn } for a group)
 function pickBoss(lv) {
   const pool = lv.bosses || [lv.boss];
   const b = pool[Math.random() * pool.length | 0];
   return typeof b === 'string' ? { boss: b, bossN: 1, bn: undefined } : { boss: b.boss, bossN: b.bossN || 1, bn: b.bn };
-}
-
-// Cover positions for room lr, in the 22m layout units buildLevel scales by K
-function roomLayout(lv, lr) {
-  const base = lv.lay0 || lv.lay;
-  if (lr <= 1 || lr > lv.rooms)
-    return base;
-  let sd = 11 + lr * 977;
-  for (const c of lv.id)
-    sd = (sd * 31 + c.charCodeAt(0)) % 2147483647;
-  const rnd = () => (sd = sd * 16807 % 2147483647) / 2147483647;
-  const n = 6 + (rnd() * 4 | 0);
-  const out = [];
-  for (let t = 0; out.length < n && t < 300; t++) {
-    const x = Math.round((rnd() * 2 - 1) * 16);
-    const z = Math.round((rnd() * 2 - 1) * 16);
-    // inside the octagon, clear of your entry point, the exit lane and each other
-    if (Math.abs(x) + Math.abs(z) > 22 || Math.hypot(x, z - 14) < 4.5 || (Math.abs(x) < 3.5 && z < -11) || out.some(([a, b]) => Math.hypot(a - x, b - z) < 5))
-      continue;
-    out.push([x, z]);
-  }
-  return out;
 }
 
 // Exit gate on the north wall: a red energy field while the room is live, green once you can leave

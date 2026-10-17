@@ -508,7 +508,7 @@ function netWorld() {
     Object.assign(w, { win: NET.win || '', tl: Math.max(0, Math.ceil(NET.mt)), pw: NET.pw.map(q => [q.id, q.k, q.x, q.z]) });
   else if (NET.started)
     Object.assign(w, {
-      kb: NET.kb, lv: L ? L.id : '', rm: room, lr: lroom, bk: L ? L.boss : '', bN: L ? L.bossN || 1 : 1, bnm: L && L.bn || '', bt: Math.round(bossTotal), out: NET.out,
+      kb: NET.kb, lv: L ? L.id : '', rm: room, lr: lroom, bk: L ? L.boss : '', bN: L ? L.bossN || 1 : 1, bnm: L && L.bn || '', rs: L ? L.rs || 0 : 0, bt: Math.round(bossTotal), out: NET.out,
       // [id, type, x, z, facing, hp, shield, flags (1 flash, 2 primed, 4 invulnerable, 8 cloaked, 16/32 shield bash, 64 camo revealed), sword angle, flier height]
       en: enemies.filter(e => !e.dead && !e.net).slice(0, 40).map(e => {
         const a = [e.id, ETK.indexOf(e.t), r1(e.x), r1(e.z), r2(e.g.rotation.y), Math.round(e.hp), Math.round(e.sh), (e.flash > 0 ? 1 : 0) | (e.kf > 0 ? 2 : 0) | (e.inv > T ? 4 : 0) | (e.g.visible ? 0 : 8) | ((e.lean || 0) > 0 ? 16 : (e.lean || 0) < 0 ? 32 : 0) | (e.camoRev > 0 ? 64 : 0)];
@@ -748,13 +748,12 @@ function clientEnter(w) {
     return;
   netClearGhosts();
   clearHz();
-  // Every room is rebuilt the same way the host built it (same layout and ground from the level and room number)
-  const newMission = !L || L.id !== lv.id;
+  // Every room is rebuilt the same way the host built it (generated from the level, the run's seed and the room number)
+  const newMission = !L || L.id !== lv.id || L.rs !== (+w.rs || 0);
   if (newMission || +w.lr !== lroom) {
-    L = Object.assign({}, lv, { boss: ET[w.bk] && ET[w.bk].bn ? w.bk : lv.boss, bossN: +w.bN || 1, bn: w.bnm ? String(w.bnm).slice(0, 40) : undefined, lay0: lv.lay });
+    L = Object.assign({}, lv, { boss: ET[w.bk] && ET[w.bk].bn ? w.bk : lv.boss, bossN: +w.bN || 1, bn: w.bnm ? String(w.bnm).slice(0, 40) : undefined, lay0: lv.lay, rs: +w.rs || 0 });
     lroom = +w.lr;
-    L.lay = roomLayout(L, lroom);
-    L.seed = L.id + lroom;
+    applyRoomGen(L, lroom);
     buildLevel(L);
     if (newMission)
       refillAmmo();
@@ -839,7 +838,7 @@ function coopClient(w, dt) {
   // Ghosts first, so kills in the room's final update still count
   if (state === 'play')
     netGhosts(w, dt);
-  if ((w.s === 'p' || w.s === 'g') && (+w.rm !== room || !L || L.id !== w.lv)) {
+  if ((w.s === 'p' || w.s === 'g') && (+w.rm !== room || !L || L.id !== w.lv || (L.rs || 0) !== (+w.rs || 0))) {
     clientEnter(w);
     // Joined while the exit was already open
     if (w.s === 'g') {
