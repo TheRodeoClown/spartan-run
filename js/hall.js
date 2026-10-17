@@ -21,7 +21,8 @@
  *   flood  - a Forerunner hall overrun by the Flood (343 Guilty Spark): dim green light, flesh growths everywhere
  *   canyon - an open-air path between boulder walls under the sky (Halo, Blood Gulch), grass, sand or snow
  *   bunker - a UNSC outpost tunnel: concrete, hanging lamps, hazard stripes, supply crates
- * The layout is seeded from the level and room, so a co-op squad all walk the same hallway.
+ * The layout is seeded from the level, the run and the room, so a co-op squad all walk the same hallway. Past its far
+ * door a hallway carries on round a corner (the door opens onto more hallway, not a dead end).
  */
 
 // HALL: the walk in progress (on, done = what happens at the far door, exit = where that door is)
@@ -91,9 +92,9 @@ function hallKeep(ox, oz) {
 function buildHall(lv, mode) {
   const stub = mode === 'stub';
   const rm = stub ? lroom - 1 : lroom;
-  // the layout and look are seeded from the level and room (the same for a whole co-op squad)
+  // the layout and look are seeded from the level, the run and the room (the same for a whole co-op squad)
   let sd = 1;
-  for (const ch of lv.id + ':' + rm)
+  for (const ch of lv.id + ':' + (lv.rs || 0) + ':' + rm)
     sd = (sd * 31 + ch.charCodeAt(0)) % 2147483647;
   sd = sd || 7;
   const rnd = () => (sd = sd * 16807 % 2147483647) / 2147483647;
@@ -139,6 +140,20 @@ function buildHall(lv, mode) {
   const endDir = dir;
   const ei = ci;
   const ej = cj * flip;
+  // past the far door the hallway carries on a few cells and turns a corner, so the door opens onto more hallway
+  // (not a dead end); a bulkhead closes the rest of its width round the door (see below)
+  if (!stub) {
+    let xi = ci;
+    let xj = cj;
+    let xd = dir;
+    for (let k = 0; k < 6 + half; k++) {
+      if (k === 3 + half)
+        xd = xd === 'N' ? (rnd() < .5 ? 'E' : 'W') : 'N';
+      xi += DIRS[xd][0];
+      xj += DIRS[xd][1];
+      mark(xi, xj);
+    }
+  }
   const edge = (half + .5) * C;
   // the hallway's back edge meets the room's wall: z0 shifts the whole grid into place
   const z0 = stub ? IN - 1 + edge : -IN + 1 - edge;
@@ -267,6 +282,13 @@ function buildHall(lv, mode) {
   });
   // across the corridor at a centreline cell: the frame's span and orientation
   const across = (i, j, d) => ({ x: i * C, z: j * C, span: (half * 2 + 1) * C, alongX: d !== 'N' });
+  // is centreline cell n at (or within the corridor's width of) a corner?
+  const nearTurn = n => {
+    for (let k = Math.max(0, n - half - 1); k < Math.min(centre.length - 1, n + half + 1); k++)
+      if (centre[k][2] !== centre[k + 1][2])
+        return true;
+    return false;
+  };
 
   /* ---- the styles ---- */
   if (style === 'unsc' || style === 'bunker') {
@@ -327,7 +349,8 @@ function buildHall(lv, mode) {
         put(B(w.ax === 'x' ? .14 : .05, 1.6, w.ax === 'z' ? .14 : .05), glowM(0x8fc8ff), ...onWall(w, t, .17, 2.2));
     });
     centre.forEach(([i, j, d], n) => {
-      if (n % 3)
+      // (not at a corner, where a rib would stand across the way in)
+      if (n % 3 || nearTurn(n))
         return;
       const a = across(i, j, d);
       // arched ribs: two curved halves meeting overhead
@@ -377,7 +400,7 @@ function buildHall(lv, mode) {
       });
       centre.forEach(([i, j]) => {
         if (rnd() < .35)
-          put(new THREE.SphereGeometry(1, 10, 8), F.flesh, i * C + (rnd() - .5) * 3, rnd() < .5 ? .1 : H - .2, j * C + (rnd() - .5) * 3, 0, rnd() * 3, 0, .6 + rnd() * .6, .3 + rnd() * .3, .6 + rnd() * .5);
+          put(new THREE.SphereGeometry(1, 10, 8), F.flesh, i * C + (rnd() - .5) * 3, rnd() < .5 ? .05 : H - .2, j * C + (rnd() - .5) * 3, 0, rnd() * 3, 0, .6 + rnd() * .6, .15 + rnd() * .15, .6 + rnd() * .5);
         if (rnd() < .2)
           put(new THREE.CylinderGeometry(.04, .09, 2.2, 6), F.rot, i * C + (rnd() - .5) * 3, H - 1.1, j * C + (rnd() - .5) * 3);
       });
@@ -386,13 +409,38 @@ function buildHall(lv, mode) {
   else {
     // canyon: boulder walls under the open sky, the ground of the level, grass, sand or snow
     const rockM = mat('hallRock' + lv.sty, () => new THREE.MeshPhongMaterial({ color: lv.sty === 'sn' ? 0xb8c4cc : lv.sty === 'ds' ? 0x9a7650 : 0x6a6458, flatShading: true, shininess: 6 }));
+    // the middle of the path (every cell with path all round it) stays clear: a boulder that would reach into it,
+    // round a corner or at the end of a wall, is pushed back out into the wall
+    const interior = [...cells].map(k => k.split(',').map(Number)).filter(([i, j]) => {
+      for (let a = -1; a <= 1; a++)
+        for (let b = -1; b <= 1; b++)
+          if (!cells.has(key(i + a, j + b)))
+            return false;
+      return true;
+    });
+    const clearOf = (x, z, r) => interior.every(([i, j]) => {
+      const qx = Math.max(Math.abs(x - i * C) - C / 2, 0);
+      const qz = Math.max(Math.abs(z - j * C) - C / 2, 0);
+      return qx * qx + qz * qz >= r * r;
+    });
+    // boulders stand upright (stretched tall, spun round, only a slight tilt), so the stretch never leans into the path
+    const boulder = (w, t, r, o0, y, sy) => {
+      const reach = r * (1 + .25 * sy);
+      for (let o = o0; o < o0 + reach * 1.5; o += .4) {
+        const p = onWall(w, t, -o, y);
+        if (clearOf(p[0], p[2], reach)) {
+          put(new THREE.DodecahedronGeometry(r), rockM, ...p, (rnd() - .5) * .4, rnd() * 6.28, (rnd() - .5) * .4, 1, sy, 1);
+          return;
+        }
+      }
+    };
     walls.forEach(w => {
       for (let t = -w.len / 2; t <= w.len / 2; t += 2.2) {
         const r = 1.6 + rnd() * 1.8;
-        put(new THREE.DodecahedronGeometry(r), rockM, ...onWall(w, t + rnd() - .5, -r * .55, r * .6), rnd() * 3, rnd() * 3, 0, 1, 1.3 + rnd() * 1.1, 1);
+        boulder(w, t + rnd() - .5, r, r * .55, r * .6, 1.3 + rnd() * 1.1);
         if (rnd() < .35) {
           const r2 = 2.5 + rnd() * 2.5;
-          put(new THREE.DodecahedronGeometry(r2), rockM, ...onWall(w, t, -r2 - 1.5, r2 * 1.4), rnd() * 3, rnd() * 3, 0, 1, 1.6, 1);
+          boulder(w, t, r2, r2 + 1.5, r2 * 1.4, 1.6);
         }
       }
     });
@@ -400,7 +448,8 @@ function buildHall(lv, mode) {
     eachCell((x, z) => {
       if (rnd() < .35)
         put(new THREE.ConeGeometry(.12 + rnd() * .1, .3 + rnd() * .4, 4), mat('hallTuft' + tuft, () => new THREE.MeshLambertMaterial({ color: tuft })), x + (rnd() - .5) * C, .15, z + (rnd() - .5) * C);
-      if (rnd() < .12) {
+      // pebbles only toward the edges, off the middle of the path
+      if (rnd() < .12 && clearOf(x, z, .9)) {
         const o = .2 + rnd() * .35;
         put(new THREE.DodecahedronGeometry(o), rockM, x + (rnd() - .5) * C, o * .4, z + (rnd() - .5) * C, rnd() * 3, rnd() * 3, 0);
       }
@@ -430,6 +479,22 @@ function buildHall(lv, mode) {
   else {
     HALL.door = door(ex, ez, endDir !== 'N');
     HALL.field = HALL.door.light;
+    // the bulkhead the far door sits in: solid either side of it out to the hallway's walls, and above it
+    const alongX = endDir !== 'N';
+    const bh = (H || 6) + .3;
+    const bm = mat('gateFrame', () => new THREE.MeshPhongMaterial({ color: 0x30363d, shininess: 40, specular: 0x556070 }));
+    const side = edge - 2.7;
+    [-1, 1].forEach(s => {
+      const o = s * (2.7 + side / 2);
+      const bx = ex + (alongX ? 0 : o);
+      const bz = ez + (alongX ? o : 0);
+      if (side > .05) {
+        put(B(alongX ? .7 : side, bh, alongX ? side : .7), bm, bx, bh / 2, bz);
+        pillars.push({ x: bx, z: bz + z0, hw: alongX ? .35 : side / 2, hd: alongX ? side / 2 : .35, h: 12 });
+      }
+    });
+    if (bh > 5)
+      put(B(alongX ? .7 : 5.4, bh - 4.7, alongX ? 5.4 : .7), bm, ex, (bh + 4.7) / 2, ez);
     HALL.exit = { x: ex - dx * .6, z: ez - dz * .6 + z0 };
     HALL.centre = centre.map(([i, j]) => [i * C, j * C + z0]);
     // chevrons on the floor pointing the way, every few cells
