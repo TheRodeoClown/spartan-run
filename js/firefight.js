@@ -3,8 +3,9 @@
  * Classic script (no modules): all files share one global scope, so load order in index.html matters.
  *
  * Five timed rounds with escalating objectives: clear the area, defend the generators, eliminate the commanders,
- * defend the core, and a legendary boss. Dead players respawn at the base after 5s; the team loses if a round's
- * clock runs out (or both generators fall in a defend round). Kills earn REQ points to spend at the REQ station in
+ * defend the core, and a legendary boss. Dead players respawn after 5s, at the base or, while an objective is being
+ * defended, at a forward drop pad beside it; the team loses if a round's clock runs out (or both generators fall in
+ * a defend round). Kills earn REQ points to spend at the REQ station in
  * the base (E): weapons, resupply, an overshield, and legendary variants as the REQ level rises each round.
  *
  * It rides on co-op multiplayer: the host runs the enemies and the rounds (ffUpdate), and publishes the firefight
@@ -36,6 +37,9 @@ const FF_STATIONS = [[0, -47], [-51, -15], [58, -6], [4, 47], [34, -49]];
 // Objectives, spread out so the fights cover the whole map: [x, z, name, health]. Round 2 defends the two generators
 // out in the south (A by the landing pad, B by the refinery); round 4 the core, up in the north by the flooded rig.
 const FF_GENS = [[32, -112, 'A', 1000], [-28, -110, 'B', 1000], [14, 32, 'C', 1600]];
+// Forward drop pads by each objective [x, z, objective index]: while one is being (or about to be) defended, the dead
+// redeploy here instead of back at the base
+const FF_FWD = [[29, -97, 0], [-21, -94, 1], [13, 16, 2]];
 // Enemy drop zones all round the base: [centre x, centre z, name]. Each squad picks one away from the players. Names
 // follow the compass (compass.js), seen from the base: north is +z, east is -x.
 const FF_ZONES = [[0, 78, 'NORTH'], [-40, 70, 'NORTH-EAST'], [60, 30, 'NORTH-WEST'], [-52, 18, 'THE MESA'], [-64, -40, 'EAST'], [70, -36, 'WEST'],
@@ -108,6 +112,25 @@ function ffSetup() {
     envG.add(g);
     pillars.push({ x, z, hw: .9, hd: .9, h: y + 2.8 });
     return { gen: true, name, x, y, z, hp: max, max, g, core, beam, flash: 0, pv: max, hitAt: -99 };
+  });
+  // Forward drop pads: a hexagonal pad with a glowing rim and a beacon post, lit while it's in use
+  FF.pads = FF_FWD.map(([x, z, gi]) => {
+    const g = new THREE.Group();
+    const y = groundH(x, z);
+    const pad = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.4, .16, 6), metal);
+    pad.position.y = .08;
+    const rimM = new THREE.MeshBasicMaterial({ color: 0x5ff0ff, transparent: true, opacity: .25 });
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(2.1, .06, 4, 6), rimM);
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.y = .18;
+    const post = new THREE.Mesh(new THREE.BoxGeometry(.18, 2.4, .18), metal);
+    post.position.set(2.1, 1.2, 0);
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(.3, .3, .3), rimM);
+    lamp.position.set(2.1, 2.5, 0);
+    g.add(pad, rim, post, lamp);
+    g.position.set(x, y, z);
+    envG.add(g);
+    return { x, z, gi, rimM };
   });
   vehReset();
   hogReset();
@@ -403,9 +426,12 @@ function ffTick(dt) {
     g.beam.material.opacity = obj === 'next' ? .08 : .16;
     g.core.material.color.setHex(g.hp <= 0 ? 0x202428 : g.flash > 0 ? 0xffffff : k > .5 ? 0x5ff0ff : k > .25 ? 0xffc040 : 0xff4a3a);
   });
+  // the forward pad in use glows
+  const ap = ffPad();
+  (FF.pads || []).forEach(p => p.rimM.opacity = p === ap ? .6 + .3 * Math.sin(T * 4) : .2);
   vehTick(dt);
   hogTick(dt);
-  // respawn at the base
+  // respawn (at the base, or a forward pad by the objective)
   if (NET.down && state === 'play') {
     NET.resp -= dt;
     if (NET.resp <= 0)
@@ -425,17 +451,38 @@ function ffObjective() {
   return FF.ph === 'break' && N && N.kind === 'defend' ? 'next' : null;
 }
 
+// The forward pad in use, if any: the one by the objective being defended (or about to be), and with two generators
+// up, the one in more trouble
+function ffPad() {
+  const obj = ffObjective();
+  if (!obj || !FF.pads)
+    return null;
+  const gs = ffActive(obj === 'now' ? FF.round : FF.round + 1).filter(g => g.hp > 0).sort((a, b) => a.hp / a.max - b.hp / b.max);
+  return gs.length ? FF.pads.find(p => FF.gens[p.gi] === gs[0]) : null;
+}
+
 function ffRespawn() {
   netRevive();
   refillAmmo();
   P.nades = Math.max(P.nades, Math.min(2, P.nadeMax));
-  const s = FF_SPAWNS[Math.random() * FF_SPAWNS.length | 0];
-  P.x = s[0];
-  P.z = s[1];
+  const pad = ffPad();
+  if (pad) {
+    // at the forward pad, facing the objective
+    const g = FF.gens[pad.gi];
+    P.x = pad.x + R(-1.2, 1.2);
+    P.z = pad.z + R(-1.2, 1.2);
+    yaw = Math.atan2(-(g.x - P.x), -(g.z - P.z));
+    banner('REDEPLOYED: ' + (g.name === 'C' ? 'THE CORE' : 'GENERATOR ' + g.name));
+  }
+  else {
+    const s = FF_SPAWNS[Math.random() * FF_SPAWNS.length | 0];
+    P.x = s[0];
+    P.z = s[1];
+    yaw = Math.PI;
+    banner('REDEPLOYED');
+  }
   P.y = groundH(P.x, P.z);
   P.vy = 0;
-  yaw = Math.PI;
-  banner('REDEPLOYED');
 }
 
 function ffText() {

@@ -1688,6 +1688,7 @@ function netReset() {
   netCleanup();
   FF.on = false;
   FF.gens = [];
+  FF.pads = [];
   FF.stations = [];
   NET.ffMode = 0;
   Object.assign(NET, { mode: null, host: false, client: false, down: 0, menu: 0, started: false, ui: null, me: null, phase: 'lobby', ep: 0, vep: -1, win: '', paid: 0, rd: 0, joinT: 0, joined: 0, hostGone: 0, outSeen: null, kb: {}, kbSeen: null, uiK: '', w: null, next: 'r', modeKnown: 0 });

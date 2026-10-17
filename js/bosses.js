@@ -39,10 +39,34 @@ function updHz(dt) {
 
 const gm = (geo, c, o) => new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide }));
 
-function ringAt(x, z, r0, r1, c, o) {
+// Where something falling out of the sky at (x, z) lands: the highest surface there (a roof, catwalk or tower top
+// before the ground), so strikes hit the roof of a building rather than passing through it onto whoever is inside
+function skyTop(x, z) {
+  let y = floorH(x, z, 1e4);
+  for (const p of pillars)
+    if (p.v && !p.nb && p.h > y && Math.abs(x - p.x) <= (p.hw == null ? 1.5 : p.hw) && Math.abs(z - p.z) <= (p.hd == null ? 1.5 : p.hd))
+      y = p.h;
+  return y;
+}
+// Is a body with its feet at y standing on (or near) a strike that lands at height top? (under a roof it's sheltered)
+const onTop = (y, top) => Math.abs((y || 0) - top) < 2.2;
+// A strike from the sky landing at (x, top, z): damage every player within rad of it who is on that surface
+function strikeHit(x, top, z, rad, dmg) {
+  const near = q => Math.hypot(q.x - x, q.z - z) < rad && onTop(q.y, top);
+  if (near(P))
+    hurt(dmg);
+  if (NET.host)
+    netRemotes().forEach(r => {
+      if (near(r))
+        netOut(r, dmg);
+    });
+}
+
+// A marker ring on the ground, or on the surface at y when given
+function ringAt(x, z, r0, r1, c, o, y) {
   const m = gm(new THREE.RingGeometry(r0, r1, 48), c, o);
   m.rotation.x = -Math.PI / 2;
-  m.position.set(x, groundH(x, z) + .05, z);
+  m.position.set(x, (y == null ? groundH(x, z) : y) + .05, z);
   scene.add(m);
   return m;
 }
@@ -101,9 +125,11 @@ const MOVES = {
       const sx = e.x;
       const sz = e.z;
       const sy = (e.y || 0) + 1.6 * e.sc;
-      const gy = groundH(tx, tz) + .3;
+      // they land on whatever you stand on (a roof or a catwalk, not the ground under it)
+      const fy = floorH(tx, tz, (tg.y || 0) + .5);
+      const gy = fy + .3;
       const orb = gm(new THREE.SphereGeometry(.22, 10, 8), 0x7fe0ff, 1);
-      const ring = ringAt(tx, tz, 2.9, 3.2, 0x7fe0ff, 0);
+      const ring = ringAt(tx, tz, 2.9, 3.2, 0x7fe0ff, 0, fy);
       scene.add(orb);
       let t = -i * .15;
       hz.push({
@@ -333,9 +359,11 @@ const MOVES = {
     pts.forEach(([x, z], i) => {
       let t = -i * .12;
       let hit = false;
-      const ring = ringAt(x, z, 1.7, 2, BOSSKIT[e.t].col, 0);
+      // the pillar strikes the highest surface there (a roof shelters whoever is under it)
+      const top = skyTop(x, z);
+      const ring = ringAt(x, z, 1.7, 2, BOSSKIT[e.t].col, 0, top);
       const col = gm(new THREE.CylinderGeometry(2, 2, 14, 24, 1, true), BOSSKIT[e.t].col, 0);
-      col.position.set(x, 7, z);
+      col.position.set(x, top + 7, z);
       scene.add(col);
       hz.push({
         ms: [ring, col], upd(dt) {
@@ -352,7 +380,7 @@ const MOVES = {
             ring.material.opacity = 0;
             if (i === 0)
               sfx.boom();
-            if (Math.hypot(tg.x - x, tg.z - z) < 2)
+            if (Math.hypot(tg.x - x, tg.z - z) < 2 && onTop(tg.y, top))
               hitP(tg, 28);
           }
           col.material.opacity -= dt * 2;
@@ -369,9 +397,10 @@ const MOVES = {
     for (let i = 0; i < 4; i++) {
       const tx = clamp(tg.x + (i ? R(-6, 6) : 0), -A + 2, A - 2);
       const tz = clamp(tg.z + (i ? R(-6, 6) : 0), -A + 2, A - 2);
-      const gy = groundH(tx, tz);
+      // it lands on the highest surface there: a roof, not the floor of the building under it
+      const gy = skyTop(tx, tz);
       const orb = gm(new THREE.SphereGeometry(.4, 10, 8), col, 1);
-      const ring = ringAt(tx, tz, 3.5, 3.8, col, 0);
+      const ring = ringAt(tx, tz, 3.5, 3.8, col, 0, gy);
       scene.add(orb);
       let t = -i * .25;
       hz.push({
@@ -383,7 +412,9 @@ const MOVES = {
           orb.position.set(tx, gy + Math.max(0, 30 * (1 - t / 1.4)), tz);
           if (t < 1.4)
             return true;
-          explode(tx, gy + .3, tz, 3.8, 0, 26, 'n', true);
+          // the blast (its damage only reaches whoever is on the surface it hit, not anyone under a roof)
+          explode(tx, gy + .3, tz, 3.8, 0, 0, 'n', true);
+          strikeHit(tx, gy, tz, 3.8, 26);
           return false;
         }
       });
