@@ -247,7 +247,8 @@ function knockP(q, vx, vz) {
 
 function hitP(q, d) {
   if (q && q.gen) {
-    q.hp = Math.max(0, q.hp - d);
+    // Firefight objectives hold out longer with fewer players (firefight.js)
+    q.hp = Math.max(0, q.hp - d * ffGenMul());
     q.flash = .12;
     return;
   }
@@ -1678,7 +1679,8 @@ function mpMenu(prefill) {
     + '<div class="cards sm"><button class="card" style="text-align:center" onclick="netHost(\'coop\',false)"><b>HOST CO-OP</b><small>Up to 4 Spartans clear the missions together</small></button>'
     + '<button class="card" style="text-align:center;border-color:#c9a227" onclick="netHost(\'coop\',true)"><b style="color:#ffd060">HOST CO-OP LEGENDARY</b><small>Tougher squads, 1.5x credits</small></button>'
     + '<button class="card" style="text-align:center;border-color:#e5534b" onclick="netHost(\'vs\',false)"><b style="color:#ff8a80">HOST VERSUS</b><small>Free-for-all on Blood Gulch, first to ' + WIN_KILLS + ' kills</small></button>'
-    + '<button class="card" style="text-align:center;border-color:#b48cff" onclick="netHost(\'ff\',false)"><b style="color:#d2b8ff">HOST FIREFIGHT</b><small>Warzone Firefight: 5 rounds of objectives and bosses, REQ weapons</small></button></div>'
+    + '<button class="card" style="text-align:center;border-color:#b48cff" onclick="netHost(\'ff\',false)"><b style="color:#d2b8ff">HOST FIREFIGHT</b><small>Warzone Firefight: 5 rounds of objectives and bosses, REQ weapons; scales to your squad</small></button>'
+    + '<button class="card" style="text-align:center;border-color:#b48cff" onclick="ffSolo()"><b style="color:#d2b8ff">SOLO FIREFIGHT</b><small>The same, on your own (no connection needed)</small></button></div>'
     + '<div style="color:#99a28f;font-size:13px">JOIN A FRIEND\'S GAME</div>'
     + '<div style="display:flex;gap:8px"><input id="mpc" maxlength="6" placeholder="CODE" value="' + code + '" style="font:inherit;font-size:20px;letter-spacing:.2em;width:140px;text-align:center;text-transform:uppercase;padding:6px;background:#12150f;color:#e6eadf;border:1px solid #3a4533;border-radius:4px" onkeydown="if(event.key===\'Enter\')netJoin(this.value)"><button class="card" style="text-align:center;width:auto;' + (code ? 'border-color:#9bc45a' : '') + '" onclick="netJoin($(\'mpc\').value)"><b>JOIN</b></button></div>'
     + '<button class="card" style="text-align:center;width:auto" onclick="startTitle()">BACK</button>';
@@ -1900,8 +1902,12 @@ function netSend(dt) {
 }
 
 function netTick(dt) {
-  if (!NET.r)
+  if (!NET.r) {
+    // solo Firefight has no connection but still runs its per-page upkeep (respawns, objective lights)
+    if (FF.on)
+      ffTick(dt);
     return;
+  }
   if (NET.r.full) {
     netLeave('That game is full (' + MAXP + ' players).');
     return;

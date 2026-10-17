@@ -149,6 +149,14 @@ function ffSetup() {
   lock();
 }
 
+// Solo Firefight: the same match with no connection, played as a host with no guests (it scales to one player)
+function ffSolo() {
+  netReset();
+  Object.assign(NET, { mode: 'coop', ffMode: 1, host: true, client: false, lg: false, phase: 'p', ep: 1, modeKnown: 1, started: true });
+  NET.ui = null;
+  ffStart();
+}
+
 // Host: start the match (the first round begins after a short countdown)
 function ffStart() {
   newRun(false, true);
@@ -176,7 +184,14 @@ const ffActive = r => {
   return R0 && R0.gens ? R0.gens.map(i => FF.gens[i]).filter(Boolean) : [];
 };
 const ffGensUp = () => ffActive(FF.round).filter(g => g.hp > 0);
-const ffCap = () => 10 + 3 * NET.others();
+// How many players are in the match (1 solo, up to 4; every page can count them): Firefight scales to it. More players
+// means more enemies at once, more and bigger squads and faster reinforcements; fewer means objectives that hold out
+// longer and more REQ per kill (enemy and boss health also scale per player, in spawn)
+const ffN = () => clamp(1 + Object.keys(NET.rp).length, 1, 4);
+const ffCap = () => 3 + 4 * ffN();
+const ffPace = () => 1.3 - .1 * ffN();
+const ffGenMul = () => [.65, .8, .9, 1][ffN() - 1];
+const ffReqMul = () => [1.5, 1.25, 1.1, 1][ffN() - 1];
 
 function ffPick() {
   const r = FF.round;
@@ -282,7 +297,7 @@ function ffBeginRound() {
   FF.ph = 'play';
   FF.t = R0.time;
   FF.spawnT = 3.5;
-  FF.left = R0.squads || 0;
+  FF.left = R0.squads ? 3 + ffN() : 0;
   FF.annT = T;
   lroom = FF.round * 2; // enemies get a little tougher each round (see spawn)
   if (R0.kind === 'defend')
@@ -365,18 +380,18 @@ function ffUpdate(dt) {
   FF.spawnT -= dt;
   const alive = ffAlive();
   if (R0.kind === 'clear') {
-    if (FF.left > 0 && alive < 8 && FF.spawnT <= 0) {
-      ffSquad(4 + NET.others());
+    if (FF.left > 0 && alive < ffCap() && FF.spawnT <= 0) {
+      ffSquad(2 + ffN());
       FF.left--;
-      FF.spawnT = 5;
+      FF.spawnT = 5 * ffPace();
     }
     if (FF.left <= 0 && !alive)
       return ffRoundWon();
   }
   else if (R0.kind === 'defend') {
     if (alive < ffCap() && FF.spawnT <= 0) {
-      ffSquad(R0.n.includes('CORE') ? 5 : 4);
-      FF.spawnT = R0.n.includes('CORE') ? 5 : 7;
+      ffSquad(2 + Math.ceil(ffN() * .6) + (R0.n.includes('CORE') ? 1 : 0));
+      FF.spawnT = (R0.n.includes('CORE') ? 5 : 7) * ffPace();
     }
     if (!ffGensUp().length)
       return ffLose(R0.gens.length > 1 ? 'THE GENERATORS WERE DESTROYED' : 'THE CORE WAS DESTROYED');
@@ -386,8 +401,8 @@ function ffUpdate(dt) {
   else {
     // commanders / boss: escorts keep coming until the bosses fall
     if (alive < ffCap() - 2 && FF.spawnT <= 0) {
-      ffSquad(3);
-      FF.spawnT = 9;
+      ffSquad(1 + Math.ceil(ffN() / 2));
+      FF.spawnT = 9 * ffPace();
     }
     if (!enemies.some(e => e.boss && !e.dead))
       return ffRoundWon();
@@ -402,7 +417,7 @@ function ffUpdate(dt) {
 function ffReward(e) {
   if (!FF.on)
     return;
-  P.req = (P.req || 0) + (e.boss ? 200 : FF_PTS[e.t] || 10);
+  P.req = (P.req || 0) + Math.round((e.boss ? 200 : FF_PTS[e.t] || 10) * ffReqMul());
   FF.kills++;
 }
 
