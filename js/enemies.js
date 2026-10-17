@@ -855,6 +855,12 @@ function buildEnemy(t) {
   return { g, mat, aura, sw, kg, legs, arm };
 }
 
+// How aggressive enemies are by now, 0 to 1: it climbs with each room cleared in a run (most of the way by the third
+// mission) or each Firefight round (all the way by the fifth and last)
+function aggLevel() {
+  return clamp(L && L.ff ? (FF.round - 1) / 4 : (room - 1) / 16, 0, 1);
+}
+
 // px, pz: optional fixed position (boss summons); otherwise a random spot at least 14m from the player.
 function spawn(t, px, pz) {
   const d = ET[t];
@@ -893,6 +899,17 @@ function spawn(t, px, pz) {
     });
   }
   enemies.push({ ...d, t, x, z, id: ++NET.eid, fr: d.fr * DIFF.fr, bs: d.bs * DIFF.bs, g, mat, aura, sw, kg, crits, legs, arm, px: x, pz: z, ph: R(0, 6.28), gs: 0, kf: 0, lcd: R(.3, 1), lunge: 0, wind: 0, swing: 0, hp: d.hp * dm * rk[0], sh: d.sh * dm * rk[1], maxhp: d.hp * dm * rk[0], maxsh: d.sh * dm * rk[1], boss: !!d.bn, sumT: 8, cd: R(1.2, 2.4), dir: Math.random() < .5 ? 1 : -1, dirT: R(1, 3), flash: 0 });
+  // Aggression (0-1), rising through a run: they fire more often, move a little faster and fight from closer in
+  // (bosses half as much); see also ai.js and the melee in main.js
+  {
+    const e = enemies[enemies.length - 1];
+    e.agg = aggLevel();
+    const k = e.boss ? .5 : 1;
+    e.fr *= 1 - .3 * e.agg * k;
+    e.sp *= 1 + .15 * e.agg * k;
+    if (e.pref)
+      e.pref *= 1 - .3 * e.agg * k;
+  }
   // Active camouflage: body and sword get their own see-through materials (bo: each one's normal opacity)
   if (d.camo) {
     const e = enemies[enemies.length - 1];

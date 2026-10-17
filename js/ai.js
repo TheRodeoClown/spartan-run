@@ -264,6 +264,12 @@ function aiUpdate(e, tg, dt, d, panic) {
       e.crouch = 0;
       return false;
     }
+    // the more aggressive they are, the more often they skip cover and push in on you for a few seconds
+    if (Math.random() < .4 * (e.agg || 0)) {
+      a.nf = e.pushT = R(2, 3.5);
+      e.crouch = 0;
+      return false;
+    }
     const c = aiPickCover(e, tg);
     if (!c) {
       a.nf = R(1.5, 3);
@@ -309,7 +315,7 @@ function aiUpdate(e, tg, dt, d, panic) {
     crouch = c.low ? .55 * e.sc : 0;
     if (a.t <= 0) {
       a.st = 'peek';
-      a.t = R(1.3, 2.5);
+      a.t = R(1.3, 2.5) * (1 + .6 * (e.agg || 0));
       e.cd = Math.min(e.cd, R(.25, .6));
     }
   }
@@ -321,7 +327,7 @@ function aiUpdate(e, tg, dt, d, panic) {
       a.t = .35;
     if (a.t <= 0) {
       a.st = 'hide';
-      a.t = R(1, 2.2);
+      a.t = R(1, 2.2) * (1 - .5 * (e.agg || 0));
     }
   }
   e.crouch = (e.crouch || 0) + (crouch - (e.crouch || 0)) * Math.min(1, dt * 8);

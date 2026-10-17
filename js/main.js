@@ -49,7 +49,8 @@ function update(dt) {
     const d = Math.hypot(dx, dz) || 1;
     const nx = dx / d;
     const nz = dz / d;
-    const panic = e.panic && e.hp < e.maxhp * .4;
+    // Grunts flee when hurt (less readily as they grow more aggressive)
+    const panic = e.panic && e.hp < e.maxhp * .4 * (1 - .6 * (e.agg || 0));
     // Melee enemies (Sword Elites) close in and barely strafe; lunging triples their speed.
     // Ranged enemies fight from cover and snipers find high ground (ai.js); the rest rush, strafe or hold range
     const ex0 = e.x;
@@ -57,7 +58,10 @@ function update(dt) {
     if (e.veh && !e.busy)
       ghostAI(e, tg, dt, d, nx, nz);
     else if (e.busy || !aiUpdate(e, tg, dt, d, panic)) {
-      const mv = e.busy ? 0 : panic ? -1.3 : e.kami ? 1 : e.melee ? (d > 1.8 && e.wind <= 0 ? 1 : 0) : d > e.pref + 3 ? 1 : d < e.pref - 3 ? -1 : 0;
+      // pushing in (aggressive enemies, ai.js): half their usual range
+      e.pushT = (e.pushT || 0) - dt;
+      const pref = e.pref * (e.pushT > 0 ? .5 : 1);
+      const mv = e.busy ? 0 : panic ? -1.3 : e.kami ? 1 : e.melee ? (d > 1.8 && e.wind <= 0 ? 1 : 0) : d > pref + 3 ? 1 : d < pref - 3 ? -1 : 0;
       const st = e.kami || e.busy ? 0 : e.melee ? .15 : e.fly ? 1 : .5;
       const spd = e.sp * (e.lunge > 0 ? 3.2 : 1);
       e.x += (nx * mv - nz * e.dir * st) * spd * dt;
@@ -173,7 +177,7 @@ function update(dt) {
       }
       else if (e.mcd <= 0 && !e.busy && near) {
         e.mwind = .25;
-        e.mcd = R(1.3, 1.8);
+        e.mcd = R(1.3, 1.8) * (1 - .35 * (e.agg || 0));
         e.cd = Math.max(e.cd, .7);
       }
       if (e.mhit > 0) {
@@ -192,7 +196,7 @@ function update(dt) {
       e.lunge -= dt;
       if (e.lcd <= 0 && d < 7 && d > 3 && e.wind <= 0) {
         e.lunge = .3;
-        e.lcd = R(2.5, 4);
+        e.lcd = R(2.5, 4) * (1 - .4 * (e.agg || 0));
       }
       if (e.wind > 0) {
         e.wind -= dt;

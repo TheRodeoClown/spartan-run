@@ -1080,6 +1080,8 @@ function missionGround(lv, lay) {
       f *= smooth01((Math.min(Math.abs(x), Math.abs(z)) - 1) / 2.5);
     for (const [px, pz] of lay)
       f *= smooth01((Math.hypot(x - px, z - pz) - 2.4) / 2.2);
+    // and in front of the exit gate and the doorway you come in by (the hallways meet the room at ground level)
+    f *= smooth01((Math.hypot(x, Math.max(0, IN - 7 - Math.abs(z))) - 3.5) / 3);
     // and under the room's structures (procgen.js)
     for (const s of lv.st || [])
       f *= smooth01((stDist(s, x, z) - .8) / 2.5);

@@ -142,7 +142,9 @@ function buildHall(lv, mode) {
   const edge = (half + .5) * C;
   // the hallway's back edge meets the room's wall: z0 shifts the whole grid into place
   const z0 = stub ? IN - 1 + edge : -IN + 1 - edge;
-  // the level's scenery outside the walls (trees, rocks, drifts) where the hallway runs is cleared away
+  // the level's scenery outside the walls where the hallway runs is cleared away, whatever its size (trees, rocks,
+  // drifts, ruins, and the background hills and dunes a long hallway would otherwise run into); the ground, the sky,
+  // the room itself and the hallways and doors stay
   {
     const bb = new THREE.Box3();
     const sz = new THREE.Vector3();
@@ -156,20 +158,26 @@ function buildHall(lv, mode) {
       }
       return false;
     };
+    const FLAT = ['PlaneGeometry', 'CircleGeometry', 'RingGeometry'];
     envG.children.slice().forEach(o => {
-      if (!o.isMesh || !o.geometry)
+      if (o.isMesh ? !o.geometry || FLAT.includes(o.geometry.type) : !o.isGroup)
+        return;
+      if (o.userData.hall || GFX_SKY.includes(o) || DOORS.some(d => d.g === o) || (gate && o === gate.g))
         return;
       bb.setFromObject(o);
+      if (bb.isEmpty())
+        return;
       bb.getSize(sz);
       const cx = (bb.min.x + bb.max.x) / 2;
       const cz = (bb.min.z + bb.max.z) / 2;
-      if (sz.x > 12 || sz.z > 12 || (Math.abs(cx) < IN + .6 && Math.abs(cz) < IN + .6))
+      if (Math.max(sz.x, sz.z) > 600 || bb.max.y < .15 || (Math.abs(cx) < IN + .6 && Math.abs(cz) < IN + .6))
         return;
       if (near(bb.min.x, bb.max.x, bb.min.z, bb.max.z))
         envG.remove(o);
     });
   }
   const hallG = new THREE.Group();
+  hallG.userData.hall = stub ? 'stub' : 'attach';
   hallG.position.set(0, .02, z0);
   envG.add(hallG);
 
